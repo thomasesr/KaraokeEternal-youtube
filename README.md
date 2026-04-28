@@ -20,6 +20,39 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
 - Dynamic queues keep parties fair, fun and no-fuss
 - Fully self-hosted
 - No ads or telemetry
+- **YouTube integration** (this fork): search YouTube directly from the
+  library, auto-tag tracks via MusicBrainz, and queue them into the
+  current room without a folder rescan.
+
+## YouTube integration
+
+This fork adds an opt-in YouTube workflow so any logged-in user can pull
+karaoke tracks straight into their room's queue.
+
+- **Search:** Press <kbd>Enter</kbd> (or tap the YouTube button) in the
+  library search bar to query YouTube. Results are biased toward karaoke
+  versions; falls back to a plain query when nothing matches.
+- **Auto-tagging via MusicBrainz:** On download, the video title is
+  cleaned (strips `(Karaoke Version)`, `[Lyrics]`, `(HD)`, `- Topic`,
+  etc.) and looked up against MusicBrainz. If the top match meets the
+  admin-configured minimum score, it's used silently; otherwise the user
+  is prompted to confirm artist + song title (a second MusicBrainz pass
+  canonicalizes their input).
+- **Smart filenames:** Files land in your configured download folder as
+  `Artist - Title.mp4`, sanitized for cross-platform filesystems.
+  Duplicates auto-suffix as ` - yt1`, ` - yt2`, …
+- **Direct ingest:** No folder rescan required. The download is inserted
+  into the library (`artists` / `songs` / `media` rows) and the requesting
+  user's queue, then broadcast to the room over the existing socket.
+- **Quality + cookies:** Admin can cap resolution (best / 1080p / 720p /
+  480p / 360p) and provide a Netscape `cookies.txt` for age-gated or
+  region-locked videos.
+- **API key handling:** YouTube Data API v3 key can be set via the admin
+  UI or the `KES_YOUTUBE_API_KEY` env var (env wins).
+- **Room safety:** If the user's room is deleted mid-download, the
+  finished file is removed and the queue insert is skipped.
+
+Requires `yt-dlp` on the server's `PATH` for downloads.
 
 Microphones are *not* required since the player itself only outputs music - this allows your audio setup to be as simple or complex as you like. See the [F.A.Q.](https://www.karaoke-eternal.com/faq/#recommended-audio-microphone-setup) for more information.
 
