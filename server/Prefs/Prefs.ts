@@ -19,7 +19,7 @@ class Prefs {
     {
       const query = sql`
         SELECT * FROM prefs
-        WHERE key != 'jwtKey'
+        WHERE key NOT IN ('jwtKey', 'youtubeApiKey', 'youtubeCookies')
       `
       const rows = db.all<{ key: string, data: string }>(String(query), query.parameters)
 
@@ -154,6 +154,78 @@ class Prefs {
       UPDATE paths
       SET data = json_set(data, ${keys[0]}, json(${JSON.stringify(values[0])}))
       WHERE pathId = ${pathId}
+    `
+    db.run(String(query), query.parameters)
+  }
+
+  /**
+   * Get YouTube Data API key (admin/server only — never expose to clients).
+   * Precedence:
+   *   1. `KES_YOUTUBE_API_KEY` env var (Docker/12-factor friendly)
+   *   2. value stored in the prefs table
+   */
+  static getYoutubeApiKey (): string | null {
+    const envKey = process.env.KES_YOUTUBE_API_KEY?.trim()
+    if (envKey) return envKey
+
+    const query = sql`
+      SELECT data FROM prefs
+      WHERE key = 'youtubeApiKey'
+    `
+    const row = db.get<{ data: string }>(String(query), query.parameters)
+    return row?.data ? JSON.parse(row.data) : null
+  }
+
+  /**
+   * Whether the API key is locked by env var (cannot be cleared/overridden via API)
+   */
+  static isYoutubeApiKeyFromEnv (): boolean {
+    return !!process.env.KES_YOUTUBE_API_KEY?.trim()
+  }
+
+  /**
+   * Get YouTube cookies.txt contents (admin/server only — never expose to clients).
+   * Used by yt-dlp to access age-gated / region-locked content.
+   */
+  static getYoutubeCookies (): string | null {
+    const query = sql`
+      SELECT data FROM prefs
+      WHERE key = 'youtubeCookies'
+    `
+    const row = db.get<{ data: string }>(String(query), query.parameters)
+    return row?.data ? JSON.parse(row.data) : null
+  }
+
+  /**
+   * Set or clear YouTube cookies.txt contents
+   */
+  static setYoutubeCookies (text: string | null): void {
+    if (text === null || text === '') {
+      const query = sql`DELETE FROM prefs WHERE key = 'youtubeCookies'`
+      db.run(String(query), query.parameters)
+      return
+    }
+
+    const query = sql`
+      REPLACE INTO prefs (key, data)
+      VALUES ('youtubeCookies', ${JSON.stringify(text)})
+    `
+    db.run(String(query), query.parameters)
+  }
+
+  /**
+   * Set or clear YouTube Data API key
+   */
+  static setYoutubeApiKey (key: string | null): void {
+    if (key === null || key === '') {
+      const query = sql`DELETE FROM prefs WHERE key = 'youtubeApiKey'`
+      db.run(String(query), query.parameters)
+      return
+    }
+
+    const query = sql`
+      REPLACE INTO prefs (key, data)
+      VALUES ('youtubeApiKey', ${JSON.stringify(key)})
     `
     db.run(String(query), query.parameters)
   }

@@ -12,3 +12,10 @@ node_modules/
 *.tsbuildinfo
 .hugo_build.lock
 .vscode
+
+# local-only project memory (may contain secrets / tokens)
+CLAUDE.md
+CLAUDE.local.md
+cookie.txt
+cookies.txt
+.claude/

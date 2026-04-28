@@ -114,10 +114,26 @@ export interface Media {
   duration: number
 }
 
+export type YoutubeQualityPreset = 'best' | '1080p' | '720p' | '480p' | '360p'
+
+export const YOUTUBE_QUALITY_PRESETS: YoutubeQualityPreset[] = ['best', '1080p', '720p', '480p', '360p']
+
+export interface IYoutubePrefs {
+  isEnabled: boolean
+  downloadPathId: number | null
+  useCookies: boolean
+  qualityPreset: YoutubeQualityPreset
+  musicbrainzMinScore: number
+  isApiKeyConfigured: boolean
+  isApiKeyFromEnv: boolean
+  isCookiesConfigured: boolean
+}
+
 export interface Prefs {
   isFirstRun?: boolean
   isScanning: boolean
   isReplayGainEnabled: boolean
+  youtube?: IYoutubePrefs
   paths: {
     result: number[]
     entities: Record<number, Path>
