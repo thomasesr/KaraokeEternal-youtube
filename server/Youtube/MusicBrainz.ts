@@ -2,8 +2,29 @@ import { db } from '../lib/Database.js'
 import sql from 'sqlate'
 import getLogger from '../lib/Log.js'
 import { createRequire } from 'module'
+import { fileURLToPath } from 'url'
+import path from 'path'
+import fs from 'fs'
 
-const pkg = createRequire(import.meta.url)('../../package.json') as { version: string }
+function findPackageJson (startDir: string): string {
+  let dir = startDir
+  const root = path.parse(dir).root
+  while (dir !== root) {
+    const candidate = path.join(dir, 'package.json')
+    if (fs.existsSync(candidate)) return candidate
+    dir = path.dirname(dir)
+  }
+  throw new Error('package.json not found')
+}
+
+const pkg = (() => {
+  try {
+    const pkgPath = findPackageJson(path.dirname(fileURLToPath(import.meta.url)))
+    return createRequire(import.meta.url)(pkgPath) as { version: string }
+  } catch {
+    return { version: '0.0.0' }
+  }
+})()
 
 const log = getLogger('MusicBrainz')
 
