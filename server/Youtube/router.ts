@@ -4,8 +4,14 @@ import Prefs from '../Prefs/Prefs.js'
 import { YoutubeService, YoutubeApiError } from './YoutubeService.js'
 import { Downloader, DownloaderError } from './Downloader.js'
 import { searchByTitle, searchByArtistTitle } from './MusicBrainz.js'
-import type { IYoutubePrefs, Prefs as PrefsType, YoutubeQualityPreset } from '../../shared/types.js'
-import { YOUTUBE_QUALITY_PRESETS } from '../../shared/types.js'
+import type {
+  IYoutubeAccess,
+  IYoutubePrefs,
+  Prefs as PrefsType,
+  YoutubeQualityPreset,
+  YoutubeRole,
+} from '../../shared/types.js'
+import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ROLES } from '../../shared/types.js'
 
 interface RequestWithBody {
   body: Record<string, unknown>
@@ -20,6 +26,25 @@ const DEFAULT_CONFIG: Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEn
   useCookies: false,
   qualityPreset: 'best',
   musicbrainzMinScore: 80,
+  allowedRoles: ['admin'],
+}
+
+function normalizeAllowedRoles (input: unknown): YoutubeRole[] {
+  const roles = new Set<YoutubeRole>(['admin'])
+  if (Array.isArray(input)) {
+    for (const r of input) {
+      if (typeof r === 'string' && (YOUTUBE_ROLES as string[]).includes(r)) {
+        roles.add(r as YoutubeRole)
+      }
+    }
+  }
+  return YOUTUBE_ROLES.filter(r => roles.has(r))
+}
+
+function getUserRole (ctxUser: { isAdmin?: boolean, isGuest?: boolean } | undefined): YoutubeRole {
+  if (ctxUser?.isAdmin) return 'admin'
+  if (ctxUser?.isGuest) return 'guest'
+  return 'standard'
 }
 
 const API_KEY_RE = /^[A-Za-z0-9_-]{20,128}$/
@@ -42,6 +67,9 @@ function getStoredConfig (): Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKe
       && stored.musicbrainzMinScore >= 0 && stored.musicbrainzMinScore <= 100
       ? stored.musicbrainzMinScore
       : DEFAULT_CONFIG.musicbrainzMinScore,
+    allowedRoles: stored.allowedRoles === undefined
+      ? [...DEFAULT_CONFIG.allowedRoles]
+      : normalizeAllowedRoles(stored.allowedRoles),
   }
 }
 
@@ -58,6 +86,10 @@ function requireEnabled (ctx: any): ReturnType<typeof getStoredConfig> {
   if (!ctx.user?.userId) ctx.throw(401)
   const cfg = getStoredConfig()
   if (!cfg.isEnabled) ctx.throw(503, 'YouTube integration is disabled')
+  const role = getUserRole(ctx.user)
+  if (!cfg.allowedRoles.includes(role)) {
+    ctx.throw(403, 'Your account is not allowed to use YouTube')
+  }
   return cfg
 }
 
@@ -96,6 +128,17 @@ router.put('/config', (ctx) => {
       ctx.throw(422, 'musicbrainzMinScore must be a number between 0 and 100')
     }
     next.musicbrainzMinScore = Math.round(v as number)
+  }
+
+  if ('allowedRoles' in body) {
+    const v = body.allowedRoles
+    if (!Array.isArray(v)) ctx.throw(422, 'allowedRoles must be an array')
+    for (const r of v as unknown[]) {
+      if (typeof r !== 'string' || !(YOUTUBE_ROLES as string[]).includes(r)) {
+        ctx.throw(422, `allowedRoles entries must be one of: ${YOUTUBE_ROLES.join(', ')}`)
+      }
+    }
+    next.allowedRoles = normalizeAllowedRoles(v)
   }
 
   if ('downloadPathId' in body) {
@@ -147,6 +190,19 @@ router.put('/config', (ctx) => {
   }
 
   ctx.body = getFullConfig()
+})
+
+router.get('/access', (ctx) => {
+  if (!ctx.user?.userId) ctx.throw(401)
+  const cfg = getStoredConfig()
+  const role = getUserRole(ctx.user)
+  const body: IYoutubeAccess = {
+    isEnabled: cfg.isEnabled,
+    hasAccess: cfg.isEnabled && cfg.allowedRoles.includes(role),
+    downloadPathConfigured: cfg.downloadPathId !== null,
+    musicbrainzMinScore: cfg.musicbrainzMinScore,
+  }
+  ctx.body = body
 })
 
 router.get('/search', async (ctx) => {

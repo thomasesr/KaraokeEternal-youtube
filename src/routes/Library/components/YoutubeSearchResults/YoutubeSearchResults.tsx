@@ -33,8 +33,8 @@ function formatDuration (sec: number): string {
 
 const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
   const dispatch = useAppDispatch()
-  const { isSearching, searchError, searchQuery, searchResults, downloads, config } = useAppSelector(state => state.youtube)
-  const downloadPathConfigured = config?.downloadPathId != null
+  const { isSearching, searchError, searchQuery, searchResults, downloads, access } = useAppSelector(state => state.youtube)
+  const downloadPathConfigured = !!access?.downloadPathConfigured
   const pollRef = useRef<number | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
   const [identifyingId, setIdentifyingId] = useState<string | null>(null)

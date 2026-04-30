@@ -87,6 +87,7 @@ export const PREFS_REQ_SCANNER_STOP = 'prefs/REQ_SCANNER_STOP'
 // YouTube
 export const YOUTUBE_CONFIG_REQUEST = 'youtube/CONFIG_REQUEST'
 export const YOUTUBE_CONFIG_SAVE = 'youtube/CONFIG_SAVE'
+export const YOUTUBE_ACCESS_REQUEST = 'youtube/ACCESS_REQUEST'
 export const YOUTUBE_SEARCH_REQUEST = 'youtube/SEARCH_REQUEST'
 export const YOUTUBE_DOWNLOAD_START = 'youtube/DOWNLOAD_START'
 export const YOUTUBE_DOWNLOAD_STATUS = 'youtube/DOWNLOAD_STATUS'

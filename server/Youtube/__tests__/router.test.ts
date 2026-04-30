@@ -8,11 +8,17 @@ import { YoutubeService, YoutubeApiError } from '../YoutubeService.js'
 import { Downloader } from '../Downloader.js'
 import * as MB from '../MusicBrainz.js'
 
-interface FakeUser { userId: number | null, isAdmin: boolean, name: string, roomId: number | null }
+interface FakeUser {
+  userId: number | null
+  isAdmin: boolean
+  isGuest?: boolean
+  name: string
+  roomId: number | null
+}
 
 let server: http.Server
 let baseUrl: string
-let currentUser: FakeUser = { userId: 1, isAdmin: true, name: 'admin', roomId: 1 }
+let currentUser: FakeUser = { userId: 1, isAdmin: true, isGuest: false, name: 'admin', roomId: 1 }
 
 beforeAll(async () => {
   const app = new Koa()
@@ -44,7 +50,7 @@ const buildPrefsResult = (overrides: Record<string, unknown> = {}) => ({
 })
 
 beforeEach(() => {
-  currentUser = { userId: 1, isAdmin: true, name: 'admin', roomId: 1 }
+  currentUser = { userId: 1, isAdmin: true, isGuest: false, name: 'admin', roomId: 1 }
   // default safe stubs so getFullConfig() never hits the real DB
   vi.spyOn(Prefs, 'getYoutubeCookies').mockReturnValue(null)
 })
@@ -55,21 +61,30 @@ afterEach(() => {
 
 describe('YouTube router — auth', () => {
   it('rejects non-admin on /config', async () => {
-    currentUser = { userId: 2, isAdmin: false, name: 'guest', roomId: 1 }
+    currentUser = { userId: 2, isAdmin: false, isGuest: false, name: 'standard', roomId: 1 }
     const res = await fetch(`${baseUrl}/api/youtube/config`)
     expect(res.status).toBe(401)
   })
 
   it('rejects unauthenticated on /search', async () => {
-    currentUser = { userId: null, isAdmin: false, name: 'anon', roomId: null }
+    currentUser = { userId: null, isAdmin: false, isGuest: false, name: 'anon', roomId: null }
     const res = await fetch(`${baseUrl}/api/youtube/search?q=foo`)
     expect(res.status).toBe(401)
   })
 
-  it('allows non-admin on /search when YouTube enabled', async () => {
-    currentUser = { userId: 2, isAdmin: false, name: 'guest', roomId: 1 }
+  it('rejects non-admin on /search when role not in allowedRoles (default)', async () => {
+    currentUser = { userId: 2, isAdmin: false, isGuest: false, name: 'standard', roomId: 1 }
     vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
       youtube: { isEnabled: true, downloadPathId: null, useCookies: false },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
+    expect(res.status).toBe(403)
+  })
+
+  it('allows standard user on /search when role explicitly allowed', async () => {
+    currentUser = { userId: 2, isAdmin: false, isGuest: false, name: 'standard', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'standard'] },
     }) as any)
     vi.spyOn(YoutubeService, 'search').mockResolvedValue([])
 
@@ -78,8 +93,28 @@ describe('YouTube router — auth', () => {
     expect(await res.json()).toEqual([])
   })
 
+  it('allows guest on /search when role explicitly allowed', async () => {
+    currentUser = { userId: 3, isAdmin: false, isGuest: true, name: 'guest-x', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'guest'] },
+    }) as any)
+    vi.spyOn(YoutubeService, 'search').mockResolvedValue([])
+
+    const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects guest on /search when only standard allowed', async () => {
+    currentUser = { userId: 3, isAdmin: false, isGuest: true, name: 'guest-x', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'standard'] },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
+    expect(res.status).toBe(403)
+  })
+
   it('rejects non-admin on PUT /config', async () => {
-    currentUser = { userId: 2, isAdmin: false, name: 'guest', roomId: 1 }
+    currentUser = { userId: 2, isAdmin: false, isGuest: false, name: 'standard', roomId: 1 }
     const res = await fetch(`${baseUrl}/api/youtube/config`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -104,6 +139,7 @@ describe('YouTube router — GET /config', () => {
       useCookies: false,
       qualityPreset: 'best',
       musicbrainzMinScore: 80,
+      allowedRoles: ['admin'],
       isApiKeyConfigured: false,
       isApiKeyFromEnv: false,
       isCookiesConfigured: false,
@@ -127,6 +163,7 @@ describe('YouTube router — GET /config', () => {
       useCookies: true,
       qualityPreset: 'best',
       musicbrainzMinScore: 80,
+      allowedRoles: ['admin'],
       isApiKeyConfigured: true,
       isApiKeyFromEnv: false,
       isCookiesConfigured: true,
@@ -298,6 +335,44 @@ describe('YouTube router — PUT /config', () => {
     })
     expect(res.status).toBe(200)
     expect(apiKeySpy).toHaveBeenCalledWith(null)
+  })
+
+  it('persists allowedRoles and forces admin to be present', async () => {
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult() as any)
+    vi.spyOn(Prefs, 'getYoutubeApiKey').mockReturnValue(null)
+    vi.spyOn(Prefs, 'isYoutubeApiKeyFromEnv').mockReturnValue(false)
+    vi.spyOn(Prefs, 'getYoutubeCookies').mockReturnValue(null)
+    const setSpy = vi.spyOn(Prefs, 'set').mockReturnValue(true)
+
+    const res = await fetch(`${baseUrl}/api/youtube/config`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ allowedRoles: ['standard', 'guest'] }),
+    })
+    expect(res.status).toBe(200)
+    expect(setSpy).toHaveBeenCalledWith('youtube', expect.objectContaining({
+      allowedRoles: ['admin', 'standard', 'guest'],
+    }))
+  })
+
+  it('rejects non-array allowedRoles', async () => {
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult() as any)
+    const res = await fetch(`${baseUrl}/api/youtube/config`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ allowedRoles: 'admin' }),
+    })
+    expect(res.status).toBe(422)
+  })
+
+  it('rejects unknown role in allowedRoles', async () => {
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult() as any)
+    const res = await fetch(`${baseUrl}/api/youtube/config`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ allowedRoles: ['admin', 'wizard'] }),
+    })
+    expect(res.status).toBe(422)
   })
 
   it('rejects malformed apiKey', async () => {
@@ -665,5 +740,97 @@ describe('YouTube router — POST /download', () => {
       roomId: 1,
       userId: 1,
     }))
+  })
+
+  it('rejects standard user when role not allowed', async () => {
+    currentUser = { userId: 2, isAdmin: false, isGuest: false, name: 'standard', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: 3, useCookies: false, allowedRoles: ['admin'] },
+      paths: { result: [3], entities: { 3: { pathId: 3, path: '/a', priority: 0, prefs: {} } } },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/download`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(validBody),
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('allows guest when role explicitly allowed', async () => {
+    currentUser = { userId: 5, isAdmin: false, isGuest: true, name: 'guest-y', roomId: 2 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: 3, useCookies: false, allowedRoles: ['admin', 'guest'] },
+      paths: { result: [3], entities: { 3: { pathId: 3, path: '/media', priority: 0, prefs: {} } } },
+    }) as any)
+    const fakeJob = { videoId: 'abcdefghijk', status: 'queued', progress: 0 }
+    vi.spyOn(Downloader, 'start').mockResolvedValue(fakeJob as any)
+
+    const res = await fetch(`${baseUrl}/api/youtube/download`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(validBody),
+    })
+    expect(res.status).toBe(202)
+  })
+})
+
+describe('YouTube router — GET /access', () => {
+  it('returns 401 when unauthenticated', async () => {
+    currentUser = { userId: null, isAdmin: false, isGuest: false, name: 'anon', roomId: null }
+    const res = await fetch(`${baseUrl}/api/youtube/access`)
+    expect(res.status).toBe(401)
+  })
+
+  it('returns hasAccess=true for admin even when allowedRoles excludes others', async () => {
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: 7, useCookies: false, allowedRoles: ['admin'] },
+      paths: { result: [7], entities: { 7: { pathId: 7, path: '/x', priority: 0, prefs: {} } } },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/access`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      isEnabled: true,
+      hasAccess: true,
+      downloadPathConfigured: true,
+      musicbrainzMinScore: 80,
+    })
+  })
+
+  it('returns hasAccess=false for standard user when not allowed', async () => {
+    currentUser = { userId: 2, isAdmin: false, isGuest: false, name: 'standard', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin'] },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/access`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      isEnabled: true,
+      hasAccess: false,
+      downloadPathConfigured: false,
+      musicbrainzMinScore: 80,
+    })
+  })
+
+  it('returns hasAccess=true for guest when guest role allowed', async () => {
+    currentUser = { userId: 4, isAdmin: false, isGuest: true, name: 'guest-z', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'guest'] },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/access`)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.hasAccess).toBe(true)
+    expect(body.isEnabled).toBe(true)
+  })
+
+  it('returns hasAccess=false when YouTube disabled (even for admin)', async () => {
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: false, downloadPathId: null, useCookies: false, allowedRoles: ['admin'] },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/access`)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.isEnabled).toBe(false)
+    expect(body.hasAccess).toBe(false)
   })
 })

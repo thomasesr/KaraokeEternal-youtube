@@ -1,9 +1,10 @@
 import { createAction, createAsyncThunk, createReducer } from '@reduxjs/toolkit'
 import HttpApi from 'lib/HttpApi'
-import type { IYoutubePrefs, YoutubeQualityPreset } from 'shared/types'
+import type { IYoutubeAccess, IYoutubePrefs, YoutubeQualityPreset, YoutubeRole } from 'shared/types'
 import {
   YOUTUBE_CONFIG_REQUEST,
   YOUTUBE_CONFIG_SAVE,
+  YOUTUBE_ACCESS_REQUEST,
   YOUTUBE_SEARCH_REQUEST,
   YOUTUBE_DOWNLOAD_START,
   YOUTUBE_DOWNLOAD_STATUS,
@@ -27,6 +28,7 @@ export interface YoutubeConfigPatch {
   useCookies?: boolean
   qualityPreset?: YoutubeQualityPreset
   musicbrainzMinScore?: number
+  allowedRoles?: YoutubeRole[]
   apiKey?: string | null
   cookies?: string | null
 }
@@ -53,6 +55,11 @@ export const youtubeIdentify = createAsyncThunk<
 export const fetchYoutubeConfig = createAsyncThunk<IYoutubePrefs>(
   YOUTUBE_CONFIG_REQUEST,
   async () => api.get<IYoutubePrefs>('/config'),
+)
+
+export const fetchYoutubeAccess = createAsyncThunk<IYoutubeAccess>(
+  YOUTUBE_ACCESS_REQUEST,
+  async () => api.get<IYoutubeAccess>('/access'),
 )
 
 export const saveYoutubeConfig = createAsyncThunk<IYoutubePrefs, YoutubeConfigPatch>(
@@ -103,6 +110,9 @@ export interface YoutubeState {
   isSaving: boolean
   saveError: string | null
 
+  access: IYoutubeAccess | null
+  isAccessLoaded: boolean
+
   isSearching: boolean
   searchError: string | null
   searchQuery: string
@@ -116,6 +126,8 @@ const initialState: YoutubeState = {
   isConfigLoaded: false,
   isSaving: false,
   saveError: null,
+  access: null,
+  isAccessLoaded: false,
   isSearching: false,
   searchError: null,
   searchQuery: '',
@@ -129,6 +141,17 @@ const youtubeReducer = createReducer(initialState, (builder) => {
     .addCase(fetchYoutubeConfig.fulfilled, (state, { payload }) => {
       state.config = payload
       state.isConfigLoaded = true
+      state.access = {
+        isEnabled: payload.isEnabled,
+        hasAccess: payload.isEnabled,
+        downloadPathConfigured: payload.downloadPathId !== null,
+        musicbrainzMinScore: payload.musicbrainzMinScore,
+      }
+      state.isAccessLoaded = true
+    })
+    .addCase(fetchYoutubeAccess.fulfilled, (state, { payload }) => {
+      state.access = payload
+      state.isAccessLoaded = true
     })
     .addCase(saveYoutubeConfig.pending, (state) => {
       state.isSaving = true
@@ -138,6 +161,13 @@ const youtubeReducer = createReducer(initialState, (builder) => {
       state.config = payload
       state.isSaving = false
       state.saveError = null
+      state.access = {
+        isEnabled: payload.isEnabled,
+        hasAccess: payload.isEnabled,
+        downloadPathConfigured: payload.downloadPathId !== null,
+        musicbrainzMinScore: payload.musicbrainzMinScore,
+      }
+      state.isAccessLoaded = true
     })
     .addCase(saveYoutubeConfig.rejected, (state, { error }) => {
       state.isSaving = false

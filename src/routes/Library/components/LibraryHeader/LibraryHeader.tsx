@@ -2,24 +2,24 @@ import React, { useEffect, useState, useRef } from 'react'
 import clsx from 'clsx'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { setFilterStr, resetFilterStr, toggleFilterStarred } from '../../modules/library'
-import { setYoutubeMode, youtubeSearch, fetchYoutubeConfig } from 'store/modules/youtube'
+import { setYoutubeMode, youtubeSearch, fetchYoutubeAccess } from 'store/modules/youtube'
 import Button from 'components/Button/Button'
 import styles from './LibraryHeader.css'
 
 const LibraryHeader = () => {
   const dispatch = useAppDispatch()
   const { filterStr, filterStarred } = useAppSelector(state => state.library)
-  const isAdmin = useAppSelector(state => state.user.isAdmin)
+  const userId = useAppSelector(state => state.user.userId)
   const ytMode = useAppSelector(state => state.youtube.isModeActive)
-  const ytConfig = useAppSelector(state => state.youtube.config)
-  const ytConfigLoaded = useAppSelector(state => state.youtube.isConfigLoaded)
+  const ytAccess = useAppSelector(state => state.youtube.access)
+  const ytAccessLoaded = useAppSelector(state => state.youtube.isAccessLoaded)
 
   const searchInput = useRef<HTMLInputElement>(null)
   const [value, setValue] = useState(filterStr)
 
   useEffect(() => {
-    if (isAdmin && !ytConfigLoaded) dispatch(fetchYoutubeConfig())
-  }, [dispatch, isAdmin, ytConfigLoaded])
+    if (userId && !ytAccessLoaded) dispatch(fetchYoutubeAccess())
+  }, [dispatch, userId, ytAccessLoaded])
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value)
@@ -39,7 +39,7 @@ const LibraryHeader = () => {
   }
 
   const handleYoutubeClick = () => {
-    if (!ytConfigLoaded) dispatch(fetchYoutubeConfig())
+    if (!ytAccessLoaded) dispatch(fetchYoutubeAccess())
     const q = value.trim()
     if (!q) {
       searchInput.current?.focus()
@@ -59,7 +59,7 @@ const LibraryHeader = () => {
     searchInput.current?.blur()
   }
 
-  const showYoutubeBtn = isAdmin && ytConfig?.isEnabled
+  const showYoutubeBtn = !!(ytAccess?.isEnabled && ytAccess.hasAccess)
 
   return (
     <div className={styles.container}>

@@ -5,7 +5,18 @@ import Icon from 'components/Icon/Icon'
 import Button from 'components/Button/Button'
 import { fetchYoutubeConfig, saveYoutubeConfig } from 'store/modules/youtube'
 import { YOUTUBE_QUALITY_PRESETS } from 'shared/types'
-import type { YoutubeQualityPreset } from 'shared/types'
+import type { YoutubeQualityPreset, YoutubeRole } from 'shared/types'
+
+const ROLE_LABEL: Record<Exclude<YoutubeRole, 'admin'>, { label: string, hint: string }> = {
+  standard: {
+    label: 'Returning users',
+    hint: 'Signed-in accounts with a username and password.',
+  },
+  guest: {
+    label: 'Guests',
+    hint: 'Users who joined a room without an account.',
+  },
+}
 
 const QUALITY_LABEL: Record<YoutubeQualityPreset, string> = {
   best: 'Best available',
@@ -52,6 +63,15 @@ const YoutubePrefs = () => {
 
   const handleToggleCookies = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(saveYoutubeConfig({ useCookies: e.currentTarget.checked }))
+  }
+
+  const handleToggleRole = (role: Exclude<YoutubeRole, 'admin'>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!config) return
+    const current = new Set<YoutubeRole>(config.allowedRoles)
+    if (e.currentTarget.checked) current.add(role)
+    else current.delete(role)
+    current.add('admin')
+    dispatch(saveYoutubeConfig({ allowedRoles: Array.from(current) as YoutubeRole[] }))
   }
 
   const handlePathChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -112,6 +132,30 @@ const YoutubePrefs = () => {
           />
           Enable YouTube search
         </label>
+
+        <div className={styles.row}>
+          <label>Who can search and download</label>
+          <label className={styles.toggleRow} style={{ padding: 0 }}>
+            <input type='checkbox' checked disabled />
+            Admins (always)
+          </label>
+          {(['standard', 'guest'] as const).map(role => (
+            <label key={role} className={styles.toggleRow} style={{ padding: 0 }}>
+              <input
+                type='checkbox'
+                checked={config.allowedRoles.includes(role)}
+                onChange={handleToggleRole(role)}
+                disabled={isSaving}
+              />
+              <span>
+                {ROLE_LABEL[role].label}
+                <span className={styles.note} style={{ marginLeft: 'var(--space-s)' }}>
+                  {ROLE_LABEL[role].hint}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
 
         <div className={styles.row}>
           <label htmlFor='yt-pathId'>Download into media folder</label>
