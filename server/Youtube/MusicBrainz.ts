@@ -39,9 +39,10 @@ export function resolveAdminEmail (): string {
   if (cachedEmail) return cachedEmail
   try {
     const query = sql`
-      SELECT username FROM users
-      WHERE isAdmin = 1 AND username LIKE '%@%'
-      ORDER BY userId ASC
+      SELECT users.username FROM users
+        INNER JOIN roles USING (roleId)
+      WHERE roles.name = 'admin' AND users.username LIKE '%@%'
+      ORDER BY users.userId ASC
       LIMIT 1
     `
     const row = db.get<{ username: string }>(String(query), query.parameters)

@@ -217,6 +217,7 @@ router.post('/download', async (ctx) => {
       destDir: pathEntry.path,
       pathId: cfg.downloadPathId,
       qualityPreset: cfg.qualityPreset,
+      useCookies: cfg.useCookies,
       artist,
       title,
       roomId: ctx.user.roomId,

@@ -52,7 +52,34 @@ karaoke tracks straight into their room's queue.
 - **Room safety:** If the user's room is deleted mid-download, the
   finished file is removed and the queue insert is skipped.
 
-Requires `yt-dlp` on the server's `PATH` for downloads.
+### Server requirements for downloads
+
+The download path shells out to `yt-dlp`, which in turn relies on a
+small toolchain. All of these must be available on the server's `PATH`
+(the bundled Dockerfile installs them automatically):
+
+- **`yt-dlp`** — performs the probe + download. Keep current; YouTube
+  changes break older releases regularly.
+- **`ffmpeg`** — required for merge/remux when video and audio come from
+  separate streams (most quality presets).
+- **`deno`** (or another supported JS runtime) — required by yt-dlp's
+  **EJS** challenge solver, which decrypts YouTube's signature and
+  `n`-parameter on every video. Without a JS runtime, yt-dlp returns
+  image-only formats and downloads fail with "no video streams".
+- **Outbound HTTPS to `github.com`** — yt-dlp is invoked with
+  `--remote-components ejs:github`, which fetches the EJS solver bundle
+  from `github.com/yt-dlp/ejs` on first use (cached afterward in
+  `~/.cache/yt-dlp`). Air-gapped deployments need to allowlist GitHub
+  or pre-warm the cache.
+- **Fresh `cookies.txt`** (optional but commonly required) — paste the
+  Netscape-format export from a logged-in browser into the admin UI and
+  enable "Use cookies". Stale cookies trigger YouTube's bot-challenge,
+  which the server will surface as a distinct error message.
+
+When a download fails, the server logs the full `yt-dlp` stderr tail
+and tags the user-visible error with a category (`EJS solver failed`,
+`bot-challenge`, etc.) so operators can act without re-running yt-dlp
+manually.
 
 Microphones are *not* required since the player itself only outputs music - this allows your audio setup to be as simple or complex as you like. See the [F.A.Q.](https://www.karaoke-eternal.com/faq/#recommended-audio-microphone-setup) for more information.
 

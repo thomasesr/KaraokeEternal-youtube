@@ -36,6 +36,24 @@ interface YtFormat {
 interface ProbeResult {
   formats: YtFormat[]
   duration?: number
+  stderr: string
+}
+
+type FailureKind = 'ejs' | 'bot' | null
+
+const EJS_HINT = 'JS challenge solver (EJS) failed — ensure `deno` is installed on PATH and the host can reach github.com so yt-dlp can fetch remote components on first use.'
+const BOT_HINT = 'YouTube served a bot-challenge — refresh cookies (re-export from a logged-in browser) and enable "Use cookies".'
+
+function classifyFailure (stderr: string): FailureKind {
+  if (/Signature solving failed|n challenge solving failed|Only images are available|challenge solver script.*skipped/i.test(stderr)) return 'ejs'
+  if (/Sign in to confirm|HTTP Error 403|not a bot/i.test(stderr)) return 'bot'
+  return null
+}
+
+function hintFor (kind: FailureKind): string | null {
+  if (kind === 'ejs') return EJS_HINT
+  if (kind === 'bot') return BOT_HINT
+  return null
 }
 
 function isVideo (f: YtFormat): boolean {
@@ -105,6 +123,7 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
   return new Promise((resolve, reject) => {
     const args = ['-J', '--ignore-config', '--no-playlist', '--no-warnings',
       '-f', 'all', '--no-check-formats',
+      '--remote-components', 'ejs:github',
       '--extractor-args', 'youtube:player_client=tv,web_safari,default']
     if (cookieFile) args.unshift('--cookies', cookieFile)
     args.push(url)
@@ -121,12 +140,13 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
     proc.on('close', (code) => {
       if (code !== 0) {
         const tail = stderr.trim().split('\n').pop() || `yt-dlp probe exited ${code}`
-        return reject(new Error(tail))
+        const hint = hintFor(classifyFailure(stderr))
+        return reject(new Error(hint ? `${tail} — ${hint}` : tail))
       }
       try {
-        const json = JSON.parse(stdout) as ProbeResult
+        const json = JSON.parse(stdout) as Omit<ProbeResult, 'stderr'>
         if (!Array.isArray(json.formats)) return reject(new Error('yt-dlp probe: no formats'))
-        resolve(json)
+        resolve({ ...json, stderr })
       } catch (e) {
         reject(e instanceof Error ? e : new Error(String(e)))
       }
@@ -164,6 +184,7 @@ export interface StartOptions {
   destDir: string
   pathId: number
   qualityPreset?: YoutubeQualityPreset
+  useCookies?: boolean
   artist: string
   title: string
   roomId: number
@@ -213,7 +234,7 @@ export const Downloader = {
     const baseUnique = await pickUniqueBase(opts.destDir, baseRaw)
     const outTemplate = path.join(opts.destDir, `${baseUnique}.%(ext)s`)
 
-    const cookies = Prefs.getYoutubeCookies()
+    const cookies = opts.useCookies ? Prefs.getYoutubeCookies() : null
     let cookieFile: string | null = null
     if (cookies) {
       cookieFile = path.join(os.tmpdir(), `kes-yt-${videoId}-${Date.now()}.txt`)
@@ -231,7 +252,14 @@ export const Downloader = {
       if (!sel) {
         const anyVideo = probe.formats.some(isVideo)
         if (!anyVideo) {
-          throw new Error('yt-dlp probe returned no video streams (likely YouTube bot-challenge or stale cookies) — refresh cookies and enable "Use cookies"')
+          // Probe exited 0 but yt-dlp emitted no video formats — surface its warnings
+          // (normally swallowed) so the operator can see WHY (EJS, bot-challenge, etc.).
+          if (probe.stderr.trim()) {
+            log.warn('yt-dlp probe (%s) stderr:\n%s', videoId, probe.stderr.trim())
+          }
+          const hint = hintFor(classifyFailure(probe.stderr))
+            ?? 'no diagnostic markers in stderr — re-run yt-dlp manually with the same URL to inspect.'
+          throw new Error(`yt-dlp probe returned no video streams: ${hint}`)
         }
         throw new Error(`No video formats at or below ${heightCap}p — try a lower quality preset or "best"`)
       }
@@ -243,9 +271,8 @@ export const Downloader = {
       cleanupCookies(cookieFile)
       job.status = 'error'
       let msg = e instanceof Error ? e.message : String(e)
-      if (/Sign in to confirm|HTTP Error 403|not a bot/i.test(msg)) {
-        msg += ' — configure cookies in YouTube settings and enable "Use cookies".'
-      }
+      const hint = hintFor(classifyFailure(msg))
+      if (hint) msg += ` — ${hint}`
       job.error = msg
       job.finishedAt = Date.now()
       log.warn('yt-dlp probe failed (%s): %s', videoId, job.error)
@@ -260,6 +287,7 @@ export const Downloader = {
       '--merge-output-format', 'mp4',
       '--retries', '5',
       '--fragment-retries', '5',
+      '--remote-components', 'ejs:github',
       '--extractor-args', 'youtube:player_client=tv,web_safari,default',
       '-o', outTemplate,
       '--print', 'after_move:filepath',
@@ -334,11 +362,13 @@ export const Downloader = {
       } else {
         job.status = 'error'
         let msg = stderrTail.trim().split('\n').pop() || `yt-dlp exited with code ${code}`
-        if (/HTTP Error 403/i.test(stderrTail)) {
-          msg += ' — YouTube blocked the request. Try: (1) update yt-dlp, (2) configure cookies in YouTube settings and enable "Use cookies".'
-        }
+        const hint = hintFor(classifyFailure(stderrTail))
+        if (hint) msg += ` — ${hint}`
         job.error = msg
         job.finishedAt = Date.now()
+        if (stderrTail.trim()) {
+          log.warn('yt-dlp download (%s) stderr tail:\n%s', videoId, stderrTail.trim())
+        }
         log.warn('yt-dlp failed (%s): %s', videoId, job.error)
       }
     })
