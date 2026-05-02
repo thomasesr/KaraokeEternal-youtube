@@ -232,7 +232,8 @@ export const Downloader = {
     const url = `https://www.youtube.com/watch?v=${videoId}`
     const baseRaw = buildFilenameBase(opts.artist, opts.title)
     const baseUnique = await pickUniqueBase(opts.destDir, baseRaw)
-    const outTemplate = path.join(opts.destDir, `${baseUnique}.%(ext)s`)
+    const outTemplate = `${baseUnique}.%(ext)s`
+    const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), `kes-yt-${videoId}-`))
 
     const cookies = opts.useCookies ? Prefs.getYoutubeCookies() : null
     let cookieFile: string | null = null
@@ -269,6 +270,7 @@ export const Downloader = {
         videoId, format, needsRemux, heightCap ?? 'none')
     } catch (e) {
       cleanupCookies(cookieFile)
+      cleanupTmpDir(tmpDir)
       job.status = 'error'
       let msg = e instanceof Error ? e.message : String(e)
       const hint = hintFor(classifyFailure(msg))
@@ -289,6 +291,8 @@ export const Downloader = {
       '--fragment-retries', '5',
       '--remote-components', 'ejs:github',
       '--extractor-args', 'youtube:player_client=tv,web_safari,default',
+      '-P', `home:${opts.destDir}`,
+      '-P', `temp:${tmpDir}`,
       '-o', outTemplate,
       '--print', 'after_move:filepath',
       url,
@@ -331,10 +335,12 @@ export const Downloader = {
       job.finishedAt = Date.now()
       log.error('yt-dlp spawn error: %s', err.message)
       cleanupCookies(cookieFile)
+      cleanupTmpDir(tmpDir)
     })
 
     proc.on('close', async (code) => {
       cleanupCookies(cookieFile)
+      cleanupTmpDir(tmpDir)
       if (code === 0) {
         job.progress = 100
         job.filename = printedFile
@@ -380,6 +386,11 @@ export const Downloader = {
 function cleanupCookies (file: string | null) {
   if (!file) return
   fsp.unlink(file).catch(() => { /* ignore */ })
+}
+
+function cleanupTmpDir (dir: string | null) {
+  if (!dir) return
+  fsp.rm(dir, { recursive: true, force: true }).catch(() => { /* ignore */ })
 }
 
 interface IngestArgs {
