@@ -24,6 +24,8 @@ vi.mock('../../lib/Database.js', () => ({
 
 import {
   cleanTitle,
+  parseTitleParts,
+  searchByTitle,
   userAgent,
   searchRecording,
   _resetEmailCacheForTest,
@@ -74,6 +76,99 @@ describe('MusicBrainz.cleanTitle', () => {
   it('collapses multiple spaces and trims dashes/whitespace edges', () => {
     expect(cleanTitle('   Foo    Bar   ')).toBe('Foo Bar')
     expect(cleanTitle('--- Foo Bar ---')).toBe('Foo Bar')
+  })
+})
+
+describe('MusicBrainz.parseTitleParts', () => {
+  it('splits "Artist - Title" with ASCII hyphen', () => {
+    expect(parseTitleParts('Black Sabbath - Paranoid'))
+      .toEqual({ artist: 'Black Sabbath', title: 'Paranoid' })
+  })
+
+  it('splits "Artist – Title" with en-dash', () => {
+    expect(parseTitleParts('Adele – Hello'))
+      .toEqual({ artist: 'Adele', title: 'Hello' })
+  })
+
+  it('splits "Artist — Title" with em-dash', () => {
+    expect(parseTitleParts('Queen — Bohemian Rhapsody'))
+      .toEqual({ artist: 'Queen', title: 'Bohemian Rhapsody' })
+  })
+
+  it('splits "Artist | Title" with pipe', () => {
+    expect(parseTitleParts('Coldplay | Yellow'))
+      .toEqual({ artist: 'Coldplay', title: 'Yellow' })
+  })
+
+  it('splits "Artist: Title" with colon', () => {
+    expect(parseTitleParts('Bowie: Heroes'))
+      .toEqual({ artist: 'Bowie', title: 'Heroes' })
+  })
+
+  it('splits at the first separator only (rest stays in title)', () => {
+    expect(parseTitleParts('Pink Floyd - Comfortably Numb - Pulse'))
+      .toEqual({ artist: 'Pink Floyd', title: 'Comfortably Numb - Pulse' })
+  })
+
+  it('returns null when no separator is found', () => {
+    expect(parseTitleParts('Just A Title')).toBeNull()
+  })
+
+  it('returns null on empty input', () => {
+    expect(parseTitleParts('')).toBeNull()
+    expect(parseTitleParts('   ')).toBeNull()
+  })
+
+  it('does not split on hyphen without surrounding spaces', () => {
+    expect(parseTitleParts('Twenty-One Pilots')).toBeNull()
+  })
+})
+
+describe('MusicBrainz.searchByTitle', () => {
+  beforeEach(() => {
+    _resetEmailCacheForTest()
+    vi.mocked(db.get).mockReturnValue({ username: 'admin@example.com' })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    _resetEmailCacheForTest()
+  })
+
+  it('issues a structured artist+title query when the title splits', async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ recordings: [{ 'title': 'Paranoid', 'score': 100, 'artist-credit': [{ name: 'Black Sabbath' }] }] }),
+      { status: 200 },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const hit = await searchByTitle('Black Sabbath - Paranoid (Karaoke Version)')
+    expect(hit).toEqual({ artist: 'Black Sabbath', title: 'Paranoid', score: 100 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const url = (fetchMock.mock.calls[0] as unknown[])[0] as string
+    expect(url).toContain('recording')
+    expect(url).toContain('artist')
+    expect(url).toContain(encodeURIComponent('Black Sabbath'))
+    expect(url).toContain(encodeURIComponent('Paranoid'))
+  })
+
+  it('falls back to a free-text query when no separator is present', async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ recordings: [{ 'title': 'Foo', 'score': 70, 'artist-credit': [{ name: 'Bar' }] }] }),
+      { status: 200 },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const hit = await searchByTitle('No Separator Here')
+    expect(hit).toEqual({ artist: 'Bar', title: 'Foo', score: 70 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const url = (fetchMock.mock.calls[0] as unknown[])[0] as string
+    // free-text fallback does not embed the structured field syntax
+    expect(url).not.toContain('recording%3A')
+    expect(url).not.toContain('artist%3A')
   })
 })
 
@@ -140,7 +235,7 @@ describe('MusicBrainz.searchRecording', () => {
   it('parses a top recording into {artist, title, score}', async () => {
     const payload = {
       recordings: [
-        { title: 'Paranoid', score: 95, 'artist-credit': [{ name: 'Black Sabbath' }] },
+        { 'title': 'Paranoid', 'score': 95, 'artist-credit': [{ name: 'Black Sabbath' }] },
       ],
     }
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 })))

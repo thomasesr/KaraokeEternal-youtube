@@ -168,8 +168,39 @@ export async function searchRecording (query: string): Promise<MusicBrainzHit | 
   })
 }
 
+export function parseTitleParts (cleaned: string): { artist: string, title: string } | null {
+  const s = cleaned.trim()
+  if (!s) return null
+  // Most YouTube titles use "Artist - Title"; also handle en-dash, em-dash, pipe, middot.
+  const dashMatch = s.match(/^(.+?)\s+[-–—|·]\s+(.+)$/)
+  if (dashMatch) {
+    const artist = dashMatch[1].trim()
+    const title = dashMatch[2].trim()
+    if (artist && title) return { artist, title }
+  }
+  // "Artist: Title" — colon doesn't require a leading space.
+  const colonMatch = s.match(/^(.+?):\s+(.+)$/)
+  if (colonMatch) {
+    const artist = colonMatch[1].trim()
+    const title = colonMatch[2].trim()
+    if (artist && title) return { artist, title }
+  }
+  return null
+}
+
 export async function searchByTitle (rawTitle: string): Promise<MusicBrainzHit | null> {
-  return searchRecording(cleanTitle(rawTitle))
+  const cleaned = cleanTitle(rawTitle)
+  if (!cleaned) return null
+
+  const parts = parseTitleParts(cleaned)
+  if (parts) {
+    const structured = await searchByArtistTitle(parts.artist, parts.title)
+    if (structured) return structured
+    // Reverse orientation: some channels post "Title - Artist".
+    const reversed = await searchByArtistTitle(parts.title, parts.artist)
+    if (reversed) return reversed
+  }
+  return searchRecording(cleaned)
 }
 
 export async function searchByArtistTitle (artist: string, title: string): Promise<MusicBrainzHit | null> {
