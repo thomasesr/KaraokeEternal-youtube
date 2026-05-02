@@ -41,8 +41,11 @@ function normalizeAllowedRoles (input: unknown): YoutubeRole[] {
   return YOUTUBE_ROLES.filter(r => roles.has(r))
 }
 
-function getUserRole (ctxUser: { isAdmin?: boolean, isGuest?: boolean } | undefined): YoutubeRole {
+function getUserRole (
+  ctxUser: { isAdmin?: boolean, isGuest?: boolean, role?: string | null } | undefined,
+): YoutubeRole {
   if (ctxUser?.isAdmin) return 'admin'
+  if (ctxUser?.role === 'room_manager') return 'room_manager'
   if (ctxUser?.isGuest) return 'guest'
   return 'standard'
 }

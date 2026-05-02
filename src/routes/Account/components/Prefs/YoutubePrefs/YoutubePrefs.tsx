@@ -8,6 +8,10 @@ import { YOUTUBE_QUALITY_PRESETS } from 'shared/types'
 import type { YoutubeQualityPreset, YoutubeRole } from 'shared/types'
 
 const ROLE_LABEL: Record<Exclude<YoutubeRole, 'admin'>, { label: string, hint: string }> = {
+  room_manager: {
+    label: 'Room managers',
+    hint: 'Hosts who manage one or more rooms (rotation, status, etc.).',
+  },
   standard: {
     label: 'Returning users',
     hint: 'Signed-in accounts with a username and password.',
@@ -139,7 +143,7 @@ const YoutubePrefs = () => {
             <input type='checkbox' checked disabled />
             Admins (always)
           </label>
-          {(['standard', 'guest'] as const).map(role => (
+          {(['room_manager', 'standard', 'guest'] as const).map(role => (
             <label key={role} className={styles.toggleRow} style={{ padding: 0 }}>
               <input
                 type='checkbox'

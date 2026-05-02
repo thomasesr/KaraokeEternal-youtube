@@ -118,9 +118,9 @@ export type YoutubeQualityPreset = 'best' | '1080p' | '720p' | '480p' | '360p'
 
 export const YOUTUBE_QUALITY_PRESETS: YoutubeQualityPreset[] = ['best', '1080p', '720p', '480p', '360p']
 
-export type YoutubeRole = 'admin' | 'standard' | 'guest'
+export type YoutubeRole = 'admin' | 'room_manager' | 'standard' | 'guest'
 
-export const YOUTUBE_ROLES: YoutubeRole[] = ['admin', 'standard', 'guest']
+export const YOUTUBE_ROLES: YoutubeRole[] = ['admin', 'room_manager', 'standard', 'guest']
 
 export interface IYoutubePrefs {
   isEnabled: boolean

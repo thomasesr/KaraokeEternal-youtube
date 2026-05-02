@@ -12,6 +12,7 @@ interface FakeUser {
   userId: number | null
   isAdmin: boolean
   isGuest?: boolean
+  role?: string | null
   name: string
   roomId: number | null
 }
@@ -102,6 +103,26 @@ describe('YouTube router — auth', () => {
 
     const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
     expect(res.status).toBe(200)
+  })
+
+  it('allows room_manager on /search when role explicitly allowed', async () => {
+    currentUser = { userId: 7, isAdmin: false, isGuest: false, role: 'room_manager', name: 'mgr', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'room_manager'] },
+    }) as any)
+    vi.spyOn(YoutubeService, 'search').mockResolvedValue([])
+
+    const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects room_manager on /search when only standard allowed', async () => {
+    currentUser = { userId: 7, isAdmin: false, isGuest: false, role: 'room_manager', name: 'mgr', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'standard'] },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
+    expect(res.status).toBe(403)
   })
 
   it('rejects guest on /search when only standard allowed', async () => {
@@ -772,6 +793,23 @@ describe('YouTube router — POST /download', () => {
     })
     expect(res.status).toBe(202)
   })
+
+  it('allows room_manager when role explicitly allowed', async () => {
+    currentUser = { userId: 6, isAdmin: false, isGuest: false, role: 'room_manager', name: 'mgr', roomId: 2 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: 3, useCookies: false, allowedRoles: ['admin', 'room_manager'] },
+      paths: { result: [3], entities: { 3: { pathId: 3, path: '/media', priority: 0, prefs: {} } } },
+    }) as any)
+    const fakeJob = { videoId: 'abcdefghijk', status: 'queued', progress: 0 }
+    vi.spyOn(Downloader, 'start').mockResolvedValue(fakeJob as any)
+
+    const res = await fetch(`${baseUrl}/api/youtube/download`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(validBody),
+    })
+    expect(res.status).toBe(202)
+  })
 })
 
 describe('YouTube router — GET /access', () => {
@@ -809,6 +847,18 @@ describe('YouTube router — GET /access', () => {
       downloadPathConfigured: false,
       musicbrainzMinScore: 80,
     })
+  })
+
+  it('returns hasAccess=true for room_manager when role allowed', async () => {
+    currentUser = { userId: 8, isAdmin: false, isGuest: false, role: 'room_manager', name: 'mgr', roomId: 1 }
+    vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
+      youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'room_manager'] },
+    }) as any)
+    const res = await fetch(`${baseUrl}/api/youtube/access`)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.hasAccess).toBe(true)
+    expect(body.isEnabled).toBe(true)
   })
 
   it('returns hasAccess=true for guest when guest role allowed', async () => {
