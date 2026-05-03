@@ -77,6 +77,16 @@ describe('MusicBrainz.cleanTitle', () => {
     expect(cleanTitle('   Foo    Bar   ')).toBe('Foo Bar')
     expect(cleanTitle('--- Foo Bar ---')).toBe('Foo Bar')
   })
+
+  it('strips all-caps bracket tags like [UVR], [MV]', () => {
+    expect(cleanTitle('Led Zeppelin • Ramble On [UVR]')).toBe('Led Zeppelin • Ramble On')
+    expect(cleanTitle('Song Title [MV]')).toBe('Song Title')
+  })
+
+  it('strips [UVR] and karaoke bracket together', () => {
+    expect(cleanTitle('Led Zeppelin • Ramble On (CC Karaoke / Instrumental) [UVR]'))
+      .toBe('Led Zeppelin • Ramble On')
+  })
 })
 
 describe('MusicBrainz.parseTitleParts', () => {
@@ -122,6 +132,11 @@ describe('MusicBrainz.parseTitleParts', () => {
   it('does not split on hyphen without surrounding spaces', () => {
     expect(parseTitleParts('Twenty-One Pilots')).toBeNull()
   })
+
+  it('splits "Artist • Title" with bullet (U+2022)', () => {
+    expect(parseTitleParts('Led Zeppelin • Ramble On'))
+      .toEqual({ artist: 'Led Zeppelin', title: 'Ramble On' })
+  })
 })
 
 describe('MusicBrainz.searchByTitle', () => {
@@ -154,6 +169,25 @@ describe('MusicBrainz.searchByTitle', () => {
     expect(url).toContain(encodeURIComponent('Paranoid'))
   })
 
+  it('correctly identifies "Led Zeppelin • Ramble On (CC Karaoke / Instrumental) [UVR]"', async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ recordings: [{ 'title': 'Ramble On', 'score': 100, 'artist-credit': [{ name: 'Led Zeppelin' }] }] }),
+      { status: 200 },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const hit = await searchByTitle('Led Zeppelin • Ramble On (CC Karaoke / Instrumental) [UVR]')
+    expect(hit).toEqual({ artist: 'Led Zeppelin', title: 'Ramble On', score: 100 })
+
+    // Must use structured query (not free-text fallback)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const url = (fetchMock.mock.calls[0] as unknown[])[0] as string
+    expect(url).toContain(encodeURIComponent('Led Zeppelin'))
+    expect(url).toContain(encodeURIComponent('Ramble On'))
+    expect(url).toContain('recording%3A')
+    expect(url).toContain('artist%3A')
+  })
+
   it('falls back to a free-text query when no separator is present', async () => {
     const fetchMock = vi.fn(async () => new Response(
       JSON.stringify({ recordings: [{ 'title': 'Foo', 'score': 70, 'artist-credit': [{ name: 'Bar' }] }] }),
@@ -169,6 +203,52 @@ describe('MusicBrainz.searchByTitle', () => {
     // free-text fallback does not embed the structured field syntax
     expect(url).not.toContain('recording%3A')
     expect(url).not.toContain('artist%3A')
+  })
+
+  it('tries reversed orientation when structured scores below CONFIDENT_SCORE and returns best', async () => {
+    // "Ramble On - Led Zeppelin" — title and artist are swapped.
+    // structured: recording:"Led Zeppelin" AND artist:"Ramble On" → low score
+    // reversed:   recording:"Ramble On" AND artist:"Led Zeppelin" → high score
+    let call = 0
+    const fetchMock = vi.fn(async () => {
+      call++
+      if (call === 1) {
+        // structured query returns a low-confidence hit
+        return new Response(
+          JSON.stringify({ recordings: [{ 'title': 'Led Zeppelin', 'score': 35, 'artist-credit': [{ name: 'Some Cover Band' }] }] }),
+          { status: 200 },
+        )
+      }
+      // reversed query returns the correct high-confidence hit
+      return new Response(
+        JSON.stringify({ recordings: [{ 'title': 'Ramble On', 'score': 97, 'artist-credit': [{ name: 'Led Zeppelin' }] }] }),
+        { status: 200 },
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const hit = await searchByTitle('Ramble On - Led Zeppelin (Karaoke)')
+    expect(hit).toEqual({ artist: 'Led Zeppelin', title: 'Ramble On', score: 97 })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues to fallback free-text when both structured and reversed score low', async () => {
+    let call = 0
+    const fetchMock = vi.fn(async () => {
+      call++
+      const score = call <= 2 ? 20 : 85
+      const artist = call <= 2 ? 'Wrong Artist' : 'Right Artist'
+      const title = call <= 2 ? 'Wrong Title' : 'Right Title'
+      return new Response(
+        JSON.stringify({ recordings: [{ title, score, 'artist-credit': [{ name: artist }] }] }),
+        { status: 200 },
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const hit = await searchByTitle('Something - Else (Karaoke)')
+    expect(hit).toEqual({ artist: 'Right Artist', title: 'Right Title', score: 85 })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 })
 

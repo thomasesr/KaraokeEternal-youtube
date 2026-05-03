@@ -78,6 +78,9 @@ export function cleanTitle (raw: string): string {
     return STRIP_TOKENS.some(t => inner.includes(t)) ? ' ' : m
   })
 
+  // Strip all-caps bracket tags like [UVR], [MV], [HD], [LIVE]
+  s = s.replace(/\[[A-Z0-9]+\]/g, ' ')
+
   for (const t of STRIP_TOKENS) {
     const re = new RegExp(`(^|[\\s\\-|·])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[\\s\\-|·])`, 'gi')
     s = s.replace(re, ' ')
@@ -172,7 +175,7 @@ export function parseTitleParts (cleaned: string): { artist: string, title: stri
   const s = cleaned.trim()
   if (!s) return null
   // Most YouTube titles use "Artist - Title"; also handle en-dash, em-dash, pipe, middot.
-  const dashMatch = s.match(/^(.+?)\s+[-–—|·]\s+(.+)$/)
+  const dashMatch = s.match(/^(.+?)\s+[-–—|·•]\s+(.+)$/)
   if (dashMatch) {
     const artist = dashMatch[1].trim()
     const title = dashMatch[2].trim()
@@ -188,19 +191,31 @@ export function parseTitleParts (cleaned: string): { artist: string, title: stri
   return null
 }
 
+// Short-circuit threshold: skip remaining strategies when a result is already confident.
+const CONFIDENT_SCORE = 90
+
 export async function searchByTitle (rawTitle: string): Promise<MusicBrainzHit | null> {
   const cleaned = cleanTitle(rawTitle)
   if (!cleaned) return null
 
+  let best: MusicBrainzHit | null = null
+
   const parts = parseTitleParts(cleaned)
   if (parts) {
     const structured = await searchByArtistTitle(parts.artist, parts.title)
-    if (structured) return structured
+    if (structured) {
+      if (structured.score >= CONFIDENT_SCORE) return structured
+      best = structured
+    }
     // Reverse orientation: some channels post "Title - Artist".
     const reversed = await searchByArtistTitle(parts.title, parts.artist)
-    if (reversed) return reversed
+    if (reversed && (!best || reversed.score > best.score)) best = reversed
+    if (best && best.score >= CONFIDENT_SCORE) return best
   }
-  return searchRecording(cleaned)
+
+  const fallback = await searchRecording(cleaned)
+  if (fallback && (!best || fallback.score > best.score)) best = fallback
+  return best
 }
 
 export async function searchByArtistTitle (artist: string, title: string): Promise<MusicBrainzHit | null> {
