@@ -49,16 +49,13 @@ RUN ARCH=$(uname -m) && \
   && rm /tmp/deno.zip \
   && deno --version
 
-# Pre-download spleeter 2-stems pretrained model so first run doesn't need internet.
-# Model extracted to /opt/spleeter/pretrained_models/2stems/
-ENV SPLEETER_DATA=/opt/spleeter
-RUN mkdir -p /opt/spleeter/pretrained_models \
-  && curl -fsSL https://github.com/deezer/spleeter/releases/download/v1.4.0/2stems.tar.gz \
-     | tar -xz -C /opt/spleeter/pretrained_models/
-
+# Spleeter downloads the 2-stems model on first use into SPLEETER_DATA.
+# Pointing it at /data/spleeter keeps the model in the existing data volume
+# so it survives container replacement without re-downloading.
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
-    KES_PORT=3000
+    KES_PORT=3000 \
+    SPLEETER_DATA=/data/spleeter
 
 WORKDIR /app
 
