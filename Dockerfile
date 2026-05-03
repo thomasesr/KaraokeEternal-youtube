@@ -16,7 +16,14 @@ RUN git clone --depth=1 --branch "${REPO_BRANCH}" "https://github.com/${REPO_SLU
 
 RUN npm ci
 RUN npm run build
-RUN npm prune --omit=dev
+
+# ---- prod-deps ----
+# Fresh npm ci --omit=dev is faster than npm prune on large trees
+FROM node:24-alpine AS prod-deps
+RUN apk add --no-cache python3 make g++ pkgconfig
+WORKDIR /prod-deps
+COPY --from=builder /src/package.json /src/package-lock.json ./
+RUN npm ci --omit=dev
 
 # ---- runtime ----
 # Debian Bookworm slim: python3 = 3.11 (spleeter requires <=3.11; Alpine 3.20+ ships 3.12 which breaks norbert)
@@ -61,7 +68,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=node:node /src/build ./build
 COPY --from=builder --chown=node:node /src/assets ./assets
-COPY --from=builder --chown=node:node /src/node_modules ./node_modules
+COPY --from=prod-deps --chown=node:node /prod-deps/node_modules ./node_modules
 COPY --from=builder --chown=node:node /src/package.json ./package.json
 COPY --from=builder --chown=node:node /src/init.sh ./init.sh
 RUN chmod +x /app/init.sh
