@@ -74,10 +74,10 @@ router.get('/:mediaId', async (ctx) => {
     buffer = Buffer.from(await entries[entry].arrayBuffer())
   } else {
     if (type === 'cdg') {
-      file = getCdgName(file)
+      file = getCdgName(file) || ''
       if (!file) ctx.throw(404, 'The .cdg file could not be found')
     } else if (type === 'lrc') {
-      file = getSidecarName(file, 'lrc')
+      file = getSidecarName(file, 'lrc') || ''
       if (!file) ctx.throw(404, 'The .lrc file could not be found')
     }
 

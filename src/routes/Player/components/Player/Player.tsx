@@ -11,15 +11,20 @@ const PlayerVisualizer = React.lazy(() => import('./PlayerVisualizer/PlayerVisua
 interface PlayerProps {
   cdgAlpha: number
   cdgSize: number
+  lrcOffset: number
+  lrcSmoothScroll: boolean
   isPlaying: boolean
   isVisible: boolean
   isReplayGainEnabled: boolean
   isVideoKeyingEnabled: boolean
   isWebGLSupported: boolean
+  artistName: string
+  lrcFontSize: number
   mediaId: number
   mediaKey: number
   mediaReplayKey?: number
   mediaType?: string
+  songTitle: string
   mp4Alpha: number
   rgTrackGain?: number
   rgTrackPeak?: number

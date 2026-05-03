@@ -93,6 +93,9 @@ export interface UserWithRole extends User {
 export interface PlaybackOptions {
   cdgAlpha?: number
   cdgSize?: number
+  lrcFontSize?: number
+  lrcOffset?: number
+  lrcSmoothScroll?: boolean
   mp4Alpha?: number
   visualizer?: {
     sensitivity?: number

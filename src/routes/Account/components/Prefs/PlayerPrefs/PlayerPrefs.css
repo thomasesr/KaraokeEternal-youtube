@@ -20,3 +20,17 @@
   padding: var(--container-padding);
   cursor: pointer;
 }
+
+.field {
+  padding: var(--container-padding);
+}
+
+.field label {
+  display: block;
+  margin-bottom: var(--space-s);
+  cursor: default;
+}
+
+.slider {
+  width: 100%;
+}

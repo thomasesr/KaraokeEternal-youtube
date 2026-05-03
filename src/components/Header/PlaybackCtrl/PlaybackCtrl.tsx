@@ -94,6 +94,9 @@ const PlaybackCtrl = () => {
           isVideoKeyingEnabled={status.isVideoKeyingEnabled}
           isVisualizerEnabled={status.visualizer.isEnabled}
           isWebGLSupported={status.isWebGLSupported}
+          lrcFontSize={status.lrcFontSize}
+          lrcOffset={status.lrcOffset}
+          lrcSmoothScroll={status.lrcSmoothScroll}
           mediaType={status.mediaType}
           mp4Alpha={status.mp4Alpha}
           onClose={toggleDisplayCtrl}
