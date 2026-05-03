@@ -84,7 +84,7 @@ const DisplayCtrl = ({
               />
             </legend>
 
-            {isWebGLSupported && (mediaType === 'cdg' || isVideoKeyingEnabled) && (
+            {isWebGLSupported && (mediaType === 'cdg' || mediaType === 'lrc' || isVideoKeyingEnabled) && (
               <>
                 <div className={styles.presetContainer}>
                   <div className={styles.presetButtons}>

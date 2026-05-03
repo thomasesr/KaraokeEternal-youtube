@@ -5,6 +5,7 @@ import path from 'path'
 import { unzip } from 'unzipit'
 import getLogger from '../lib/Log.js'
 import getCdgName from '../lib/getCdgName.js'
+import getSidecarName from '../lib/getSidecarName.js'
 import { getExt } from '../lib/util.js'
 import KoaRouter from '@koa/router'
 import Library from '../Library/Library.js'
@@ -60,6 +61,9 @@ router.get('/:mediaId', async (ctx) => {
     if (type === 'cdg') {
       entry = Object.keys(entries).find(f => !f.includes('/') && getExt(f) === '.cdg')
       if (!entry) ctx.throw(404, 'No .cdg file found in archive')
+    } else if (type === 'lrc') {
+      entry = Object.keys(entries).find(f => !f.includes('/') && getExt(f) === '.lrc')
+      if (!entry) ctx.throw(404, 'No .lrc file found in archive')
     } else {
       entry = Object.keys(entries).find(f => !f.includes('/') && audioExts.includes(getExt(f)))
       if (!entry) ctx.throw(404, 'No valid audio file found in archive')
@@ -72,6 +76,9 @@ router.get('/:mediaId', async (ctx) => {
     if (type === 'cdg') {
       file = getCdgName(file)
       if (!file) ctx.throw(404, 'The .cdg file could not be found')
+    } else if (type === 'lrc') {
+      file = getSidecarName(file, 'lrc')
+      if (!file) ctx.throw(404, 'The .lrc file could not be found')
     }
 
     const stats = await fsPromises.stat(file)

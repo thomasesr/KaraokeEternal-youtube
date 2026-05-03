@@ -1,5 +1,6 @@
 import React from 'react'
 import CDGPlayer from './CDGPlayer/CDGPlayer'
+import LRCPlayer from './LRCPlayer/LRCPlayer'
 import MP4Player from './MP4Player/MP4Player'
 import MP4AlphaPlayer from './MP4Player/MP4AlphaPlayer'
 import { type PlayerState } from '../../modules/player'
@@ -120,6 +121,7 @@ class Player extends React.Component<PlayerProps> {
     let PlayerComponent
 
     if (this.props.mediaType === 'cdg') PlayerComponent = CDGPlayer
+    else if (this.props.mediaType === 'lrc') PlayerComponent = LRCPlayer
     else if (this.props.mediaType === 'mp4') PlayerComponent = this.props.isVideoKeyingEnabled ? MP4AlphaPlayer : MP4Player
 
     if (typeof PlayerComponent === 'undefined') {
@@ -127,7 +129,7 @@ class Player extends React.Component<PlayerProps> {
       return null
     }
 
-    const isVisualizerActive = (this.props.mediaType === 'cdg' || this.props.isVideoKeyingEnabled)
+    const isVisualizerActive = (this.props.mediaType === 'cdg' || this.props.mediaType === 'lrc' || this.props.isVideoKeyingEnabled)
       && this.props.isWebGLSupported
       && this.props.visualizer.isEnabled
       && this.state.visualizerAudioSourceNode

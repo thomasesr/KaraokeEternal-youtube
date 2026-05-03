@@ -1,4 +1,3 @@
-import path from 'path'
 import { db } from '../lib/Database.js'
 import sql from 'sqlate'
 import { QueueItem } from '../../shared/types.js'
@@ -45,7 +44,7 @@ class Queue {
 
     const query = sql`
       SELECT queueId, songId, userId, prevQueueId,
-        media.mediaId, media.relPath, media.rgTrackGain, media.rgTrackPeak,
+        media.mediaId, media.relPath, media.mediaType, media.rgTrackGain, media.rgTrackPeak,
         users.name AS userDisplayName, users.dateUpdated AS userDateUpdated,
         paths.pathId, paths.data AS pathData,
         MAX(isPreferred) AS isPreferred
@@ -64,6 +63,7 @@ class Queue {
       prevQueueId: number
       mediaId: number
       relPath: string
+      mediaType: string
       rgTrackGain: number
       rgTrackPeak: number
       userDisplayName: string
@@ -81,7 +81,6 @@ class Queue {
       const pathPrefs = pathData.get(row.pathId)?.prefs
 
       entities[row.queueId] = row
-      entities[row.queueId].mediaType = this.getType(row.relPath)
       entities[row.queueId].isVideoKeyingEnabled = !!pathPrefs?.isVideoKeyingEnabled
 
       // don't send over the wire
@@ -225,12 +224,6 @@ class Queue {
     return res.count === ids.length
   }
 
-  /**
-   * Get media type from file extension
-   */
-  static getType (file: string): string {
-    return /\.mp4/i.test(path.extname(file)) ? 'mp4' : 'cdg'
-  }
 }
 
 export default Queue
