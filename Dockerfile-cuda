@@ -1,0 +1,94 @@
+# syntax=docker/dockerfile:1.6
+#
+# GPU variant — requires NVIDIA Container Toolkit on the host and --gpus all at runtime.
+# tensorflow[and-cuda] bundles CUDA 12.x wheels; no NVIDIA base image needed.
+# docker build -f Dockerfile-cuda github.com/thomasesr/KaraokeEternal-youtube#spleeter
+# docker run --gpus all ...
+
+# ---- builder ----
+# Node 24 on Alpine for npm ci + build (node-gyp only needs any python3)
+FROM node:24-alpine AS builder
+
+ARG REPO_SLUG=thomasesr/KaraokeEternal-youtube
+ARG REPO_BRANCH=youtube
+
+RUN apk add --no-cache git python3 make g++ pkgconfig
+
+WORKDIR /src
+
+ADD https://api.github.com/repos/${REPO_SLUG}/commits/${REPO_BRANCH} /tmp/branch-head.json
+RUN git clone --depth=1 --branch "${REPO_BRANCH}" "https://github.com/${REPO_SLUG}.git" .
+
+RUN npm ci
+RUN npm run build
+
+# ---- prod-deps ----
+# Fresh npm ci --omit=dev is faster than npm prune on large trees
+FROM node:24-alpine AS prod-deps
+RUN apk add --no-cache python3 make g++ pkgconfig
+WORKDIR /prod-deps
+COPY --from=builder /src/package.json /src/package-lock.json ./
+RUN npm ci --omit=dev
+
+# ---- runtime ----
+# Debian Bookworm slim: python3 = 3.11 (spleeter requires <=3.11; Alpine 3.20+ ships 3.12 which breaks norbert)
+FROM node:24-bookworm-slim
+
+# zip: used by SpleeterDownloader to package mp3+lrc
+# unzip: needed to extract deno binary
+# ffmpeg: video/audio remux + wav→mp3 conversion
+# ca-certificates: TLS roots for fetch
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip ffmpeg ca-certificates zip unzip curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install yt-dlp, spleeter, and tensorflow[and-cuda] (bundles CUDA 12.x libs).
+# tensorflow[and-cuda] must be listed before spleeter so pip resolves the GPU
+# variant before satisfying spleeter's tensorflow>=2.3.0 dependency.
+# --break-system-packages: bypass PEP 668 restriction in Debian-managed Python
+RUN pip3 install --no-cache-dir --break-system-packages \
+    yt-dlp "tensorflow[and-cuda]" spleeter \
+  && yt-dlp --version \
+  && python3 -c "import spleeter; print('spleeter ok')"
+
+# Install deno for yt-dlp EJS challenge solver (signature/n-param decryption).
+# Handles amd64 and arm64 builds.
+ARG DENO_VERSION=2.3.3
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ]; then DARCH="aarch64-unknown-linux-gnu"; \
+    else DARCH="x86_64-unknown-linux-gnu"; fi && \
+    curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${DARCH}.zip" \
+      -o /tmp/deno.zip \
+  && unzip /tmp/deno.zip -d /usr/local/bin/ \
+  && chmod +x /usr/local/bin/deno \
+  && rm /tmp/deno.zip \
+  && deno --version
+
+# Spleeter downloads the 2-stems model on first use into SPLEETER_DATA.
+# Pointing it at /data/spleeter keeps the model in the existing data volume
+# so it survives container replacement without re-downloading.
+# TF_FORCE_GPU_ALLOW_GROWTH: prevent TensorFlow from pre-allocating all VRAM.
+ENV NODE_ENV=production \
+    KES_PATH_DATA=/data \
+    KES_PORT=3000 \
+    SPLEETER_DATA=/data/spleeter \
+    TF_FORCE_GPU_ALLOW_GROWTH=true
+
+WORKDIR /app
+
+COPY --from=builder --chown=node:node /src/build ./build
+COPY --from=builder --chown=node:node /src/assets ./assets
+COPY --from=prod-deps --chown=node:node /prod-deps/node_modules ./node_modules
+COPY --from=builder --chown=node:node /src/package.json ./package.json
+COPY --from=builder --chown=node:node /src/init.sh ./init.sh
+RUN chmod +x /app/init.sh
+
+RUN mkdir -p /data && chown node:node /data
+
+VOLUME ["/data"]
+
+EXPOSE 3000
+
+USER node
+
+ENTRYPOINT ["/app/init.sh"]
