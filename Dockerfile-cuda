@@ -43,11 +43,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp, spleeter, and tensorflow[and-cuda] (bundles CUDA 12.x libs).
+# Pin tensorflow to avoid slow pip resolver iterating NVIDIA package versions.
 # tensorflow[and-cuda] must be listed before spleeter so pip resolves the GPU
 # variant before satisfying spleeter's tensorflow>=2.3.0 dependency.
 # --break-system-packages: bypass PEP 668 restriction in Debian-managed Python
 RUN pip3 install --no-cache-dir --break-system-packages \
-    yt-dlp "tensorflow[and-cuda]" spleeter \
+    --timeout 300 --retries 5 \
+    yt-dlp "tensorflow[and-cuda]==2.15.1" spleeter \
   && yt-dlp --version \
   && python3 -c "import spleeter; print('spleeter ok')"
 
