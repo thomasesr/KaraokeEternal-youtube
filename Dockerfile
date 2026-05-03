@@ -63,7 +63,7 @@ COPY --from=builder --chown=node:node /src/build ./build
 COPY --from=builder --chown=node:node /src/assets ./assets
 COPY --from=builder --chown=node:node /src/node_modules ./node_modules
 COPY --from=builder --chown=node:node /src/package.json ./package.json
-COPY --chown=node:node init.sh ./init.sh
+COPY --from=builder --chown=node:node /src/init.sh ./init.sh
 RUN chmod +x /app/init.sh
 
 RUN mkdir -p /data && chown node:node /data
