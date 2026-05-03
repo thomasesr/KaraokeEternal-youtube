@@ -20,6 +20,13 @@ export interface IYoutubeSearchResult {
   publishedAt: string
   thumbnail: string
   duration: number
+  viewCount: number
+  isKaraoke: boolean
+}
+
+export interface IYoutubeSearchPage {
+  results: IYoutubeSearchResult[]
+  nextPageToken: string | null
 }
 
 export interface YoutubeConfigPatch {
@@ -67,9 +74,15 @@ export const saveYoutubeConfig = createAsyncThunk<IYoutubePrefs, YoutubeConfigPa
   async patch => api.put<IYoutubePrefs>('/config', { body: patch }),
 )
 
-export const youtubeSearch = createAsyncThunk<IYoutubeSearchResult[], string>(
+export const youtubeSearch = createAsyncThunk<IYoutubeSearchPage, string>(
   YOUTUBE_SEARCH_REQUEST,
-  async query => api.get<IYoutubeSearchResult[]>(`/search?q=${encodeURIComponent(query)}`),
+  async query => api.get<IYoutubeSearchPage>(`/search?q=${encodeURIComponent(query)}`),
+)
+
+export const youtubeSearchMore = createAsyncThunk<IYoutubeSearchPage, { query: string, pageToken: string }>(
+  'youtube/SEARCH_MORE',
+  async ({ query, pageToken }) =>
+    api.get<IYoutubeSearchPage>(`/search?q=${encodeURIComponent(query)}&pageToken=${encodeURIComponent(pageToken)}`),
 )
 
 export type YoutubeDownloadStatus = 'queued' | 'downloading' | 'done' | 'error'
@@ -77,6 +90,7 @@ export type YoutubeDownloadStatus = 'queued' | 'downloading' | 'done' | 'error'
 export interface IYoutubeDownloadJob {
   videoId: string
   status: YoutubeDownloadStatus
+  stage: string | null
   progress: number
   error: string | null
   filename: string | null
@@ -88,6 +102,8 @@ export interface YoutubeDownloadStartArgs {
   videoId: string
   artist: string
   title: string
+  duration?: number
+  mode?: 'spleeter'
 }
 
 export const youtubeDownloadStart = createAsyncThunk<IYoutubeDownloadJob, YoutubeDownloadStartArgs>(
@@ -114,9 +130,12 @@ export interface YoutubeState {
   isAccessLoaded: boolean
 
   isSearching: boolean
+  isLoadingMore: boolean
   searchError: string | null
   searchQuery: string
   searchResults: IYoutubeSearchResult[]
+  searchNextPageToken: string | null
+  searchPageCount: number
   isModeActive: boolean
   downloads: Record<string, IYoutubeDownloadJob>
 }
@@ -129,9 +148,12 @@ const initialState: YoutubeState = {
   access: null,
   isAccessLoaded: false,
   isSearching: false,
+  isLoadingMore: false,
   searchError: null,
   searchQuery: '',
   searchResults: [],
+  searchNextPageToken: null,
+  searchPageCount: 0,
   isModeActive: false,
   downloads: {},
 }
@@ -177,20 +199,40 @@ const youtubeReducer = createReducer(initialState, (builder) => {
       state.isSearching = true
       state.searchError = null
       state.searchQuery = meta.arg
+      state.searchNextPageToken = null
+      state.searchPageCount = 0
     })
     .addCase(youtubeSearch.fulfilled, (state, { payload }) => {
-      state.searchResults = payload
+      state.searchResults = payload.results
+      state.searchNextPageToken = payload.nextPageToken
+      state.searchPageCount = 1
       state.isSearching = false
     })
     .addCase(youtubeSearch.rejected, (state, { error }) => {
       state.isSearching = false
       state.searchError = error.message ?? 'Search failed'
       state.searchResults = []
+      state.searchNextPageToken = null
+      state.searchPageCount = 0
+    })
+    .addCase(youtubeSearchMore.pending, (state) => {
+      state.isLoadingMore = true
+    })
+    .addCase(youtubeSearchMore.fulfilled, (state, { payload }) => {
+      state.searchResults = [...state.searchResults, ...payload.results]
+      state.searchNextPageToken = payload.nextPageToken
+      state.searchPageCount += 1
+      state.isLoadingMore = false
+    })
+    .addCase(youtubeSearchMore.rejected, (state) => {
+      state.isLoadingMore = false
     })
     .addCase(clearYoutubeSearch, (state) => {
       state.searchResults = []
       state.searchQuery = ''
       state.searchError = null
+      state.searchNextPageToken = null
+      state.searchPageCount = 0
     })
     .addCase(youtubeDownloadStart.pending, (state, { meta }) => {
       const id = meta.arg.videoId

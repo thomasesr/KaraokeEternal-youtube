@@ -4,14 +4,9 @@ import os from 'os'
 import path from 'path'
 import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
-import Library from '../Library/Library.js'
-import Media from '../Media/Media.js'
-import Queue from '../Queue/Queue.js'
-import Rooms from '../Rooms/Rooms.js'
-import MetaParser from '../Scanner/MetaParser/MetaParser.js'
-import pushQueuesAndLibrary from '../lib/pushQueuesAndLibrary.js'
 import type { YoutubeQualityPreset } from '../../shared/types.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
+import { ingestDownloaded } from './ingestDownloaded.js'
 
 const HEIGHT_CAP_BY_PRESET: Record<YoutubeQualityPreset, number | null> = {
   'best': null,
@@ -162,6 +157,7 @@ export type JobStatus = 'queued' | 'downloading' | 'done' | 'error'
 export interface Job {
   videoId: string
   status: JobStatus
+  stage: string | null
   progress: number // 0..100
   error: string | null
   filename: string | null
@@ -221,6 +217,7 @@ export const Downloader = {
     const job: Job = {
       videoId,
       status: 'queued',
+      stage: null,
       progress: 0,
       error: null,
       filename: null,
@@ -354,6 +351,7 @@ export const Downloader = {
             destDir: opts.destDir,
             roomId: opts.roomId,
             userId: opts.userId,
+            mediaType: 'mp4',
             io: opts.io,
           })
           job.status = 'done'
@@ -391,69 +389,6 @@ function cleanupCookies (file: string | null) {
 function cleanupTmpDir (dir: string | null) {
   if (!dir) return
   fsp.rm(dir, { recursive: true, force: true }).catch(() => { /* ignore */ })
-}
-
-interface IngestArgs {
-  absPath: string | null
-  duration: number
-  artist: string
-  title: string
-  pathId: number
-  destDir: string
-  roomId: number
-  userId: number
-  io?: any
-}
-
-async function ingestDownloaded (args: IngestArgs): Promise<void> {
-  if (!args.absPath) throw new Error('yt-dlp did not report final filepath')
-
-  try {
-    await Rooms.validate(args.roomId, undefined, { validatePassword: false })
-  } catch (e) {
-    await fsp.unlink(args.absPath).catch(() => undefined)
-    throw new Error(`Room no longer available (${(e as Error).message}); downloaded file removed`)
-  }
-
-  // normalize relPath: forward slashes, no leading slash (matches FileScanner convention)
-  const relPath = path.relative(args.destDir, args.absPath).replace(/\\/g, '/').replace(/^\/+/, '')
-  if (!relPath || relPath.startsWith('..')) {
-    throw new Error(`downloaded file is outside dest dir: ${args.absPath}`)
-  }
-
-  const parser = MetaParser({})
-  const parsed = parser({ name: `${args.artist} - ${args.title}`, file: args.absPath })
-
-  const match = Library.matchSong({
-    artist: parsed.artist,
-    artistNorm: parsed.artistNorm,
-    title: parsed.title,
-    titleNorm: parsed.titleNorm,
-  })
-
-  if (!match.songId) throw new Error('Library.matchSong returned no songId')
-
-  Media.add({
-    songId: match.songId,
-    pathId: args.pathId,
-    relPath,
-    duration: args.duration,
-    dateAdded: Math.floor(Date.now() / 1000),
-  })
-
-  Queue.add({ roomId: args.roomId, songId: match.songId, userId: args.userId })
-
-  log.info('ingested %s -> songId=%d, queued in roomId=%d', relPath, match.songId, args.roomId)
-
-  if (args.io) {
-    try {
-      pushQueuesAndLibrary(args.io)
-    } catch (e) {
-      log.warn('library/queue broadcast failed: %s', (e as Error).message)
-    }
-  } else {
-    Library.cache.version = null
-  }
 }
 
 export default Downloader

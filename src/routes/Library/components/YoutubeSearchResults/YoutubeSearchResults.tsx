@@ -1,9 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Spinner from 'components/Spinner/Spinner'
 import Button from 'components/Button/Button'
-import { youtubeDownloadStart, youtubeDownloadStatus, youtubeIdentify } from 'store/modules/youtube'
+import {
+  youtubeDownloadStart,
+  youtubeDownloadStatus,
+  youtubeIdentify,
+  youtubeSearchMore,
+} from 'store/modules/youtube'
 import styles from './YoutubeSearchResults.css'
+
+const MAX_PAGES = 10
 
 interface Props {
   paddingTop: number
@@ -15,6 +22,8 @@ interface ModalState {
   videoId: string
   artist: string
   title: string
+  duration: number
+  isKaraoke: boolean
   reason: 'miss' | 'lowScore'
   score: number | null
   busy: boolean
@@ -31,11 +40,33 @@ function formatDuration (sec: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
 }
 
+function formatViewCount (n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M views`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K views`
+  return `${n} views`
+}
+
+function stageLabel (stage: string | null): string {
+  switch (stage) {
+    case 'downloading': return 'Downloading…'
+    case 'separating': return 'Separating vocals…'
+    case 'converting': return 'Converting…'
+    case 'fetching-lrc': return 'Fetching lyrics…'
+    case 'zipping': return 'Packaging…'
+    default: return 'Processing…'
+  }
+}
+
 const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
   const dispatch = useAppDispatch()
-  const { isSearching, searchError, searchQuery, searchResults, downloads, access } = useAppSelector(state => state.youtube)
+  const {
+    isSearching, isLoadingMore, searchError, searchQuery,
+    searchResults, searchNextPageToken, searchPageCount,
+    downloads, access,
+  } = useAppSelector(state => state.youtube)
   const downloadPathConfigured = !!access?.downloadPathConfigured
   const pollRef = useRef<number | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
   const [identifyingId, setIdentifyingId] = useState<string | null>(null)
 
@@ -58,23 +89,46 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
     }
   }, [activeKey, dispatch])
 
-  const startDownload = (videoId: string, artist: string, title: string) => {
-    dispatch(youtubeDownloadStart({ videoId, artist, title }))
+  const canLoadMore = !!searchNextPageToken && searchPageCount < MAX_PAGES && !isLoadingMore
+
+  const loadMore = useCallback(() => {
+    if (!canLoadMore || !searchQuery || !searchNextPageToken) return
+    dispatch(youtubeSearchMore({ query: searchQuery, pageToken: searchNextPageToken }))
+  }, [canLoadMore, searchQuery, searchNextPageToken, dispatch])
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el || !canLoadMore) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
+      loadMore()
+    }
+  }, [canLoadMore, loadMore])
+
+  const startDownload = (videoId: string, artist: string, title: string, duration: number, isKaraoke: boolean) => {
+    dispatch(youtubeDownloadStart({
+      videoId,
+      artist,
+      title,
+      duration,
+      ...(isKaraoke ? {} : { mode: 'spleeter' as const }),
+    }))
   }
 
-  const onDownload = async (videoId: string, videoTitle: string) => {
+  const onDownload = async (videoId: string, videoTitle: string, duration: number, isKaraoke: boolean) => {
     setIdentifyingId(videoId)
     try {
       const action = await dispatch(youtubeIdentify({ title: videoTitle }))
       if (youtubeIdentify.fulfilled.match(action)) {
         const r = action.payload
         if (r.found && r.artist && r.title) {
-          startDownload(videoId, r.artist, r.title)
+          startDownload(videoId, r.artist, r.title, duration, isKaraoke)
         } else {
           setModal({
             videoId,
             artist: '',
             title: videoTitle,
+            duration,
+            isKaraoke,
             reason: r.score != null ? 'lowScore' : 'miss',
             score: r.score ?? null,
             busy: false,
@@ -83,7 +137,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
         }
       } else {
         setModal({
-          videoId, artist: '', title: videoTitle,
+          videoId, artist: '', title: videoTitle, duration, isKaraoke,
           reason: 'miss', score: null, busy: false,
           error: action.error.message ?? 'Lookup failed',
         })
@@ -108,9 +162,15 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
       finalArtist = action.payload.artist
       finalTitle = action.payload.title
     }
-    startDownload(modal.videoId, finalArtist, finalTitle)
+    startDownload(modal.videoId, finalArtist, finalTitle, modal.duration, modal.isKaraoke)
     setModal(null)
   }
+
+  // sort: karaoke first, then by viewCount desc
+  const sorted = [...searchResults].sort((a, b) => {
+    if (a.isKaraoke !== b.isKaraoke) return a.isKaraoke ? -1 : 1
+    return b.viewCount - a.viewCount
+  })
 
   const containerStyle: React.CSSProperties = {
     paddingTop,
@@ -147,28 +207,33 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
     return (
       <div className={styles.container} style={containerStyle}>
         <div className={styles.message}>
-          No YouTube results for “
+          No YouTube results for "
           {searchQuery}
-          ”.
+          ".
         </div>
       </div>
     )
   }
 
   return (
-    <div className={styles.container} style={containerStyle}>
+    <div
+      className={styles.container}
+      style={containerStyle}
+      ref={scrollRef}
+      onScroll={onScroll}
+    >
       <div className={styles.heading}>
         {searchResults.length}
         {' '}
         YouTube result
         {searchResults.length === 1 ? '' : 's'}
         {' '}
-        for “
+        for "
         {searchQuery}
-        ”
+        "
       </div>
 
-      {searchResults.map(item => (
+      {sorted.map(item => (
         <div key={item.videoId} className={styles.item}>
           {item.thumbnail && (
             <img
@@ -183,6 +248,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
             <div className={styles.meta}>
               {item.channel}
               {item.duration ? ` · ${formatDuration(item.duration)}` : ''}
+              {item.viewCount > 0 ? ` · ${formatViewCount(item.viewCount)}` : ''}
             </div>
             {downloads[item.videoId]?.status === 'error' && (
               <div className={styles.error}>{downloads[item.videoId].error}</div>
@@ -198,9 +264,10 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
               {(() => {
                 const job = downloads[item.videoId]
                 if (job?.status === 'downloading' || job?.status === 'queued') {
+                  const label = job.stage ? stageLabel(job.stage) : `Downloading ${Math.round(job.progress)}%`
                   return (
                     <Button as='span' variant='primary' disabled>
-                      {`Downloading ${Math.round(job.progress)}%`}
+                      {label}
                     </Button>
                   )
                 }
@@ -218,9 +285,9 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
                     variant='primary'
                     disabled={!downloadPathConfigured || isIdentifying}
                     title={!downloadPathConfigured ? 'Set a download path in Account → YouTube' : errTitle}
-                    onClick={() => onDownload(item.videoId, item.title)}
+                    onClick={() => onDownload(item.videoId, item.title, item.duration, item.isKaraoke)}
                   >
-                    {isIdentifying ? 'Identifying…' : (job?.status === 'error' ? 'Retry download' : 'Download')}
+                    {isIdentifying ? 'Identifying…' : (job?.status === 'error' ? 'Retry' : 'Download')}
                   </Button>
                 )
               })()}
@@ -228,6 +295,16 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
           </div>
         </div>
       ))}
+
+      {isLoadingMore && (
+        <div className={styles.loadingMore}>
+          <Spinner />
+        </div>
+      )}
+
+      {canLoadMore && !isLoadingMore && (
+        <div className={styles.loadMoreHint} />
+      )}
 
       {modal && (
         <div className={styles.modalBackdrop} onClick={() => !modal.busy && setModal(null)}>

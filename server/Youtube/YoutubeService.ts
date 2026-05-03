@@ -12,6 +12,13 @@ export interface YoutubeSearchResult {
   publishedAt: string
   thumbnail: string
   duration: number
+  viewCount: number
+  isKaraoke: boolean
+}
+
+export interface YoutubeSearchPage {
+  results: YoutubeSearchResult[]
+  nextPageToken: string | null
 }
 
 export class YoutubeApiError extends Error {
@@ -36,6 +43,7 @@ interface SearchListItem {
 interface VideosListItem {
   id: string
   contentDetails: { duration: string }
+  statistics: { viewCount?: string }
 }
 
 function parseIsoDuration (iso: string): number {
@@ -62,44 +70,57 @@ async function apiGet<T> (path: string, params: Record<string, string>, apiKey: 
 }
 
 export class YoutubeService {
-  static async search (query: string, signal?: AbortSignal): Promise<YoutubeSearchResult[]> {
+  static async search (query: string, pageToken?: string, signal?: AbortSignal): Promise<YoutubeSearchPage> {
     const q = (query ?? '').trim()
-    if (!q) return []
+    if (!q) return { results: [], nextPageToken: null }
 
     const apiKey = Prefs.getYoutubeApiKey()
     if (!apiKey) throw new YoutubeApiError('YouTube API key not configured', 503)
 
-    const searchData = await apiGet<{ items: SearchListItem[] }>('/search', {
+    const searchParams: Record<string, string> = {
       part: 'snippet',
       type: 'video',
       videoCategoryId: '10', // music
-      maxResults: '15',
+      maxResults: '10',
       q,
-    }, apiKey, signal)
+    }
+    if (pageToken) searchParams.pageToken = pageToken
+
+    const searchData = await apiGet<{ items: SearchListItem[], nextPageToken?: string }>('/search', searchParams, apiKey, signal)
 
     const ids = searchData.items
       .map(i => i.id?.videoId)
       .filter((id): id is string => typeof id === 'string' && VIDEO_ID_RE.test(id))
 
-    if (!ids.length) return []
+    if (!ids.length) return { results: [], nextPageToken: null }
 
     const videosData = await apiGet<{ items: VideosListItem[] }>('/videos', {
-      part: 'contentDetails',
+      part: 'contentDetails,statistics',
       id: ids.join(','),
     }, apiKey, signal)
 
-    const durationById = new Map(videosData.items.map(v => [v.id, parseIsoDuration(v.contentDetails.duration)]))
+    const metaById = new Map(videosData.items.map(v => [v.id, v]))
 
-    return searchData.items
-      .filter(item => durationById.has(item.id.videoId))
-      .map(item => ({
-        videoId: item.id.videoId,
-        title: item.snippet.title,
-        channel: item.snippet.channelTitle,
-        publishedAt: item.snippet.publishedAt,
-        thumbnail: item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? '',
-        duration: durationById.get(item.id.videoId) ?? 0,
-      }))
+    const results = searchData.items
+      .filter(item => metaById.has(item.id.videoId))
+      .map(item => {
+        const meta = metaById.get(item.id.videoId)!
+        return {
+          videoId: item.id.videoId,
+          title: item.snippet.title,
+          channel: item.snippet.channelTitle,
+          publishedAt: item.snippet.publishedAt,
+          thumbnail: item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? '',
+          duration: parseIsoDuration(meta.contentDetails.duration),
+          viewCount: parseInt(meta.statistics.viewCount ?? '0', 10) || 0,
+          isKaraoke: /karaoke/i.test(item.snippet.title),
+        }
+      })
+
+    return {
+      results,
+      nextPageToken: searchData.nextPageToken ?? null,
+    }
   }
 
   static isValidVideoId (id: unknown): id is string {

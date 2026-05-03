@@ -110,3 +110,13 @@
   color: inherit;
   font-size: var(--font-size-m);
 }
+
+.loadingMore {
+  padding: var(--space-m);
+  display: flex;
+  justify-content: center;
+}
+
+.loadMoreHint {
+  height: 300px;
+}
