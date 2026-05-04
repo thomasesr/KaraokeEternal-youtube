@@ -94,11 +94,32 @@ else
   warn "KES_YOUTUBE_API_KEY = <unset> (YouTube search disabled until set via admin UI)"
 fi
 
+# Map LOG_LEVEL string to numeric level (0=off 1=error 2=warn 3=info 4=verbose 5=debug)
+NODE_ARGS=()
+if [ -n "${LOG_LEVEL:-}" ]; then
+  case "${LOG_LEVEL,,}" in
+    off)     _LEVEL=0 ;;
+    error)   _LEVEL=1 ;;
+    warn)    _LEVEL=2 ;;
+    info)    _LEVEL=3 ;;
+    verbose) _LEVEL=4 ;;
+    debug)   _LEVEL=5 ;;
+    [0-5])   _LEVEL="${LOG_LEVEL}" ;;
+    *)       warn "LOG_LEVEL '${LOG_LEVEL}' unrecognized — ignoring (use: off/error/warn/info/verbose/debug or 0-5)"; _LEVEL="" ;;
+  esac
+  if [ -n "${_LEVEL:-}" ]; then
+    NODE_ARGS+=(--serverConsoleLevel "${_LEVEL}" --scannerConsoleLevel "${_LEVEL}")
+    ok "LOG_LEVEL      = ${LOG_LEVEL} → level ${_LEVEL}"
+  fi
+else
+  ok "LOG_LEVEL      = <unset> (using defaults)"
+fi
+
 # ---------------------------------------------------------------------------
 # Start server
 # ---------------------------------------------------------------------------
 hdr "Starting KaraokeEternal"
-info "exec node build/server/main.js"
+info "exec node build/server/main.js ${NODE_ARGS[*]+"${NODE_ARGS[*]}"}"
 echo ""
 
-exec node build/server/main.js
+exec node build/server/main.js "${NODE_ARGS[@]}"
