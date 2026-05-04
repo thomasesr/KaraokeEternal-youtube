@@ -61,17 +61,17 @@ SPLEETER_DATA="${SPLEETER_DATA:-/data/spleeter}"
 MODEL_DIR="${SPLEETER_DATA}/pretrained_models/2stems"
 MODEL_URL="https://github.com/deezer/spleeter/releases/download/v1.4.0/2stems.tar.gz"
 
-if [ -f "${MODEL_DIR}/checkpoint" ]; then
+if [ -d "${MODEL_DIR}" ] && [ -n "$(ls -A "${MODEL_DIR}" 2>/dev/null)" ]; then
   ok "2-stems model present — ${MODEL_DIR}"
 else
   warn "2-stems model not found — downloading to ${MODEL_DIR}"
-  mkdir -p "${SPLEETER_DATA}/pretrained_models"
+  mkdir -p "${MODEL_DIR}"
   info "Fetching ${MODEL_URL} ..."
-  if curl -fsSL "${MODEL_URL}" | tar -xz -C "${SPLEETER_DATA}/pretrained_models/"; then
-    if [ -f "${MODEL_DIR}/checkpoint" ]; then
+  if curl -fsSL "${MODEL_URL}" | tar -xz --strip-components=1 -C "${MODEL_DIR}"; then
+    if [ -n "$(ls -A "${MODEL_DIR}" 2>/dev/null)" ]; then
       ok "2-stems model downloaded successfully"
     else
-      fail "Download appeared to succeed but checkpoint missing at ${MODEL_DIR}"
+      fail "Download appeared to succeed but model directory empty at ${MODEL_DIR}"
     fi
   else
     fail "Failed to download 2-stems model from ${MODEL_URL}"
