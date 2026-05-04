@@ -122,6 +122,7 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
       '--extractor-args', 'youtube:player_client=tv,web_safari,default']
     if (cookieFile) args.unshift('--cookies', cookieFile)
     args.push(url)
+    log.debug('yt-dlp probe args: %s', args.join(' '))
     const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
@@ -129,10 +130,13 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
       stdout += b.toString('utf8')
     })
     proc.stderr.on('data', (b: Buffer) => {
-      stderr += b.toString('utf8')
+      const text = b.toString('utf8')
+      stderr += text
+      log.debug('yt-dlp probe stderr: %s', text.trimEnd())
     })
     proc.on('error', reject)
     proc.on('close', (code) => {
+      log.debug('yt-dlp probe exited code=%d stdout=%d bytes stderr=%d bytes', code, stdout.length, stderr.length)
       if (code !== 0) {
         const tail = stderr.trim().split('\n').pop() || `yt-dlp probe exited ${code}`
         const hint = hintFor(classifyFailure(stderr))
@@ -141,6 +145,7 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
       try {
         const json = JSON.parse(stdout) as Omit<ProbeResult, 'stderr'>
         if (!Array.isArray(json.formats)) return reject(new Error('yt-dlp probe: no formats'))
+        log.debug('yt-dlp probe parsed: %d formats, duration=%s', json.formats.length, json.duration ?? 'n/a')
         resolve({ ...json, stderr })
       } catch (e) {
         reject(e instanceof Error ? e : new Error(String(e)))
@@ -232,20 +237,29 @@ export const Downloader = {
     const outTemplate = `${baseUnique}.%(ext)s`
     const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), `kes-yt-${videoId}-`))
 
+    log.verbose('yt-dlp job start: %s artist=%s title=%s quality=%s dest=%s', videoId, opts.artist, opts.title, opts.qualityPreset ?? 'best', opts.destDir)
+    log.debug('yt-dlp tmpDir=%s outTemplate=%s', tmpDir, outTemplate)
+
     const cookies = opts.useCookies ? Prefs.getYoutubeCookies() : null
     let cookieFile: string | null = null
     if (cookies) {
       cookieFile = path.join(os.tmpdir(), `kes-yt-${videoId}-${Date.now()}.txt`)
       await fsp.writeFile(cookieFile, cookies, { mode: 0o600 })
+      log.debug('yt-dlp cookie file written: %s', cookieFile)
+    } else {
+      log.debug('yt-dlp cookies: none')
     }
 
     const heightCap = HEIGHT_CAP_BY_PRESET[opts.qualityPreset ?? 'best']
+    log.debug('yt-dlp heightCap=%s', heightCap ?? 'none')
     let format: string
     let needsRemux = true
     let probeDuration: number | null = null
     try {
+      log.verbose('yt-dlp probing formats: %s', videoId)
       const probe = await probeFormats(url, cookieFile)
       probeDuration = typeof probe.duration === 'number' ? Math.round(probe.duration) : null
+      log.debug('yt-dlp probe: %d formats, duration=%s', probe.formats.length, probeDuration ?? 'n/a')
       const sel = selectFormats(probe.formats, heightCap)
       if (!sel) {
         const anyVideo = probe.formats.some(isVideo)
@@ -265,6 +279,7 @@ export const Downloader = {
       needsRemux = sel.needsRemux
       log.info('yt-dlp probe %s: picked %s (remux=%s, cap=%s)',
         videoId, format, needsRemux, heightCap ?? 'none')
+      log.debug('yt-dlp format selection: videoId=%s audioId=%s needsRemux=%s', sel.videoId, sel.audioId, sel.needsRemux)
     } catch (e) {
       cleanupCookies(cookieFile)
       cleanupTmpDir(tmpDir)
@@ -298,6 +313,7 @@ export const Downloader = {
     if (cookieFile) args.unshift('--cookies', cookieFile)
 
     log.info('yt-dlp start: %s -> %s', videoId, opts.destDir)
+    log.debug('yt-dlp download args: %s', args.join(' '))
     const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
 
     job.status = 'downloading'
@@ -307,6 +323,7 @@ export const Downloader = {
 
     proc.stdout.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8')
+      log.debug('yt-dlp stdout: %s', text.trimEnd())
       for (const line of text.split(/\r?\n/)) {
         if (!line) continue
         const m = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(line)
@@ -317,6 +334,7 @@ export const Downloader = {
         // last line printed by --print after_move:filepath is final filepath
         if (line.startsWith('/') || /^[A-Za-z]:[\\/]/.test(line)) {
           printedFile = line.trim()
+          log.debug('yt-dlp printed filepath: %s', printedFile)
         }
       }
     })
@@ -324,6 +342,7 @@ export const Downloader = {
     proc.stderr.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8')
       stderrTail = (stderrTail + text).slice(-2000)
+      log.debug('yt-dlp stderr: %s', text.trimEnd())
     })
 
     proc.on('error', (err) => {
@@ -336,11 +355,13 @@ export const Downloader = {
     })
 
     proc.on('close', async (code) => {
+      log.debug('yt-dlp download exited code=%d printedFile=%s', code, printedFile ?? 'none')
       cleanupCookies(cookieFile)
       cleanupTmpDir(tmpDir)
       if (code === 0) {
         job.progress = 100
         job.filename = printedFile
+        log.verbose('yt-dlp download complete, ingesting: %s -> %s', videoId, printedFile)
         try {
           await ingestDownloaded({
             absPath: printedFile,

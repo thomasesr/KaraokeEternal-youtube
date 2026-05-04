@@ -4,7 +4,7 @@ import Koa from 'koa'
 import { koaBody } from 'koa-body'
 import router from '../router.js'
 import Prefs from '../../Prefs/Prefs.js'
-import { YoutubeService, YoutubeApiError } from '../YoutubeService.js'
+import { YoutubeService, YoutubeApiError, YoutubeSearchPage } from '../YoutubeService.js'
 import { Downloader } from '../Downloader.js'
 import * as MB from '../MusicBrainz.js'
 
@@ -87,11 +87,11 @@ describe('YouTube router — auth', () => {
     vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
       youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'standard'] },
     }) as any)
-    vi.spyOn(YoutubeService, 'search').mockResolvedValue([])
+    vi.spyOn(YoutubeService, 'search').mockResolvedValue({ results: [], nextPageToken: null } as YoutubeSearchPage)
 
     const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([])
+    expect(await res.json()).toEqual({ results: [], nextPageToken: null })
   })
 
   it('allows guest on /search when role explicitly allowed', async () => {
@@ -99,7 +99,7 @@ describe('YouTube router — auth', () => {
     vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
       youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'guest'] },
     }) as any)
-    vi.spyOn(YoutubeService, 'search').mockResolvedValue([])
+    vi.spyOn(YoutubeService, 'search').mockResolvedValue({ results: [], nextPageToken: null } as YoutubeSearchPage)
 
     const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
     expect(res.status).toBe(200)
@@ -110,7 +110,7 @@ describe('YouTube router — auth', () => {
     vi.spyOn(Prefs, 'get').mockReturnValue(buildPrefsResult({
       youtube: { isEnabled: true, downloadPathId: null, useCookies: false, allowedRoles: ['admin', 'room_manager'] },
     }) as any)
-    vi.spyOn(YoutubeService, 'search').mockResolvedValue([])
+    vi.spyOn(YoutubeService, 'search').mockResolvedValue({ results: [], nextPageToken: null } as YoutubeSearchPage)
 
     const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
     expect(res.status).toBe(200)
@@ -546,12 +546,15 @@ describe('YouTube router — GET /search', () => {
       publishedAt: '',
       thumbnail: '',
       duration: 100,
+      viewCount: 0,
+      isKaraoke: false,
     }]
-    vi.spyOn(YoutubeService, 'search').mockResolvedValue(items)
+    const page: YoutubeSearchPage = { results: items, nextPageToken: null }
+    vi.spyOn(YoutubeService, 'search').mockResolvedValue(page)
 
     const res = await fetch(`${baseUrl}/api/youtube/search?q=hello`)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual(items)
+    expect(await res.json()).toEqual(page)
   })
 
   it('maps YoutubeApiError to its status', async () => {

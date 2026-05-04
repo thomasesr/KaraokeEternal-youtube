@@ -29,18 +29,28 @@ export interface SpleeterStartOptions {
 function spawnAsync (
   cmd: string,
   args: string[],
-  opts: { cwd?: string } = {},
+  opts: { cwd?: string; label?: string; env?: NodeJS.ProcessEnv } = {},
 ): Promise<void> {
+  const label = opts.label ?? cmd
+  log.debug('%s args: %s', label, args.join(' '))
+  const env = opts.env ? { ...process.env, ...opts.env } : undefined
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: opts.cwd })
+    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: opts.cwd, env })
     let stderr = ''
-    proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString('utf8')).slice(-4000) })
-    proc.stdout.on('data', () => { /* discard */ })
+    proc.stderr.on('data', (b: Buffer) => {
+      const text = b.toString('utf8')
+      stderr = (stderr + text).slice(-4000)
+      log.debug('%s stderr: %s', label, text.trimEnd())
+    })
+    proc.stdout.on('data', (b: Buffer) => {
+      log.debug('%s stdout: %s', label, b.toString('utf8').trimEnd())
+    })
     proc.on('error', reject)
-    proc.on('close', code => {
+    proc.on('close', (code, signal) => {
       if (code === 0) return resolve()
-      const tail = stderr.trim().split('\n').pop() || `${cmd} exited ${code}`
-      reject(new Error(tail))
+      const tail = stderr.trim().split('\n').pop() || ''
+      const reason = tail || (signal ? `${cmd} killed by ${signal}` : `${cmd} exited ${code}`)
+      reject(new Error(reason))
     })
   })
 }
@@ -115,26 +125,33 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
   const baseRaw = buildFilenameBase(opts.artist, opts.title)
   const base = await pickUniqueBase(opts.destDir, baseRaw)
 
+  log.verbose('spleeter pipeline start: %s artist=%s title=%s dest=%s', videoId, opts.artist, opts.title, opts.destDir)
+
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), `kes-spl-${videoId}-`))
   const stemsDir = path.join(tmpDir, 'stems')
+  log.debug('spleeter tmpDir=%s stemsDir=%s', tmpDir, stemsDir)
 
   const cookies = opts.useCookies ? Prefs.getYoutubeCookies() : null
   let cookieFile: string | null = null
   if (cookies) {
     cookieFile = path.join(os.tmpdir(), `kes-spl-${videoId}-${Date.now()}.txt`)
     await fsp.writeFile(cookieFile, cookies, { mode: 0o600 })
+    log.debug('spleeter cookie file written: %s', cookieFile)
+  } else {
+    log.debug('spleeter cookies: none')
   }
 
   const dlMp3 = path.join(tmpDir, `${base}-dl.%(ext)s`)
-  const instrMp3 = path.join(tmpDir, `${base}.mp3`)
   const lrcFile = path.join(tmpDir, `${base}.lrc`)
   const zipFile = path.join(tmpDir, `${base}.zip`)
   const destZip = path.join(opts.destDir, `${base}.zip`)
+  log.debug('spleeter paths: dlMp3=%s lrcFile=%s zipFile=%s destZip=%s', dlMp3, lrcFile, zipFile, destZip)
 
   try {
     // --- download audio ---
     job.status = 'downloading'
     job.stage = 'downloading'
+    log.verbose('spleeter stage=downloading: %s', videoId)
 
     const ytArgs = [
       '--extract-audio',
@@ -150,19 +167,27 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
       url,
     ]
     if (cookieFile) ytArgs.unshift('--cookies', cookieFile)
+    log.debug('spleeter yt-dlp args: %s', ytArgs.join(' '))
 
     await new Promise<void>((resolve, reject) => {
       const proc = spawn('yt-dlp', ytArgs, { stdio: ['ignore', 'pipe', 'pipe'] })
       let stderr = ''
       proc.stdout.on('data', (chunk: Buffer) => {
-        for (const line of chunk.toString('utf8').split(/\r?\n/)) {
+        const text = chunk.toString('utf8')
+        log.debug('spleeter yt-dlp stdout: %s', text.trimEnd())
+        for (const line of text.split(/\r?\n/)) {
           const m = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(line)
           if (m) job.progress = Math.round(parseFloat(m[1]) * 0.4)
         }
       })
-      proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString('utf8')).slice(-2000) })
+      proc.stderr.on('data', (b: Buffer) => {
+        const text = b.toString('utf8')
+        stderr = (stderr + text).slice(-2000)
+        log.debug('spleeter yt-dlp stderr: %s', text.trimEnd())
+      })
       proc.on('error', reject)
       proc.on('close', code => {
+        log.debug('spleeter yt-dlp exited code=%d', code)
         if (code === 0) return resolve()
         const tail = stderr.trim().split('\n').pop() || `yt-dlp exited ${code}`
         reject(new Error(tail))
@@ -170,54 +195,69 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
     })
 
     const dlMp3Resolved = path.join(tmpDir, `${base}-dl.mp3`)
+    log.debug('spleeter resolved audio file: %s', dlMp3Resolved)
 
     // --- spleeter separate ---
     job.stage = 'separating'
     job.progress = 40
+    log.verbose('spleeter stage=separating: %s', videoId)
 
+    const spleeterModel = process.env.SPLEETER_MODEL ?? '2stems'
+    const spleeterData = process.env.SPLEETER_DATA ?? '/data/spleeter'
+    const configPath = path.join(spleeterData, 'pretrained_models', spleeterModel, `${spleeterModel}.json`)
+    const useGpu = process.env.SPLEETER_USE_GPU === '1'
+    log.debug('spleeter model=%s configPath=%s useGpu=%s', spleeterModel, configPath, useGpu)
     await spawnAsync('spleeter', [
       'separate',
-      '-p', 'spleeter:2stems',
+      '-p', configPath,
+      '-c', 'mp3',
       '-o', stemsDir,
       dlMp3Resolved,
-    ])
-
-    job.progress = 70
-
-    // spleeter creates {stemsDir}/{inputBasenameWithoutExt}/accompaniment.wav
-    const stemSubdir = path.join(stemsDir, `${base}-dl`)
-    const accompanimentWav = path.join(stemSubdir, 'accompaniment.wav')
-
-    // --- ffmpeg wav → mp3 ---
-    job.stage = 'converting'
-
-    await spawnAsync('ffmpeg', [
-      '-y',
-      '-i', accompanimentWav,
-      '-q:a', '2',
-      instrMp3,
-    ])
+    ], {
+      label: 'spleeter:separate',
+      env: useGpu
+        ? { TF_FORCE_GPU_ALLOW_GROWTH: '1' }
+        : { CUDA_VISIBLE_DEVICES: '', TF_CPP_MIN_LOG_LEVEL: '2' },
+    })
 
     job.progress = 85
 
+    // spleeter outputs {stemsDir}/{inputBasenameWithoutExt}/accompaniment.mp3 with -c mp3
+    const stemSubdir = path.join(stemsDir, `${base}-dl`)
+    const accompanimentMp3 = path.join(stemSubdir, 'accompaniment.mp3')
+    log.debug('spleeter accompaniment mp3: %s', accompanimentMp3)
+
     // --- fetch LRC ---
     job.stage = 'fetching-lrc'
+    log.verbose('spleeter stage=fetching-lrc: %s "%s - %s" duration=%ds', videoId, opts.artist, opts.title, opts.duration)
 
     const lrcContent = await fetchLrc(opts.artist, opts.title, opts.duration)
+    log.debug('spleeter lrc fetched: %d chars', lrcContent.length)
     await fsp.writeFile(lrcFile, lrcContent, 'utf8')
 
     job.progress = 90
 
     // --- zip mp3 + lrc ---
     job.stage = 'zipping'
+    log.verbose('spleeter stage=zipping: %s -> %s', videoId, zipFile)
 
-    await spawnAsync('zip', ['-j', zipFile, instrMp3, lrcFile])
+    await spawnAsync('zip', ['-j', zipFile, accompanimentMp3, lrcFile], { label: 'zip' })
 
     job.progress = 95
+    log.debug('spleeter zip done, moving %s -> %s', zipFile, destZip)
 
     // --- move to destDir and ingest ---
-    await fsp.rename(zipFile, destZip)
+    try {
+      await fsp.rename(zipFile, destZip)
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException).code !== 'EXDEV') throw e
+      log.debug('spleeter rename EXDEV, falling back to copy+unlink')
+      await fsp.copyFile(zipFile, destZip)
+      await fsp.unlink(zipFile)
+    }
+    log.debug('spleeter zip moved to destDir: %s', destZip)
 
+    log.verbose('spleeter stage=ingesting: %s', videoId)
     await ingestDownloaded({
       absPath: destZip,
       duration: opts.duration,
@@ -248,6 +288,7 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
   } finally {
     cleanupFile(cookieFile)
     cleanupDir(tmpDir)
+    log.debug('spleeter tmpDir cleanup: %s', tmpDir)
   }
 }
 

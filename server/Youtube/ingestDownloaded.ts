@@ -26,8 +26,12 @@ export interface IngestArgs {
 export async function ingestDownloaded (args: IngestArgs): Promise<void> {
   if (!args.absPath) throw new Error('yt-dlp did not report final filepath')
 
+  log.verbose('ingest start: %s artist=%s title=%s pathId=%d roomId=%d', args.absPath, args.artist, args.title, args.pathId, args.roomId)
+  log.debug('ingest args: duration=%d mediaType=%s userId=%d destDir=%s', args.duration, args.mediaType ?? 'unset', args.userId, args.destDir)
+
   try {
     await Rooms.validate(args.roomId, undefined, { validatePassword: false })
+    log.debug('ingest room %d validated', args.roomId)
   } catch (e) {
     await fsp.unlink(args.absPath).catch(() => undefined)
     throw new Error(`Room no longer available (${(e as Error).message}); downloaded file removed`)
@@ -37,9 +41,11 @@ export async function ingestDownloaded (args: IngestArgs): Promise<void> {
   if (!relPath || relPath.startsWith('..')) {
     throw new Error(`downloaded file is outside dest dir: ${args.absPath}`)
   }
+  log.debug('ingest relPath=%s', relPath)
 
   const parser = MetaParser({})
   const parsed = parser({ name: `${args.artist} - ${args.title}`, file: args.absPath })
+  log.debug('ingest parsed: artist=%s title=%s artistNorm=%s titleNorm=%s', parsed.artist, parsed.title, parsed.artistNorm, parsed.titleNorm)
 
   const match = Library.matchSong({
     artist: parsed.artist,
@@ -47,6 +53,7 @@ export async function ingestDownloaded (args: IngestArgs): Promise<void> {
     title: parsed.title,
     titleNorm: parsed.titleNorm,
   })
+  log.debug('ingest library match: songId=%s', match.songId ?? 'none')
 
   if (!match.songId) throw new Error('Library.matchSong returned no songId')
 
@@ -58,8 +65,10 @@ export async function ingestDownloaded (args: IngestArgs): Promise<void> {
     dateAdded: Math.floor(Date.now() / 1000),
   }
   if (args.mediaType) mediaRow.mediaType = args.mediaType
+  log.debug('ingest media row: %j', mediaRow)
 
   Media.add(mediaRow)
+  log.debug('ingest Media.add done, adding to queue roomId=%d songId=%d userId=%d', args.roomId, match.songId, args.userId)
 
   Queue.add({ roomId: args.roomId, songId: match.songId, userId: args.userId })
 
