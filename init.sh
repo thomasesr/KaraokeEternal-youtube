@@ -134,8 +134,19 @@ fi
 if [ ! -f "${SPLEETER_RESOURCES}/2stems.json" ]; then
   fail "2stems.json not found in ${SPLEETER_RESOURCES}"
 fi
-cp "${SPLEETER_RESOURCES}/2stems.json" "${MODEL_DIR}/${SPLEETER_MODEL}.json"
-ok "copied 2stems.json → ${MODEL_DIR}/${SPLEETER_MODEL}.json"
+# Write config JSON with model_dir set to absolute MODEL_DIR path.
+# The stock 2stems.json uses a relative path which causes PermissionError when spleeter
+# is invoked with -p /absolute/path.json (spleeter only overrides model_dir when using
+# the spleeter: prefix, not when given a file path).
+python3 - <<PYEOF
+import json
+with open("${SPLEETER_RESOURCES}/2stems.json") as f:
+    cfg = json.load(f)
+cfg["model_dir"] = "${MODEL_DIR}"
+with open("${MODEL_DIR}/${SPLEETER_MODEL}.json", "w") as f:
+    json.dump(cfg, f, indent=2)
+PYEOF
+ok "wrote ${SPLEETER_MODEL}.json (model_dir=${MODEL_DIR}) → ${MODEL_DIR}/${SPLEETER_MODEL}.json"
 
 # ---------------------------------------------------------------------------
 # Environment variables
