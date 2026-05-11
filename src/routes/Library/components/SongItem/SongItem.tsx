@@ -24,6 +24,8 @@ interface SongItemProps {
   isStarred: boolean
   isUpcoming: boolean
   isAdmin: boolean
+  /** True when the current user is a room manager (swipe reveals info button) */
+  isRoomManager: boolean
   numStars: number
   numMedia: number
   filterKeywords: string[]
@@ -41,15 +43,22 @@ const SongItem = ({
   isStarred,
   isUpcoming,
   isAdmin,
+  isRoomManager,
   numStars,
   numMedia,
   filterKeywords,
 }: SongItemProps) => {
   const [isExpanded, setExpanded] = useState(false)
 
+  // Info button is available to admins, room managers, and any user when the
+  // song has multiple versions — they all have preference controls to show.
+  const canViewInfo = isAdmin || isRoomManager || numMedia > 1
+
   const handleClick = () => {
     if (ignoreMouseup) ignoreMouseup = false
-    else if (!isUpcoming) onSongQueue(songId)
+    // Queuing allowed even when song is already upcoming. Server enforces the
+    // only hard rule: same user cannot queue the same song consecutively.
+    else onSongQueue(songId)
   }
   const handleInfoClick = () => onSongInfo(songId)
   const handleStarClick = () => onSongStarClick(songId)
@@ -57,7 +66,7 @@ const SongItem = ({
   const swipeHandlers = useSwipeable({
     onSwipedLeft: ({ event }) => {
       ignoreMouseup = event.type === 'mouseup'
-      setExpanded(isAdmin)
+      setExpanded(canViewInfo)
     },
     onSwipedRight: ({ event }) => {
       ignoreMouseup = event.type === 'mouseup'
@@ -86,7 +95,7 @@ const SongItem = ({
         <div onClick={handleClick} className={styles.primary}>
           <div className={styles.title}>
             {filterKeywords?.length ? <Highlighter autoEscape textToHighlight={title} searchWords={filterKeywords} /> : title}
-            {isAdmin && numMedia > 1 && (
+            {canViewInfo && numMedia > 1 && (
               <i>
                 {' '}
                 (
@@ -106,9 +115,11 @@ const SongItem = ({
           isStarred={isStarred}
           count={numStars}
         />
-        <Button onClick={handleInfoClick} className={clsx(styles.btn, styles.info)} data-hide>
-          <Icon icon='INFO_OUTLINE' />
-        </Button>
+        {canViewInfo && (
+          <Button onClick={handleInfoClick} className={clsx(styles.btn, styles.info)} data-hide>
+            <Icon icon='INFO_OUTLINE' />
+          </Button>
+        )}
       </Buttons>
     </div>
   )
