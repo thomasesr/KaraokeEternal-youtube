@@ -46,3 +46,11 @@
     height: 3rem;
   }
 }
+
+.btnYoutube {
+  margin-right: var(--space-s);
+
+  svg {
+    height: 3rem;
+  }
+}

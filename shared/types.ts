@@ -119,10 +119,38 @@ export interface Media {
   duration: number
 }
 
+export type YoutubeQualityPreset = 'best' | '1080p' | '720p' | '480p' | '360p'
+
+export const YOUTUBE_QUALITY_PRESETS: YoutubeQualityPreset[] = ['best', '1080p', '720p', '480p', '360p']
+
+export type YoutubeRole = 'admin' | 'room_manager' | 'standard' | 'guest'
+
+export const YOUTUBE_ROLES: YoutubeRole[] = ['admin', 'room_manager', 'standard', 'guest']
+
+export interface IYoutubePrefs {
+  isEnabled: boolean
+  downloadPathId: number | null
+  useCookies: boolean
+  qualityPreset: YoutubeQualityPreset
+  musicbrainzMinScore: number
+  allowedRoles: YoutubeRole[]
+  isApiKeyConfigured: boolean
+  isApiKeyFromEnv: boolean
+  isCookiesConfigured: boolean
+}
+
+export interface IYoutubeAccess {
+  isEnabled: boolean
+  hasAccess: boolean
+  downloadPathConfigured: boolean
+  musicbrainzMinScore: number
+}
+
 export interface Prefs {
   isFirstRun?: boolean
   isScanning: boolean
   isReplayGainEnabled: boolean
+  youtube?: IYoutubePrefs
   paths: {
     result: number[]
     entities: Record<number, Path>

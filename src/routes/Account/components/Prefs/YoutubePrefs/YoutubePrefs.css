@@ -1,0 +1,77 @@
+.heading  {
+  button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    padding: var(--space-s);
+    font-size: var(--font-size-m);
+  }
+
+  svg {
+    height: var(--icon-size-l);
+  }
+}
+
+.content {
+  padding: var(--container-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.row label {
+  cursor: pointer;
+}
+
+.row input[type='text'],
+.row input[type='password'],
+.row select,
+.row textarea {
+  width: 100%;
+  padding: var(--space-s);
+  box-sizing: border-box;
+}
+
+.row textarea {
+  font-family: var(--font-family-mono, monospace);
+  font-size: var(--font-size-s);
+  resize: vertical;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--container-padding);
+}
+
+.btnRow {
+  display: flex;
+  gap: var(--space-s);
+  align-items: center;
+}
+
+.note {
+  font-size: var(--font-size-s);
+  opacity: 0.75;
+}
+
+.error {
+  color: var(--color-warn, #f55);
+  font-size: var(--font-size-s);
+}
+
+.lockedBadge {
+  display: inline-block;
+  margin-left: var(--space-xs);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: var(--font-size-xs);
+}
