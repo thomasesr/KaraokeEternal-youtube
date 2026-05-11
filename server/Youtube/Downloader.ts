@@ -4,14 +4,9 @@ import os from 'os'
 import path from 'path'
 import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
-import Library from '../Library/Library.js'
-import Media from '../Media/Media.js'
-import Queue from '../Queue/Queue.js'
-import Rooms from '../Rooms/Rooms.js'
-import MetaParser from '../Scanner/MetaParser/MetaParser.js'
-import pushQueuesAndLibrary from '../lib/pushQueuesAndLibrary.js'
 import type { YoutubeQualityPreset } from '../../shared/types.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
+import { ingestDownloaded } from './ingestDownloaded.js'
 
 const HEIGHT_CAP_BY_PRESET: Record<YoutubeQualityPreset, number | null> = {
   'best': null,
@@ -127,6 +122,7 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
       '--extractor-args', 'youtube:player_client=tv,web_safari,default']
     if (cookieFile) args.unshift('--cookies', cookieFile)
     args.push(url)
+    log.debug('yt-dlp probe args: %s', args.join(' '))
     const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
@@ -134,10 +130,13 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
       stdout += b.toString('utf8')
     })
     proc.stderr.on('data', (b: Buffer) => {
-      stderr += b.toString('utf8')
+      const text = b.toString('utf8')
+      stderr += text
+      log.debug('yt-dlp probe stderr: %s', text.trimEnd())
     })
     proc.on('error', reject)
     proc.on('close', (code) => {
+      log.debug('yt-dlp probe exited code=%d stdout=%d bytes stderr=%d bytes', code, stdout.length, stderr.length)
       if (code !== 0) {
         const tail = stderr.trim().split('\n').pop() || `yt-dlp probe exited ${code}`
         const hint = hintFor(classifyFailure(stderr))
@@ -146,6 +145,7 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
       try {
         const json = JSON.parse(stdout) as Omit<ProbeResult, 'stderr'>
         if (!Array.isArray(json.formats)) return reject(new Error('yt-dlp probe: no formats'))
+        log.debug('yt-dlp probe parsed: %d formats, duration=%s', json.formats.length, json.duration ?? 'n/a')
         resolve({ ...json, stderr })
       } catch (e) {
         reject(e instanceof Error ? e : new Error(String(e)))
@@ -162,6 +162,7 @@ export type JobStatus = 'queued' | 'downloading' | 'done' | 'error'
 export interface Job {
   videoId: string
   status: JobStatus
+  stage: string | null
   progress: number // 0..100
   error: string | null
   filename: string | null
@@ -221,6 +222,7 @@ export const Downloader = {
     const job: Job = {
       videoId,
       status: 'queued',
+      stage: null,
       progress: 0,
       error: null,
       filename: null,
@@ -235,20 +237,29 @@ export const Downloader = {
     const outTemplate = `${baseUnique}.%(ext)s`
     const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), `kes-yt-${videoId}-`))
 
+    log.verbose('yt-dlp job start: %s artist=%s title=%s quality=%s dest=%s', videoId, opts.artist, opts.title, opts.qualityPreset ?? 'best', opts.destDir)
+    log.debug('yt-dlp tmpDir=%s outTemplate=%s', tmpDir, outTemplate)
+
     const cookies = opts.useCookies ? Prefs.getYoutubeCookies() : null
     let cookieFile: string | null = null
     if (cookies) {
       cookieFile = path.join(os.tmpdir(), `kes-yt-${videoId}-${Date.now()}.txt`)
       await fsp.writeFile(cookieFile, cookies, { mode: 0o600 })
+      log.debug('yt-dlp cookie file written: %s', cookieFile)
+    } else {
+      log.debug('yt-dlp cookies: none')
     }
 
     const heightCap = HEIGHT_CAP_BY_PRESET[opts.qualityPreset ?? 'best']
+    log.debug('yt-dlp heightCap=%s', heightCap ?? 'none')
     let format: string
     let needsRemux = true
     let probeDuration: number | null = null
     try {
+      log.verbose('yt-dlp probing formats: %s', videoId)
       const probe = await probeFormats(url, cookieFile)
       probeDuration = typeof probe.duration === 'number' ? Math.round(probe.duration) : null
+      log.debug('yt-dlp probe: %d formats, duration=%s', probe.formats.length, probeDuration ?? 'n/a')
       const sel = selectFormats(probe.formats, heightCap)
       if (!sel) {
         const anyVideo = probe.formats.some(isVideo)
@@ -268,6 +279,7 @@ export const Downloader = {
       needsRemux = sel.needsRemux
       log.info('yt-dlp probe %s: picked %s (remux=%s, cap=%s)',
         videoId, format, needsRemux, heightCap ?? 'none')
+      log.debug('yt-dlp format selection: videoId=%s audioId=%s needsRemux=%s', sel.videoId, sel.audioId, sel.needsRemux)
     } catch (e) {
       cleanupCookies(cookieFile)
       cleanupTmpDir(tmpDir)
@@ -301,6 +313,7 @@ export const Downloader = {
     if (cookieFile) args.unshift('--cookies', cookieFile)
 
     log.info('yt-dlp start: %s -> %s', videoId, opts.destDir)
+    log.debug('yt-dlp download args: %s', args.join(' '))
     const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
 
     job.status = 'downloading'
@@ -310,6 +323,7 @@ export const Downloader = {
 
     proc.stdout.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8')
+      log.debug('yt-dlp stdout: %s', text.trimEnd())
       for (const line of text.split(/\r?\n/)) {
         if (!line) continue
         const m = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(line)
@@ -320,6 +334,7 @@ export const Downloader = {
         // last line printed by --print after_move:filepath is final filepath
         if (line.startsWith('/') || /^[A-Za-z]:[\\/]/.test(line)) {
           printedFile = line.trim()
+          log.debug('yt-dlp printed filepath: %s', printedFile)
         }
       }
     })
@@ -327,6 +342,7 @@ export const Downloader = {
     proc.stderr.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8')
       stderrTail = (stderrTail + text).slice(-2000)
+      log.debug('yt-dlp stderr: %s', text.trimEnd())
     })
 
     proc.on('error', (err) => {
@@ -339,11 +355,13 @@ export const Downloader = {
     })
 
     proc.on('close', async (code) => {
+      log.debug('yt-dlp download exited code=%d printedFile=%s', code, printedFile ?? 'none')
       cleanupCookies(cookieFile)
       cleanupTmpDir(tmpDir)
       if (code === 0) {
         job.progress = 100
         job.filename = printedFile
+        log.verbose('yt-dlp download complete, ingesting: %s -> %s', videoId, printedFile)
         try {
           await ingestDownloaded({
             absPath: printedFile,
@@ -354,6 +372,7 @@ export const Downloader = {
             destDir: opts.destDir,
             roomId: opts.roomId,
             userId: opts.userId,
+            mediaType: 'mp4',
             io: opts.io,
           })
           job.status = 'done'
@@ -391,69 +410,6 @@ function cleanupCookies (file: string | null) {
 function cleanupTmpDir (dir: string | null) {
   if (!dir) return
   fsp.rm(dir, { recursive: true, force: true }).catch(() => { /* ignore */ })
-}
-
-interface IngestArgs {
-  absPath: string | null
-  duration: number
-  artist: string
-  title: string
-  pathId: number
-  destDir: string
-  roomId: number
-  userId: number
-  io?: any
-}
-
-async function ingestDownloaded (args: IngestArgs): Promise<void> {
-  if (!args.absPath) throw new Error('yt-dlp did not report final filepath')
-
-  try {
-    await Rooms.validate(args.roomId, undefined, { validatePassword: false })
-  } catch (e) {
-    await fsp.unlink(args.absPath).catch(() => undefined)
-    throw new Error(`Room no longer available (${(e as Error).message}); downloaded file removed`)
-  }
-
-  // normalize relPath: forward slashes, no leading slash (matches FileScanner convention)
-  const relPath = path.relative(args.destDir, args.absPath).replace(/\\/g, '/').replace(/^\/+/, '')
-  if (!relPath || relPath.startsWith('..')) {
-    throw new Error(`downloaded file is outside dest dir: ${args.absPath}`)
-  }
-
-  const parser = MetaParser({})
-  const parsed = parser({ name: `${args.artist} - ${args.title}`, file: args.absPath })
-
-  const match = Library.matchSong({
-    artist: parsed.artist,
-    artistNorm: parsed.artistNorm,
-    title: parsed.title,
-    titleNorm: parsed.titleNorm,
-  })
-
-  if (!match.songId) throw new Error('Library.matchSong returned no songId')
-
-  Media.add({
-    songId: match.songId,
-    pathId: args.pathId,
-    relPath,
-    duration: args.duration,
-    dateAdded: Math.floor(Date.now() / 1000),
-  })
-
-  Queue.add({ roomId: args.roomId, songId: match.songId, userId: args.userId })
-
-  log.info('ingested %s -> songId=%d, queued in roomId=%d', relPath, match.songId, args.roomId)
-
-  if (args.io) {
-    try {
-      pushQueuesAndLibrary(args.io)
-    } catch (e) {
-      log.warn('library/queue broadcast failed: %s', (e as Error).message)
-    }
-  } else {
-    Library.cache.version = null
-  }
 }
 
 export default Downloader

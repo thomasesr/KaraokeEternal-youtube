@@ -3,6 +3,7 @@ import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
 import { YoutubeService, YoutubeApiError } from './YoutubeService.js'
 import { Downloader, DownloaderError } from './Downloader.js'
+import SpleeterDownloader from './SpleeterDownloader.js'
 import { searchByTitle, searchByArtistTitle } from './MusicBrainz.js'
 import type {
   IYoutubeAccess,
@@ -208,6 +209,8 @@ router.get('/access', (ctx) => {
   ctx.body = body
 })
 
+const PAGE_TOKEN_MAX_LEN = 512
+
 router.get('/search', async (ctx) => {
   requireEnabled(ctx)
 
@@ -215,15 +218,16 @@ router.get('/search', async (ctx) => {
   if (!q) ctx.throw(422, 'Missing query')
   if (q.length > Q_MAX_LEN) ctx.throw(422, `Query too long (max ${Q_MAX_LEN})`)
 
+  const pageToken = typeof ctx.query.pageToken === 'string' && ctx.query.pageToken.length <= PAGE_TOKEN_MAX_LEN
+    ? ctx.query.pageToken
+    : undefined
+
   const hasKaraoke = /(^|\s)karaoke(\s|$)/i.test(q)
-  const primary = hasKaraoke ? q : `${q} karaoke`
+  const searchQuery = hasKaraoke ? q : `${q} karaoke`
 
   try {
-    let results = await YoutubeService.search(primary)
-    if (results.length === 0 && !hasKaraoke) {
-      results = await YoutubeService.search(q)
-    }
-    ctx.body = results
+    const page = await YoutubeService.search(searchQuery, pageToken)
+    ctx.body = page
   } catch (err) {
     if (err instanceof YoutubeApiError) ctx.throw(err.status, err.message)
     throw err
@@ -264,6 +268,8 @@ router.post('/download', async (ctx) => {
   const videoId = typeof body.videoId === 'string' ? body.videoId : ''
   const artist = typeof body.artist === 'string' ? body.artist.trim() : ''
   const title = typeof body.title === 'string' ? body.title.trim() : ''
+  const duration = typeof body.duration === 'number' ? body.duration : 0
+  const mode = body.mode === 'spleeter' ? 'spleeter' : 'karaoke'
 
   if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
   if (!artist) ctx.throw(422, 'Missing artist')
@@ -272,17 +278,29 @@ router.post('/download', async (ctx) => {
   if (title.length > TITLE_MAX_LEN) ctx.throw(422, `title too long (max ${TITLE_MAX_LEN})`)
 
   try {
-    const job = await Downloader.start(videoId, {
-      destDir: pathEntry.path,
-      pathId: cfg.downloadPathId,
-      qualityPreset: cfg.qualityPreset,
-      useCookies: cfg.useCookies,
-      artist,
-      title,
-      roomId: ctx.user.roomId,
-      userId: ctx.user.userId,
-      io: ctx.io,
-    })
+    const job = mode === 'spleeter'
+      ? await SpleeterDownloader.start(videoId, {
+        destDir: pathEntry.path,
+        pathId: cfg.downloadPathId,
+        useCookies: cfg.useCookies,
+        artist,
+        title,
+        duration,
+        roomId: ctx.user.roomId,
+        userId: ctx.user.userId,
+        io: ctx.io,
+      })
+      : await Downloader.start(videoId, {
+        destDir: pathEntry.path,
+        pathId: cfg.downloadPathId,
+        qualityPreset: cfg.qualityPreset,
+        useCookies: cfg.useCookies,
+        artist,
+        title,
+        roomId: ctx.user.roomId,
+        userId: ctx.user.userId,
+        io: ctx.io,
+      })
     ctx.status = 202
     ctx.body = job
   } catch (err) {
@@ -295,7 +313,7 @@ router.get('/download/:videoId', (ctx) => {
   if (!ctx.user.userId) ctx.throw(401)
   const videoId = ctx.params.videoId
   if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
-  const job = Downloader.getJob(videoId)
+  const job = Downloader.getJob(videoId) ?? SpleeterDownloader.getJob(videoId)
   if (!job) ctx.throw(404, 'No such job')
   ctx.body = job
 })
