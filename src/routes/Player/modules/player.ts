@@ -35,6 +35,8 @@ const playerCmdVolume = createAction<number>(PLAYER_CMD_VOLUME)
 const playerCmdOptions = createAction<{
   cdgAlpha: number
   cdgSize: number
+  lrcOffset: number
+  lrcSmoothScroll: boolean
   mp4Alpha: number
 }>(PLAYER_CMD_OPTIONS)
 
@@ -97,6 +99,9 @@ export function playerLeave (): AppThunk {
 export interface PlayerState {
   cdgAlpha: number
   cdgSize: number
+  lrcFontSize: number
+  lrcOffset: number
+  lrcSmoothScroll: boolean
   errorMessage: string
   historyJSON: string
   isAtQueueEnd: boolean
@@ -121,6 +126,9 @@ export interface PlayerState {
 const initialState: PlayerState = {
   cdgAlpha: 0.5,
   cdgSize: 0.65,
+  lrcFontSize: 1,
+  lrcOffset: 0,
+  lrcSmoothScroll: true,
   errorMessage: '',
   historyJSON: '[]', // queueIds (JSON string is hack to pass selector equality check on clients)
   isAtQueueEnd: false,
@@ -152,6 +160,9 @@ const playerReducer = createReducer(initialState, (builder) => {
       ...state,
       cdgAlpha: typeof payload.cdgAlpha === 'number' ? payload.cdgAlpha : state.cdgAlpha,
       cdgSize: typeof payload.cdgSize === 'number' ? payload.cdgSize : state.cdgSize,
+      lrcFontSize: typeof payload.lrcFontSize === 'number' ? payload.lrcFontSize : state.lrcFontSize,
+      lrcOffset: typeof payload.lrcOffset === 'number' ? payload.lrcOffset : state.lrcOffset,
+      lrcSmoothScroll: typeof payload.lrcSmoothScroll === 'boolean' ? payload.lrcSmoothScroll : state.lrcSmoothScroll,
       mp4Alpha: typeof payload.mp4Alpha === 'number' ? payload.mp4Alpha : state.mp4Alpha,
     }))
     .addCase(playerCmdPause, (state) => {

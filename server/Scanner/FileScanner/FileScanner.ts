@@ -7,6 +7,7 @@ import { getExt } from '../../lib/util.js'
 import getFiles from './getFiles.js'
 import getConfig from './getConfig.js'
 import getCdgName from '../../lib/getCdgName.js'
+import getSidecarName from '../../lib/getSidecarName.js'
 import Media from '../../Media/Media.js'
 import MetaParser from '../MetaParser/MetaParser.js'
 import Scanner from '../Scanner.js'
@@ -99,6 +100,8 @@ class FileScanner extends Scanner {
     let buffer = await fsPromises.readFile(file)
     let mimeType = fileTypes[getExt(file)].mimeType
 
+    let mediaType: string
+
     if (getExt(file) === '.zip') {
       const { entries } = await unzip(new Uint8Array(buffer))
 
@@ -106,12 +109,22 @@ class FileScanner extends Scanner {
       if (!audioName) throw new Error(`no valid audio file ${JSON.stringify(audioExts)} found in archive`)
 
       const cdgName = Object.keys(entries).find(f => !f.includes('/') && getExt(f) === '.cdg')
-      if (!cdgName) throw new Error('no .cdg sidecar found in archive')
+      const lrcName = Object.keys(entries).find(f => !f.includes('/') && getExt(f) === '.lrc')
+      if (!cdgName && !lrcName) throw new Error('no .cdg or .lrc sidecar found in archive')
+      mediaType = cdgName ? 'cdg' : 'lrc'
 
       buffer = Buffer.from(await entries[audioName].arrayBuffer())
       mimeType = fileTypes[getExt(audioName)].mimeType
+    } else if (fileTypes[getExt(file)].mimeType.startsWith('audio/')) {
+      if (getSidecarName(file, 'cdg')) {
+        mediaType = 'cdg'
+      } else if (getSidecarName(file, 'lrc')) {
+        mediaType = 'lrc'
+      } else {
+        throw new Error('no .cdg or .lrc sidecar found')
+      }
     } else {
-      if (fileTypes[getExt(file)].requiresCDG && !(getCdgName(file))) throw new Error('no .cdg sidecar found')
+      mediaType = 'mp4'
     }
 
     const data = await parseBuffer(buffer, mimeType, {
@@ -146,6 +159,7 @@ class FileScanner extends Scanner {
       // normalize relPath to forward slashes with no leading slash
       relPath: file.substring(this.paths.entities[pathId].path.length).replace(/\\/g, '/').replace(/^\//, ''),
       duration: Math.round(data.format.duration),
+      mediaType,
       rgTrackGain: data.common.replaygain_track_gain ? data.common.replaygain_track_gain.dB : null,
       rgTrackPeak: data.common.replaygain_track_peak ? data.common.replaygain_track_peak.ratio : null,
     }

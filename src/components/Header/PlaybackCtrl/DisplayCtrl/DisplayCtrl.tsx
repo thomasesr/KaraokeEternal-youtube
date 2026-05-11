@@ -14,6 +14,9 @@ interface DisplayCtrlProps {
   isVideoKeyingEnabled: boolean
   isVisualizerEnabled: boolean
   isWebGLSupported: boolean
+  lrcFontSize: number
+  lrcOffset: number
+  lrcSmoothScroll: boolean
   mediaType?: MediaType
   mp4Alpha: number
   sensitivity: number
@@ -29,6 +32,9 @@ const DisplayCtrl = ({
   isVideoKeyingEnabled,
   isVisualizerEnabled,
   isWebGLSupported,
+  lrcFontSize,
+  lrcOffset,
+  lrcSmoothScroll,
   mediaType = '',
   mp4Alpha,
   sensitivity,
@@ -37,8 +43,8 @@ const DisplayCtrl = ({
   onClose,
 }: DisplayCtrlProps) => {
   const handleAlpha = (val: number) => {
-    if (mediaType === '') return
-    onRequestOptions({ [mediaType + 'Alpha']: val })
+    if (mediaType === 'cdg' || mediaType === 'lrc') onRequestOptions({ cdgAlpha: val })
+    else if (mediaType === 'mp4' || isVideoKeyingEnabled) onRequestOptions({ mp4Alpha: val })
   }
 
   const handleSensitivity = (val: number) => onRequestOptions({
@@ -65,6 +71,10 @@ const DisplayCtrl = ({
     visualizer: { randomPreset: true },
   })
 
+  const handleLrcSmoothScroll = () => onRequestOptions({ lrcSmoothScroll: !lrcSmoothScroll })
+  const handleLrcOffset = (val: number) => onRequestOptions({ lrcOffset: val })
+  const handleLrcFontSize = (val: number) => onRequestOptions({ lrcFontSize: val })
+
   return (
     <Modal
       className={styles.modal}
@@ -84,7 +94,7 @@ const DisplayCtrl = ({
               />
             </legend>
 
-            {isWebGLSupported && (mediaType === 'cdg' || isVideoKeyingEnabled) && (
+            {isWebGLSupported && (mediaType === 'cdg' || mediaType === 'lrc' || isVideoKeyingEnabled) && (
               <>
                 <div className={styles.presetContainer}>
                   <div className={styles.presetButtons}>
@@ -135,7 +145,7 @@ const DisplayCtrl = ({
               </>
             )}
 
-            {isWebGLSupported && mediaType !== 'cdg' && !isVideoKeyingEnabled
+            {isWebGLSupported && mediaType !== 'cdg' && mediaType !== 'lrc' && !isVideoKeyingEnabled
               && <p className={styles.unsupported}>Not available for this media type</p>}
 
             {!isWebGLSupported
@@ -164,14 +174,14 @@ const DisplayCtrl = ({
               </div>
             )}
 
-            {(mediaType === 'cdg' || isVideoKeyingEnabled) && (
+            {(mediaType === 'cdg' || mediaType === 'lrc' || isVideoKeyingEnabled) && (
               <div className={styles.field}>
                 <label id='label-lyrics-background'>Background</label>
                 <Slider
                   min={0}
                   max={1}
                   step={0.01}
-                  value={mediaType === 'cdg' ? cdgAlpha : mp4Alpha}
+                  value={(mediaType === 'cdg' || mediaType === 'lrc') ? cdgAlpha : mp4Alpha}
                   onChange={handleAlpha}
                   className={styles.slider}
                   aria-labelledby='label-lyrics-background'
@@ -179,7 +189,43 @@ const DisplayCtrl = ({
               </div>
             )}
 
-            {mediaType !== 'cdg' && !isVideoKeyingEnabled && (
+            {mediaType === 'lrc' && (
+              <>
+                <div className={styles.field}>
+                  <label id='label-lrc-font-size'>Size ({Math.round(lrcFontSize * 100)}%)</label>
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.05}
+                    value={lrcFontSize}
+                    onChange={handleLrcFontSize}
+                    className={styles.slider}
+                    aria-labelledby='label-lrc-font-size'
+                  />
+                </div>
+                <div className={styles.field}>
+                  <InputCheckbox
+                    label='Smooth scroll'
+                    checked={lrcSmoothScroll}
+                    onChange={handleLrcSmoothScroll}
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label id='label-lrc-offset'>Offset ({lrcOffset > 0 ? '+' : ''}{lrcOffset} ms)</label>
+                  <Slider
+                    min={-1000}
+                    max={1000}
+                    step={10}
+                    value={lrcOffset}
+                    onChange={handleLrcOffset}
+                    className={styles.slider}
+                    aria-labelledby='label-lrc-offset'
+                  />
+                </div>
+              </>
+            )}
+
+            {mediaType !== 'cdg' && mediaType !== 'lrc' && !isVideoKeyingEnabled && (
               <p className={styles.unsupported}>No options available</p>
             )}
           </fieldset>

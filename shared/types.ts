@@ -22,7 +22,7 @@ export interface QueueItem {
   rgTrackPeak: number
   userDateUpdated: number
   userDisplayName: string
-  mediaType: 'cdg' | 'mp4'
+  mediaType: 'cdg' | 'lrc' | 'mp4'
   isOptimistic?: false
   isVideoKeyingEnabled: boolean
 }
@@ -93,6 +93,9 @@ export interface UserWithRole extends User {
 export interface PlaybackOptions {
   cdgAlpha?: number
   cdgSize?: number
+  lrcFontSize?: number
+  lrcOffset?: number
+  lrcSmoothScroll?: boolean
   mp4Alpha?: number
   visualizer?: {
     sensitivity?: number
@@ -103,7 +106,7 @@ export interface PlaybackOptions {
   }
 }
 
-export type MediaType = 'cdg' | 'mp4' | ''
+export type MediaType = 'cdg' | 'lrc' | 'mp4' | ''
 
 export interface Media {
   songId: number

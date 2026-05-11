@@ -80,6 +80,8 @@ interface PrefsState {
   isFirstRun?: boolean
   isScanning: boolean
   isReplayGainEnabled: boolean
+  lrcDefaultOffset: number
+  lrcFontSize: number
   paths: {
     result: number[]
     entities: Record<number, Path>
@@ -95,6 +97,8 @@ interface PrefsState {
 const initialState: PrefsState = {
   isScanning: false,
   isReplayGainEnabled: false,
+  lrcDefaultOffset: 0,
+  lrcFontSize: 1,
   paths: {
     result: [],
     entities: {},

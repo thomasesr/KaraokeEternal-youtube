@@ -1,4 +1,3 @@
-import path from 'path'
 import { db } from '../lib/Database.js'
 import sql from 'sqlate'
 import { QueueItem } from '../../shared/types.js'
@@ -162,7 +161,7 @@ class Queue {
 
     const query = sql`
       SELECT q.queueId, q.songId, q.userId, q.prevQueueId,
-        m.mediaId, m.relPath, m.rgTrackGain, m.rgTrackPeak,
+        m.mediaId, m.relPath, m.mediaType, m.rgTrackGain, m.rgTrackPeak,
         u.name AS userDisplayName, u.dateUpdated AS userDateUpdated,
         p.pathId, p.data AS pathData
       FROM queue q
@@ -178,6 +177,7 @@ class Queue {
       prevQueueId: number
       mediaId: number
       relPath: string
+      mediaType: string
       rgTrackGain: number
       rgTrackPeak: number
       userDisplayName: string
@@ -194,7 +194,6 @@ class Queue {
       const pathPrefs = pathData.get(row.pathId)?.prefs
 
       entities[row.queueId] = row
-      entities[row.queueId].mediaType = this.getType(row.relPath)
       entities[row.queueId].isVideoKeyingEnabled = !!pathPrefs?.isVideoKeyingEnabled
 
       // don't send over the wire

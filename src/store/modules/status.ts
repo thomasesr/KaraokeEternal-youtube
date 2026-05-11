@@ -51,6 +51,9 @@ export const requestOptions = createAction(PLAYER_REQ_OPTIONS, (opts: PlaybackOp
 interface StatusState {
   cdgAlpha: number
   cdgSize: number
+  lrcFontSize: number
+  lrcOffset: number
+  lrcSmoothScroll: boolean
   errorMessage: string
   historyJSON: string // queueIds in JSON array
   isAtQueueEnd: boolean
@@ -71,6 +74,9 @@ interface StatusState {
 const initialState: StatusState = {
   cdgAlpha: 0,
   cdgSize: 0.8,
+  lrcFontSize: 1,
+  lrcOffset: 0,
+  lrcSmoothScroll: true,
   errorMessage: '',
   historyJSON: '[]', // queueIds in JSON array
   isAtQueueEnd: false,

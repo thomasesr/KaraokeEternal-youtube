@@ -1,10 +1,10 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Player from '../Player/Player'
 import PlayerTextOverlay from '../PlayerTextOverlay/PlayerTextOverlay'
 import PlayerQR from '../PlayerQR/PlayerQR'
 import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
-import { playerLeave, playerError, playerLoad, playerPlay, playerStatus, type PlayerState } from '../../modules/player'
+import { playerLeave, playerError, playerLoad, playerPlay, playerStatus, playerUpdate, type PlayerState } from '../../modules/player'
 import getRoomPrefs from '../../selectors/getRoomPrefs'
 import type { QueueItem } from 'shared/types'
 
@@ -19,10 +19,31 @@ const PlayerController = (props: PlayerControllerProps) => {
   const playerVisualizer = useAppSelector(state => state.playerVisualizer)
   const prefs = useAppSelector(state => state.prefs)
   const roomPrefs = useAppSelector(getRoomPrefs)
+  const songs = useAppSelector(state => state.songs.entities)
+  const artists = useAppSelector(state => state.artists.entities)
   const queueItem = queue.entities[player.queueId]
   const nextQueueItem = queue.entities[queue.result[queue.result.indexOf(player.queueId) + 1]]
+  const currentSong = queueItem ? songs[queueItem.songId] : null
+  const currentArtist = currentSong ? artists[currentSong.artistId] : null
 
   const dispatch = useAppDispatch()
+  const defaultOffsetApplied = useRef(false)
+  const defaultFontSizeApplied = useRef(false)
+
+  useEffect(() => {
+    if (!defaultOffsetApplied.current && typeof prefs.lrcDefaultOffset === 'number') {
+      dispatch(playerUpdate({ lrcOffset: prefs.lrcDefaultOffset }))
+      defaultOffsetApplied.current = true
+    }
+  }, [prefs.lrcDefaultOffset, dispatch])
+
+  useEffect(() => {
+    if (!defaultFontSizeApplied.current && typeof prefs.lrcFontSize === 'number') {
+      dispatch(playerUpdate({ lrcFontSize: prefs.lrcFontSize }))
+      defaultFontSizeApplied.current = true
+    }
+  }, [prefs.lrcFontSize, dispatch])
+
   const handleStatus = useCallback((status?: Partial<PlayerState>) => dispatch(playerStatus(status)), [dispatch])
   const handleLoad = () => dispatch(playerLoad())
   const handlePlay = () => dispatch(playerPlay())
@@ -150,6 +171,9 @@ const PlayerController = (props: PlayerControllerProps) => {
       <Player
         cdgAlpha={player.cdgAlpha}
         cdgSize={player.cdgSize}
+        lrcFontSize={player.lrcFontSize}
+        lrcOffset={player.lrcOffset}
+        lrcSmoothScroll={player.lrcSmoothScroll}
         isPlaying={player.isPlaying}
         isVisible={!!queueItem && !player.isErrored && !player.isAtQueueEnd}
         isReplayGainEnabled={prefs.isReplayGainEnabled}
@@ -157,6 +181,8 @@ const PlayerController = (props: PlayerControllerProps) => {
         isWebGLSupported={player.isWebGLSupported}
         mediaId={queueItem ? queueItem.mediaId : null}
         mediaKey={queueItem ? queueItem.queueId : null}
+        songTitle={currentSong?.title ?? ''}
+        artistName={currentArtist?.name ?? ''}
         mediaReplayKey={player._lastReplayTime}
         mediaType={queueItem ? queueItem.mediaType : null}
         mp4Alpha={player.mp4Alpha}
