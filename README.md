@@ -23,6 +23,9 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
 - **YouTube integration** (this fork): search YouTube directly from the
   library, auto-tag tracks via MusicBrainz, and queue them into the
   current room without a folder rescan.
+- **Room manager role** (this fork): delegate per-room queue control and
+  media version preferences to a trusted user without granting full admin
+  access.
 
 ## YouTube integration
 
@@ -80,6 +83,37 @@ When a download fails, the server logs the full `yt-dlp` stderr tail
 and tags the user-visible error with a category (`EJS solver failed`,
 `bot-challenge`, etc.) so operators can act without re-running yt-dlp
 manually.
+
+## Room manager role
+
+This fork adds a `room_manager` role that sits between admin and standard
+user. Admins assign the role and link managers to specific rooms via
+**Account → Rooms**.
+
+### What room managers can do
+
+- **Queue control:** Move or remove *any* song in their room's queue, not
+  just their own. Standard users can only move/remove songs they queued.
+- **Room-level media version preference:** Choose which file version
+  (CDG, MP4, LRC…) plays for a given song across the whole room. Set from
+  the song-info panel. Overrides the global admin default; users' personal
+  preferences still win over the room default.
+- **YouTube search & download:** If the admin has granted
+  `room_manager` access under **Account → YouTube**, room managers can
+  search YouTube and download tracks directly into their room's queue —
+  no admin session required.
+- **Re-queue songs:** Re-add a previously played song to the queue.
+
+### Media version resolution order
+
+When multiple file versions exist for a song, the queue picks one using
+this priority (highest wins):
+
+1. **User preference** — the singer's own explicit choice
+2. **Room preference** — set by the room manager
+3. **Global default** — the admin-flagged `isPreferred` file
+4. **Path priority** — lowest-priority path, first file (automatic
+   fallback)
 
 Microphones are *not* required since the player itself only outputs music - this allows your audio setup to be as simple or complex as you like. See the [F.A.Q.](https://www.karaoke-eternal.com/faq/#recommended-audio-microphone-setup) for more information.
 
