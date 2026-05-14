@@ -94,10 +94,13 @@ class Media {
     const batchSize = 999
 
     while (mediaIds.length) {
-      const query = sql`
-        DELETE FROM media
-        WHERE mediaId IN ${sql.in(mediaIds.splice(0, batchSize))}
-      `
+      const batch = mediaIds.splice(0, batchSize)
+
+      // queue.mediaId references media(mediaId) without ON DELETE CASCADE
+      const nullQueue = sql`UPDATE queue SET mediaId = NULL WHERE mediaId IN ${sql.in(batch)}`
+      db.run(String(nullQueue), nullQueue.parameters)
+
+      const query = sql`DELETE FROM media WHERE mediaId IN ${sql.in(batch)}`
       const res = db.run(String(query), query.parameters)
 
       log.info(`removed ${res.changes} media`)
