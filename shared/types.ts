@@ -71,6 +71,7 @@ export interface Path {
   path: string
   priority: number
   prefs: {
+    isAudioOnlyEnabled: boolean
     isVideoKeyingEnabled: boolean
     isWatchingEnabled: boolean
   }

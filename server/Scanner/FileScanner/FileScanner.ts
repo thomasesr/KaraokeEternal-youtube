@@ -13,6 +13,7 @@ import MetaParser from '../MetaParser/MetaParser.js'
 import Scanner from '../Scanner.js'
 import IPC from '../../lib/IPCBridge.js'
 import fileTypes from '../../Media/fileTypes.js'
+import { processAudioOnly } from './AudioOnlyProcessor.js'
 import { LIBRARY_MATCH_SONG, MEDIA_ADD, MEDIA_REMOVE, MEDIA_UPDATE } from '../../../shared/actionTypes.js'
 const log = getLogger('FileScanner')
 
@@ -121,7 +122,12 @@ class FileScanner extends Scanner {
       } else if (getSidecarName(file, 'lrc')) {
         mediaType = 'lrc'
       } else {
-        throw new Error('no .cdg or .lrc sidecar found')
+        const pathPrefs = this.paths.entities[pathId]?.prefs
+        if (!pathPrefs?.isAudioOnlyEnabled) {
+          throw new Error('no .cdg or .lrc sidecar found')
+        }
+        const { zipPath } = await processAudioOnly(file)
+        return this.process({ file: zipPath }, pathId)
       }
     } else {
       mediaType = 'mp4'

@@ -124,7 +124,7 @@ function startScanner (pathIds) {
     log.info('Starting media scanner process')
 
     refs.scanner = childProcess.fork(path.join(import.meta.dirname, 'scannerWorker.js'), [pathIds.toString()], {
-      env: { KES_ENV_JSON: JSON.stringify(env), KES_CHILD_PROCESS: 'scanner' },
+      env: { ...process.env, KES_ENV_JSON: JSON.stringify(env), KES_CHILD_PROCESS: 'scanner' },
       gid: Number.isInteger(env.KES_PGID) ? env.KES_PGID : undefined,
       uid: Number.isInteger(env.KES_PUID) ? env.KES_PUID : undefined,
     })

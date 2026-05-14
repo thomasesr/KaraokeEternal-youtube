@@ -23,6 +23,10 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
 - **YouTube integration** (this fork): search YouTube directly from the
   library, auto-tag tracks via MusicBrainz, and queue them into the
   current room without a folder rescan.
+- **Audio-only import** (this fork): drop plain MP3/FLAC/WAV/OGG/OPUS/AAC
+  files into a designated folder; the scanner strips vocals with Spleeter,
+  fetches synced lyrics from lrclib.net, and converts them into karaoke-ready
+  MP3+LRC archives automatically.
 - **Room manager role** (this fork): delegate per-room queue control and
   media version preferences to a trusted user without granting full admin
   access.
@@ -83,6 +87,60 @@ When a download fails, the server logs the full `yt-dlp` stderr tail
 and tags the user-visible error with a category (`EJS solver failed`,
 `bot-challenge`, etc.) so operators can act without re-running yt-dlp
 manually.
+
+## Audio-only import
+
+This fork can turn a folder of plain audio files into a karaoke library
+automatically. Enable it per media folder in **Account → Media Folders →
+(folder) → Process audio-only files**.
+
+### How it works
+
+When the scanner finds an audio file (`.mp3`, `.flac`, `.wav`, `.ogg`,
+`.opus`, `.aac`) with no `.cdg` or `.lrc` sidecar, and the folder has
+**Process audio-only files** enabled, it runs the following pipeline:
+
+1. **Convert to MP3** — Non-MP3 formats are re-encoded to MP3 at 320 kbps
+   CBR via `ffmpeg`. Existing MP3s are used as-is.
+2. **Resolve artist & title** — Sources tried in order:
+   - ID3/Vorbis tags embedded in the file.
+   - Filename parsed as `Artist - Title` (leading track numbers like
+     `01 - …` are ignored).
+   - MusicBrainz recording search using the filename as the query.
+   If none of these yield both an artist and a title, the file is skipped
+   and left untouched.
+3. **Vocal removal via Spleeter** — The MP3 is processed with
+   `spleeter separate` (default model: `2stems`). The accompaniment stem
+   (`accompaniment.mp3`) is used for the final archive; the vocal stem is
+   discarded.
+4. **Synced lyrics via lrclib.net** — A timed `.lrc` file is fetched from
+   [lrclib.net](https://lrclib.net) using the resolved artist, title, and
+   duration. Files with no synced lyrics entry are skipped.
+5. **Archive and ingest** — The accompaniment MP3 and the `.lrc` file are
+   zipped as `Artist - Title.zip` in the same folder. The original audio
+   file is deleted. The archive is indexed into the library on the next
+   scan (no manual rescan needed — the archive is registered immediately).
+
+### Server requirements for audio-only import
+
+All of the following must be on the server's `PATH`:
+
+- **`ffmpeg`** — audio conversion and probe. Required for non-MP3 inputs.
+- **`spleeter`** — vocal separation. Install via `pip install spleeter`.
+  The pretrained model is downloaded automatically on first use to the
+  path set by `SPLEETER_DATA` (default: `/data/spleeter`).
+- **`zip`** — archive creation.
+- **Outbound HTTPS to `lrclib.net`** — synced lyrics lookup.
+- **Outbound HTTPS to `musicbrainz.org`** — metadata fallback when tags
+  and filename parsing both fail.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `SPLEETER_MODEL` | `2stems` | Spleeter model (`2stems`, `4stems`, `5stems`) |
+| `SPLEETER_DATA` | `/data/spleeter` | Path where Spleeter stores pretrained models |
+| `SPLEETER_USE_GPU` | _(unset)_ | Set to `1` to enable GPU acceleration |
 
 ## Room manager role
 

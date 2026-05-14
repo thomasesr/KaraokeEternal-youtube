@@ -49,6 +49,11 @@ const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
             defaultChecked={path?.prefs?.isVideoKeyingEnabled}
             onChange={event => handleChange({ isVideoKeyingEnabled: event.currentTarget.checked })}
           />
+          <InputCheckbox
+            label='Process audio-only files (mp3/flac/wav/etc. without lyrics sidecar)'
+            defaultChecked={path?.prefs?.isAudioOnlyEnabled}
+            onChange={event => handleChange({ isAudioOnlyEnabled: event.currentTarget.checked })}
+          />
         </form>
       </div>
     </Modal>
