@@ -86,7 +86,7 @@ export const youtubeSearchMore = createAsyncThunk<IYoutubeSearchPage, { query: s
     api.get<IYoutubeSearchPage>(`/search?q=${encodeURIComponent(query)}&pageToken=${encodeURIComponent(pageToken)}`),
 )
 
-export type YoutubeDownloadStatus = 'queued' | 'downloading' | 'done' | 'error'
+export type YoutubeDownloadStatus = 'queued' | 'downloading' | 'awaiting-lyrics' | 'done' | 'error'
 
 export interface IYoutubeDownloadJob {
   videoId: string
@@ -122,6 +122,20 @@ export const youtubeDownloadStatus = createAsyncThunk<IYoutubeDownloadJob, strin
 export const youtubeProbe = createAsyncThunk<void, string>(
   'youtube/PROBE',
   async (videoId) => { await api.post<void>(`/probe/${encodeURIComponent(videoId)}`) },
+)
+
+export const youtubeSubmitLyrics = createAsyncThunk<void, { videoId: string, lyricsText: string }>(
+  'youtube/SUBMIT_LYRICS',
+  async ({ videoId, lyricsText }) => {
+    await api.post<void>(`/download/${encodeURIComponent(videoId)}/lyrics`, { body: { lyricsText } })
+  },
+)
+
+export const youtubeCancelLyrics = createAsyncThunk<void, string>(
+  'youtube/CANCEL_LYRICS',
+  async (videoId) => {
+    await api.delete<void>(`/download/${encodeURIComponent(videoId)}/lyrics`)
+  },
 )
 
 export const clearYoutubeSearch = createAction('youtube/SEARCH_CLEAR')

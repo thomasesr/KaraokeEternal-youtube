@@ -183,7 +183,13 @@
     "artist": "Artist",
     "songTitle": "Song title",
     "verifying": "Verifying…",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "lyricsNeededHeading": "No lyrics found — enter them manually",
+    "lyricsNeededHint": "Paste or type one lyric line per text line. CTC alignment will add word-level timestamps.",
+    "lyricsPlaceholder": "Line one of lyrics\nLine two of lyrics\n...",
+    "submitLyrics": "Align lyrics",
+    "aligningLyrics": "Aligning…",
+    "lyricsSubmitFailed": "Failed to submit lyrics"
   },
   "common": {
     "loading": "Loading...",

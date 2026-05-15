@@ -233,9 +233,9 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
     // pre-scroll: start translating to next line 450ms before it activates
     const preScrollIdx = newActive + 1
     if (
-      preScrollIdx < lines.length &&
-      preScrollIdx > this.scrollTargetIdx &&
-      pos >= lines[preScrollIdx].time - 0.45
+      preScrollIdx < lines.length
+      && preScrollIdx > this.scrollTargetIdx
+      && pos >= lines[preScrollIdx].time - 0.45
     ) {
       this.scrollTargetIdx = preScrollIdx
       this.updateTranslate(false, preScrollIdx)
@@ -276,7 +276,7 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
       this.activeWordIdx = -1
       if (newActive >= 0 && lines[newActive].words && this.lineRefs[newActive]?.current) {
         this.wordSpanRefs = Array.from(
-          this.lineRefs[newActive].current!.querySelectorAll<HTMLSpanElement>('[data-wi]')
+          this.lineRefs[newActive].current!.querySelectorAll<HTMLSpanElement>('[data-wi]'),
         )
       }
     }

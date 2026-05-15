@@ -21,11 +21,11 @@ export const getVisibleSongs = createSelector(
   [getSongs, getUserId, getUserIsAdmin, getRoomManagerIds],
   (songs, userId, isAdmin, roomManagerIds) => ({
     ...songs,
-    result: songs.result.filter(songId => {
+    result: songs.result.filter((songId) => {
       const m = songs.entities[songId].managedByUserId
-      if (m === null || m === undefined) return true   // unmanaged → visible to all
+      if (m === null || m === undefined) return true // unmanaged → visible to all
       if (isAdmin) return true
-      if (m === userId) return true                    // room_manager sees own folder
+      if (m === userId) return true // room_manager sees own folder
       if (roomManagerIds.length > 0) return roomManagerIds.includes(m) // standard/guest
       return false
     }),

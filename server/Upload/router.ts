@@ -26,9 +26,9 @@ interface RequestWithBody {
   files?: Record<string, UploadFile | UploadFile[]>
 }
 
-const getManagedPath = (userId: number): { pathId: number; path: string } | null => {
+const getManagedPath = (userId: number): { pathId: number, path: string } | null => {
   const query = sql`SELECT pathId, path FROM paths WHERE managedByUserId = ${userId} LIMIT 1`
-  return db.get<{ pathId: number; path: string }>(String(query), query.parameters) ?? null
+  return db.get<{ pathId: number, path: string }>(String(query), query.parameters) ?? null
 }
 
 const detectZipType = (names: string[]): 'mp3+cdg' | 'mp3+lrc' | 'mp4' | 'audio-only' | 'mixed' => {

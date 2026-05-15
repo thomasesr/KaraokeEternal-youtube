@@ -59,7 +59,8 @@ const Account = () => {
     <Panel title={t('account.myAccount')} contentClassName={styles.content}>
       <>
         <p>
-          {t('account.signedInAs')}&nbsp;
+          {t('account.signedInAs')}
+&nbsp;
           <strong>{user.isGuest ? t('auth.guest') : user.username}</strong>
         </p>
 

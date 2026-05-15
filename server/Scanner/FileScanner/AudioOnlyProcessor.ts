@@ -18,7 +18,7 @@ function spawnCmd (cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promis
     proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString()).slice(-4000) })
     proc.stdout.on('data', () => {})
     proc.on('error', reject)
-    proc.on('close', code => {
+    proc.on('close', (code) => {
       if (code === 0) return resolve()
       reject(new Error(stderr.trim().split('\n').pop() || `${cmd} exited ${code}`))
     })
@@ -38,7 +38,7 @@ async function fetchLrc (artist: string, title: string, duration: number): Promi
   return data.syncedLyrics
 }
 
-async function queryMusicBrainz (query: string): Promise<{ artist: string; title: string } | null> {
+async function queryMusicBrainz (query: string): Promise<{ artist: string, title: string } | null> {
   const url = `https://musicbrainz.org/ws/2/recording?query=${encodeURIComponent(query)}&limit=1&fmt=json`
   try {
     const res = await fetch(url, { headers: { 'User-Agent': 'KaraokeEternal/1.0 (karaoke-eternal@example.com)' } })
@@ -54,7 +54,7 @@ async function queryMusicBrainz (query: string): Promise<{ artist: string; title
 }
 
 // Parse "Artist - Title" from filename; rejects pure-number first parts (track numbers)
-function parseFilename (basename: string): { artist: string; title: string } | null {
+function parseFilename (basename: string): { artist: string, title: string } | null {
   const parts = basename.split(' - ')
   if (parts.length < 2) return null
   const artist = parts[0].trim()
@@ -63,13 +63,27 @@ function parseFilename (basename: string): { artist: string; title: string } | n
   return { artist, title }
 }
 
-async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accompaniment: string; vocals: string }> {
+async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accompaniment: string, vocals: string }> {
   const spleeterModel = process.env.SPLEETER_MODEL ?? '2stems'
   const spleeterData = process.env.SPLEETER_DATA ?? '/data/spleeter'
-  const configPath = path.join(spleeterData, 'pretrained_models', spleeterModel, `${spleeterModel}.json`)
   const useGpu = process.env.SPLEETER_USE_GPU === '1'
 
-  log.verbose('running spleeter on %s (model=%s)', path.basename(mp3Path), spleeterModel)
+  let effectiveModel = spleeterModel
+  let configPath = path.join(spleeterData, 'pretrained_models', spleeterModel, `${spleeterModel}.json`)
+
+  try {
+    await fsp.stat(configPath)
+  } catch {
+    if (spleeterModel !== '2stems') {
+      log.warn('spleeter model config not found for %s — falling back to 2stems', spleeterModel)
+      effectiveModel = '2stems'
+      configPath = path.join(spleeterData, 'pretrained_models', '2stems', '2stems.json')
+    } else {
+      throw new Error(`spleeter model config not found: ${configPath}`)
+    }
+  }
+
+  log.verbose('running spleeter on %s (model=%s)', path.basename(mp3Path), effectiveModel)
   await spawnCmd('spleeter', [
     'separate',
     '-p', configPath,
@@ -78,7 +92,7 @@ async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accomp
     mp3Path,
   ], useGpu
     ? { TF_FORCE_GPU_ALLOW_GROWTH: '1' }
-    : { CUDA_VISIBLE_DEVICES: '', TF_CPP_MIN_LOG_LEVEL: '2' }
+    : { CUDA_VISIBLE_DEVICES: '', TF_CPP_MIN_LOG_LEVEL: '2' },
   )
 
   const stemSubdir = path.join(stemsDir, path.basename(mp3Path, '.mp3'))
@@ -93,7 +107,7 @@ async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accomp
       ? await fsp.readdir(path.join(stemsDir, topDirs[0])).catch(() => ['(unreadable)'])
       : []
     throw new Error(
-      `spleeter did not produce accompaniment.mp3 — stemsDir: ${JSON.stringify(topDirs)}, subdir: ${JSON.stringify(subEntries)}`
+      `spleeter did not produce accompaniment.mp3 — stemsDir: ${JSON.stringify(topDirs)}, subdir: ${JSON.stringify(subEntries)}`,
     )
   }
 
@@ -101,10 +115,12 @@ async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accomp
 }
 
 export type AudioOnlyProgressCallback = (stage: string, pct: number) => void
+export type LyricsNeededCallback = (vocalsMp3: string) => Promise<string>
 
 export async function processAudioOnly (
   file: string,
   onProgress?: AudioOnlyProgressCallback,
+  onLyricsNeeded?: LyricsNeededCallback,
 ): Promise<{ zipPath: string }> {
   const ext = path.extname(file).toLowerCase()
   const dir = path.dirname(file)
@@ -152,10 +168,18 @@ export async function processAudioOnly (
     const { accompaniment: accompanimentMp3, vocals: vocalsMp3 } = await runSpleeter(mp3Path, stemsDir)
     onProgress?.('separating', 80)
 
-    // Step 4: fetch LRC
-    log.verbose('fetching LRC: "%s - %s" duration=%ds', artist, title, Math.round(duration))
+    // Step 4: fetch LRC (or request lyrics from caller if not found)
     onProgress?.('fetching-lrc', 85)
-    const lrcContent = await fetchLrc(artist, title, duration)
+    let lrcContent: string
+    try {
+      log.verbose('fetching LRC: "%s - %s" duration=%ds', artist, title, Math.round(duration))
+      lrcContent = await fetchLrc(artist, title, duration)
+    } catch (lrcErr) {
+      if (!onLyricsNeeded) throw lrcErr
+      log.verbose('LRC fetch failed, requesting lyrics from caller: %s', (lrcErr as Error).message)
+      onProgress?.('awaiting-lyrics', 85)
+      lrcContent = await onLyricsNeeded(vocalsMp3)
+    }
 
     // Step 5: zip accompaniment + vocals + lrc → dest
     onProgress?.('zipping', 90)

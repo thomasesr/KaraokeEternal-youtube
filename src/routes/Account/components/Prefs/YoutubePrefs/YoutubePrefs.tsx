@@ -16,12 +16,12 @@ const YoutubePrefs = () => {
 
   const ROLE_LABEL: Record<Exclude<YoutubeRole, 'admin'>, { label: string, hint: string }> = {
     room_manager: { label: t('prefs.ytRoleManagers'), hint: t('prefs.ytRoleManagersHint') },
-    standard:     { label: t('prefs.ytRoleReturning'), hint: t('prefs.ytRoleReturningHint') },
-    guest:        { label: t('prefs.ytRoleGuests'), hint: t('prefs.ytRoleGuestsHint') },
+    standard: { label: t('prefs.ytRoleReturning'), hint: t('prefs.ytRoleReturningHint') },
+    guest: { label: t('prefs.ytRoleGuests'), hint: t('prefs.ytRoleGuestsHint') },
   }
 
   const QUALITY_LABEL: Record<YoutubeQualityPreset, string> = {
-    best: t('prefs.ytQualityBest'),
+    'best': t('prefs.ytQualityBest'),
     '1080p': '1080p (Full HD)',
     '720p': '720p (HD)',
     '480p': '480p (SD)',

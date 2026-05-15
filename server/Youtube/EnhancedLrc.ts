@@ -33,7 +33,7 @@ function spawnAsync (cmd: string, args: string[], env?: NodeJS.ProcessEnv): Prom
     proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString()).slice(-4000) })
     proc.stdout.on('data', () => {})
     proc.on('error', reject)
-    proc.on('close', code => {
+    proc.on('close', (code) => {
       if (code === 0) return resolve()
       reject(new Error(stderr.trim().split('\n').pop() || `${cmd} exited ${code}`))
     })
@@ -93,7 +93,7 @@ function formatLrcTime (sec: number): string {
 export function serializeEnhancedLrc (
   lines: LrcLine[],
   wordGroups: WordSegment[][],
-  meta: { artist: string; title: string },
+  meta: { artist: string, title: string },
 ): string {
   const header = [
     `[ar:${meta.artist}]`,
@@ -117,11 +117,69 @@ export function serializeEnhancedLrc (
   return header + body + '\n'
 }
 
+export async function alignPlainTextWithCtc (
+  audioPath: string,
+  plainText: string,
+  tmpDir: string,
+  meta: { artist: string, title: string },
+): Promise<string> {
+  const rawLines = plainText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  if (rawLines.length === 0) throw new Error('no lyrics lines provided')
+
+  const lines: LrcLine[] = rawLines.map(text => ({
+    time: 0,
+    text,
+    words: text.split(/\s+/).filter(Boolean),
+  }))
+
+  const lang = detectLanguage(rawLines.join(' '))
+  log.verbose('alignPlainTextWithCtc: %d lines, lang=%s', lines.length, lang)
+
+  const textFile = path.join(tmpDir, 'lyrics.txt')
+  const outDir = path.join(tmpDir, 'ctc-out')
+
+  await fsp.writeFile(textFile, rawLines.join('\n'), 'utf8')
+  await fsp.mkdir(outDir, { recursive: true })
+
+  const useGpu = process.env.CTC_USE_GPU === '1'
+  const device = useGpu ? 'cuda' : 'cpu'
+
+  log.verbose('ctc-forced-aligner (plain text): audio=%s lang=%s device=%s', path.basename(audioPath), lang, device)
+
+  await spawnAsync('python3', [
+    CTC_ALIGN_PY,
+    '--audio_path', audioPath,
+    '--text_path', textFile,
+    '--language', lang,
+    '--output_dir', outDir,
+    '--device', device,
+  ])
+
+  const audioBase = path.basename(audioPath, path.extname(audioPath))
+  const jsonPath = path.join(outDir, `${audioBase}.json`)
+  const raw = await fsp.readFile(jsonPath, 'utf8')
+  const parsed = JSON.parse(raw)
+
+  const allWords: WordSegment[] = (Array.isArray(parsed) ? parsed : parsed.word_segments ?? [])
+    .map((w: any) => ({ word: String(w.word ?? w.label ?? ''), start: Number(w.start), end: Number(w.end) }))
+    .filter((w: WordSegment) => w.word)
+
+  const wordGroups: WordSegment[][] = []
+  let offset = 0
+  for (const line of lines) {
+    const count = line.words.length
+    wordGroups.push(allWords.slice(offset, offset + count))
+    offset += count
+  }
+
+  return serializeEnhancedLrc(lines, wordGroups, meta)
+}
+
 export async function enhanceWithCtc (
   audioPath: string,
   lrcContent: string,
   tmpDir: string,
-  meta: { artist: string; title: string },
+  meta: { artist: string, title: string },
 ): Promise<string> {
   const lines = parseLrcLines(lrcContent)
   if (lines.length === 0) throw new Error('no LRC lines to enhance')

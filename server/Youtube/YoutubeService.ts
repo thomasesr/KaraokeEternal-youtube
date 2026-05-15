@@ -103,7 +103,7 @@ export class YoutubeService {
 
     const results = searchData.items
       .filter(item => metaById.has(item.id.videoId))
-      .map(item => {
+      .map((item) => {
         const meta = metaById.get(item.id.videoId)!
         return {
           videoId: item.id.videoId,

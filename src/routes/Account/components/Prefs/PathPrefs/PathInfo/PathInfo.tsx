@@ -86,7 +86,8 @@ const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
               <option value=''>{t('prefs.unmanagedOption')}</option>
               {roomManagers.map(uid => (
                 <option key={uid} value={uid}>
-                  {users!.entities[uid].name}{users!.entities[uid].username ? ` (${users!.entities[uid].username})` : ''}
+                  {users!.entities[uid].name}
+                  {users!.entities[uid].username ? ` (${users!.entities[uid].username})` : ''}
                 </option>
               ))}
             </select>

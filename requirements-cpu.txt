@@ -4,5 +4,6 @@
 
 yt-dlp
 spleeter-thomasesr==3.0.0a1
+click<8.2.0
 ctc-forced-aligner
 unidecode

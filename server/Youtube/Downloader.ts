@@ -157,7 +157,7 @@ function probeFormats (url: string, cookieFile: string | null): Promise<ProbeRes
 const log = getLogger('Youtube')
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/
 
-export type JobStatus = 'queued' | 'downloading' | 'done' | 'error'
+export type JobStatus = 'queued' | 'downloading' | 'awaiting-lyrics' | 'done' | 'error'
 
 export interface Job {
   videoId: string

@@ -101,8 +101,8 @@ export interface MusicBrainzHit {
 }
 
 interface MbRecording {
-  title?: string
-  score?: number
+  'title'?: string
+  'score'?: number
   'artist-credit'?: { name?: string, artist?: { name?: string } }[]
 }
 

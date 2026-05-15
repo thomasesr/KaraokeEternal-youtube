@@ -323,9 +323,9 @@ router.post('/download', async (ctx) => {
       : mode === 'audioonly'
         ? await AudioOnlyDownloader.start(videoId, commonOpts)
         : await Downloader.start(videoId, {
-          ...commonOpts,
-          qualityPreset: cfg.qualityPreset,
-        })
+            ...commonOpts,
+            qualityPreset: cfg.qualityPreset,
+          })
     ctx.status = 202
     ctx.body = job
   } catch (err) {
@@ -341,6 +341,31 @@ router.get('/download/:videoId', (ctx) => {
   const job = Downloader.getJob(videoId) ?? SpleeterDownloader.getJob(videoId) ?? AudioOnlyDownloader.getJob(videoId)
   if (!job) ctx.throw(404, 'No such job')
   ctx.body = job
+})
+
+router.post('/download/:videoId/lyrics', (ctx) => {
+  if (!ctx.user.userId) ctx.throw(401)
+  const videoId = ctx.params.videoId
+  if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
+  const body = ctx.request.body as { lyricsText?: unknown }
+  const lyricsText = body.lyricsText
+  if (typeof lyricsText !== 'string' || !lyricsText.trim()) ctx.throw(422, 'lyricsText must be a non-empty string')
+  const trimmed = (lyricsText as string).trim()
+  try {
+    AudioOnlyDownloader.submitLyrics(videoId, trimmed)
+  } catch (err) {
+    if (err instanceof DownloaderError) ctx.throw(err.status, err.message)
+    throw err
+  }
+  ctx.status = 204
+})
+
+router.delete('/download/:videoId/lyrics', (ctx) => {
+  if (!ctx.user.userId) ctx.throw(401)
+  const videoId = ctx.params.videoId
+  if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
+  AudioOnlyDownloader.cancelLyrics(videoId)
+  ctx.status = 204
 })
 
 export default router

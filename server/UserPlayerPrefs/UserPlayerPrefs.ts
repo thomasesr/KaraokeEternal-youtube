@@ -16,7 +16,7 @@ const ALLOWED_KEYS = new Set(['lrcFontSize', 'lrcDefaultOffset', 'isReplayGainEn
 
 export default {
   get (userId: number): UserPlayerPrefsData {
-    const row = db.get<{ lrcFontSize: number; lrcDefaultOffset: number; isReplayGainEnabled: number }>(
+    const row = db.get<{ lrcFontSize: number, lrcDefaultOffset: number, isReplayGainEnabled: number }>(
       'SELECT lrcFontSize, lrcDefaultOffset, isReplayGainEnabled FROM userPlayerPrefs WHERE userId = ?',
       [userId],
     )

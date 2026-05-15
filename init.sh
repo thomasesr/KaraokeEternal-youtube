@@ -98,10 +98,11 @@ install_deps() {
   fi
 
   # Step 1: yt-dlp + spleeter (TF resolved by spleeter-thomasesr)
+  # spleeter-thomasesr pins typer<0.10.0, which breaks with click>=8.2.0 — pin click<8.2.0
   info "Installing yt-dlp + spleeter..."
   pip3 install --no-cache-dir --break-system-packages \
     --timeout 300 --retries 5 \
-    yt-dlp "spleeter-thomasesr==3.0.0a1"
+    yt-dlp "spleeter-thomasesr==3.0.0a1" "click<8.2.0"
   ok "yt-dlp + spleeter installed"
 
   # Step 2: ctc-forced-aligner (onnxruntime-based; no torch dependency)

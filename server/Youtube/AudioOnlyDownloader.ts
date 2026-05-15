@@ -7,6 +7,7 @@ import Prefs from '../Prefs/Prefs.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
 import { ingestDownloaded } from './ingestDownloaded.js'
 import { processAudioOnly } from '../Scanner/FileScanner/AudioOnlyProcessor.js'
+import { alignPlainTextWithCtc } from './EnhancedLrc.js'
 import type { Job } from './Downloader.js'
 import { DownloaderError } from './Downloader.js'
 
@@ -14,6 +15,7 @@ const log = getLogger('Youtube')
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/
 
 const jobs = new Map<string, Job>()
+const pendingLyrics = new Map<string, { resolve: (text: string) => void, reject: (err: Error) => void }>()
 
 export interface AudioOnlyStartOptions {
   destDir: string
@@ -30,7 +32,7 @@ export interface AudioOnlyStartOptions {
 function spawnAsync (
   cmd: string,
   args: string[],
-  opts: { label?: string; env?: NodeJS.ProcessEnv } = {},
+  opts: { label?: string, env?: NodeJS.ProcessEnv } = {},
 ): Promise<void> {
   const label = opts.label ?? cmd
   log.debug('%s args: %s', label, args.join(' '))
@@ -56,7 +58,21 @@ export const AudioOnlyDownloader = {
 
   isActive (videoId: string): boolean {
     const j = jobs.get(videoId)
-    return !!j && (j.status === 'queued' || j.status === 'downloading')
+    return !!j && (j.status === 'queued' || j.status === 'downloading' || j.status === 'awaiting-lyrics')
+  },
+
+  submitLyrics (videoId: string, lyricsText: string): void {
+    const pending = pendingLyrics.get(videoId)
+    if (!pending) throw new DownloaderError('No lyrics pending for this video', 404)
+    pendingLyrics.delete(videoId)
+    pending.resolve(lyricsText)
+  },
+
+  cancelLyrics (videoId: string): void {
+    const pending = pendingLyrics.get(videoId)
+    if (!pending) return
+    pendingLyrics.delete(videoId)
+    pending.reject(new Error('Lyrics entry cancelled'))
   },
 
   async start (videoId: string, opts: AudioOnlyStartOptions): Promise<Job> {
@@ -143,7 +159,7 @@ async function runPipeline (videoId: string, job: Job, opts: AudioOnlyStartOptio
       })
       proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString('utf8')).slice(-2000) })
       proc.on('error', reject)
-      proc.on('close', code => {
+      proc.on('close', (code) => {
         if (code === 0) return resolve()
         reject(new Error(stderr.trim().split('\n').pop() || `yt-dlp exited ${code}`))
       })
@@ -176,11 +192,38 @@ async function runPipeline (videoId: string, job: Job, opts: AudioOnlyStartOptio
     job.progress = 45
     log.verbose('audioonly stage=separating (via processAudioOnly): %s', videoId)
 
-    const { zipPath } = await processAudioOnly(destMp3, (stage, pct) => {
-      job.stage = stage
-      // map processAudioOnly pct (0-95) into our 45-95 range
-      job.progress = Math.round(45 + pct * 0.5)
-    })
+    const { zipPath } = await processAudioOnly(
+      destMp3,
+      (stage, pct) => {
+        if (stage === 'awaiting-lyrics') {
+          job.status = 'awaiting-lyrics'
+        } else if (job.status === 'awaiting-lyrics') {
+          job.status = 'downloading'
+        }
+        job.stage = stage
+        job.progress = Math.round(45 + pct * 0.5)
+      },
+      async (vocalsMp3) => {
+        job.status = 'awaiting-lyrics'
+        job.stage = 'awaiting-lyrics'
+        log.verbose('audioonly awaiting lyrics from user: %s', videoId)
+
+        const plainText = await new Promise<string>((resolve, reject) => {
+          pendingLyrics.set(videoId, { resolve, reject })
+        })
+
+        job.status = 'downloading'
+        job.stage = 'enhancing-lrc'
+        log.verbose('audioonly running CTC on user-provided lyrics: %s', videoId)
+
+        const ctcTmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'kes-ctc-'))
+        try {
+          return await alignPlainTextWithCtc(vocalsMp3, plainText, ctcTmpDir, { artist: opts.artist, title: opts.title })
+        } finally {
+          fsp.rm(ctcTmpDir, { recursive: true, force: true }).catch(() => {})
+        }
+      },
+    )
 
     job.progress = 95
 

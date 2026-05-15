@@ -183,7 +183,13 @@
     "artist": "Artista",
     "songTitle": "Título da música",
     "verifying": "Verificando…",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "lyricsNeededHeading": "Letra não encontrada — insira manualmente",
+    "lyricsNeededHint": "Cole ou digite uma linha de letra por linha de texto. O alinhamento CTC adicionará timestamps por palavra.",
+    "lyricsPlaceholder": "Primeira linha da letra\nSegunda linha da letra\n...",
+    "submitLyrics": "Alinhar letra",
+    "aligningLyrics": "Alinhando…",
+    "lyricsSubmitFailed": "Falha ao enviar a letra"
   },
   "common": {
     "loading": "Carregando...",

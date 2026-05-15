@@ -10,10 +10,10 @@ const ThemePrefs = () => {
   const currentTheme = useAppSelector(state => state.prefs.theme ?? 'blue')
 
   const THEMES = [
-    { id: 'blue',  label: t('prefs.themeDarkBlue'),  bg: '#020d1a', accent: '#5aadff', pink: '#9b6fff' },
+    { id: 'blue', label: t('prefs.themeDarkBlue'), bg: '#020d1a', accent: '#5aadff', pink: '#9b6fff' },
     { id: 'green', label: t('prefs.themeDarkGreen'), bg: '#051a0d', accent: '#3dba6e', pink: '#b0d630' },
-    { id: 'red',   label: t('prefs.themeDarkRed'),   bg: '#1a0302', accent: '#ff6b5a', pink: '#d6369a' },
-    { id: 'light', label: t('prefs.themeLight'),     bg: '#f2f4f8', accent: '#2255cc', pink: '#7744cc' },
+    { id: 'red', label: t('prefs.themeDarkRed'), bg: '#1a0302', accent: '#ff6b5a', pink: '#d6369a' },
+    { id: 'light', label: t('prefs.themeLight'), bg: '#f2f4f8', accent: '#2255cc', pink: '#7744cc' },
   ]
 
   return (

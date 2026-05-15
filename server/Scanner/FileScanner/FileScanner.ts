@@ -32,7 +32,7 @@ class FileScanner extends Scanner {
     this.paths = prefs.paths
   }
 
-  async scan (pathId): Promise<{ stats: { new: number; removed: number; existing: number }; candidates: EnhanceCandidate[] }> {
+  async scan (pathId): Promise<{ stats: { new: number, removed: number, existing: number }, candidates: EnhanceCandidate[] }> {
     const dir = this.paths.entities[pathId]?.path
     const validMediaIds = []
     const stats = { new: 0, removed: 0, existing: 0 }

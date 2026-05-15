@@ -9,6 +9,8 @@ import {
   youtubeIdentify,
   youtubeProbe,
   youtubeSearchMore,
+  youtubeSubmitLyrics,
+  youtubeCancelLyrics,
 } from 'store/modules/youtube'
 import styles from './YoutubeSearchResults.css'
 
@@ -28,6 +30,13 @@ interface ModalState {
   isKaraoke: boolean
   reason: 'miss' | 'lowScore'
   score: number | null
+  busy: boolean
+  error: string | null
+}
+
+interface LyricsModalState {
+  videoId: string
+  lyricsText: string
   busy: boolean
   error: string | null
 }
@@ -55,6 +64,7 @@ function stageLabel (stage: string | null): string {
     case 'separating': return 'Separating vocals…'
     case 'converting': return 'Converting…'
     case 'fetching-lrc': return 'Fetching lyrics…'
+    case 'awaiting-lyrics': return 'Lyrics needed…'
     case 'enhancing-lrc': return 'Enhancing lyrics…'
     case 'zipping': return 'Packaging…'
     default: return 'Processing…'
@@ -73,11 +83,21 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
   const pollRef = useRef<number | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [lyricsModal, setLyricsModal] = useState<LyricsModalState | null>(null)
   const [identifyingId, setIdentifyingId] = useState<string | null>(null)
 
   const activeIds = Object.values(downloads)
-    .filter(j => j.status === 'queued' || j.status === 'downloading')
+    .filter(j => j.status === 'queued' || j.status === 'downloading' || j.status === 'awaiting-lyrics')
     .map(j => j.videoId)
+
+  useEffect(() => {
+    const awaitingJob = Object.values(downloads).find(j => j.status === 'awaiting-lyrics')
+    if (awaitingJob && (!lyricsModal || lyricsModal.videoId !== awaitingJob.videoId)) {
+      setLyricsModal({ videoId: awaitingJob.videoId, lyricsText: '', busy: false, error: null })
+    } else if (!awaitingJob && lyricsModal && !lyricsModal.busy) {
+      setLyricsModal(null)
+    }
+  }, [downloads]) // eslint-disable-line react-hooks/exhaustive-deps
   const activeKey = activeIds.join(',')
 
   useEffect(() => {
@@ -108,6 +128,23 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
       loadMore()
     }
   }, [canLoadMore, loadMore])
+
+  const onLyricsSubmit = async () => {
+    if (!lyricsModal || !lyricsModal.lyricsText.trim()) return
+    setLyricsModal({ ...lyricsModal, busy: true, error: null })
+    const action = await dispatch(youtubeSubmitLyrics({ videoId: lyricsModal.videoId, lyricsText: lyricsModal.lyricsText }))
+    if (youtubeSubmitLyrics.fulfilled.match(action)) {
+      setLyricsModal(null)
+    } else {
+      setLyricsModal({ ...lyricsModal, busy: false, error: action.error?.message ?? t('youtube.lyricsSubmitFailed') })
+    }
+  }
+
+  const onLyricsCancel = async () => {
+    if (!lyricsModal) return
+    setLyricsModal(null)
+    dispatch(youtubeCancelLyrics(lyricsModal.videoId))
+  }
 
   const startDownload = (videoId: string, artist: string, title: string, duration: number, isKaraoke: boolean) => {
     dispatch(youtubeDownloadStart({
@@ -301,6 +338,34 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
 
       {canLoadMore && !isLoadingMore && (
         <div className={styles.loadMoreHint} />
+      )}
+
+      {lyricsModal && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeading}>{t('youtube.lyricsNeededHeading')}</div>
+            <p className={styles.modalHint}>{t('youtube.lyricsNeededHint')}</p>
+            <textarea
+              className={styles.lyricsTextarea}
+              value={lyricsModal.lyricsText}
+              onChange={e => setLyricsModal({ ...lyricsModal, lyricsText: e.currentTarget.value })}
+              disabled={lyricsModal.busy}
+              rows={10}
+              placeholder={t('youtube.lyricsPlaceholder')}
+            />
+            {lyricsModal.error && <div className={styles.error}>{lyricsModal.error}</div>}
+            <div className={styles.actions}>
+              <Button variant='default' onClick={onLyricsCancel} disabled={lyricsModal.busy}>{t('youtube.cancel')}</Button>
+              <Button
+                variant='primary'
+                onClick={onLyricsSubmit}
+                disabled={lyricsModal.busy || !lyricsModal.lyricsText.trim()}
+              >
+                {lyricsModal.busy ? t('youtube.aligningLyrics') : t('youtube.submitLyrics')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {modal && (

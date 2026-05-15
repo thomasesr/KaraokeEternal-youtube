@@ -31,7 +31,7 @@ export interface SpleeterStartOptions {
 function spawnAsync (
   cmd: string,
   args: string[],
-  opts: { cwd?: string; label?: string; env?: NodeJS.ProcessEnv } = {},
+  opts: { cwd?: string, label?: string, env?: NodeJS.ProcessEnv } = {},
 ): Promise<void> {
   const label = opts.label ?? cmd
   log.debug('%s args: %s', label, args.join(' '))
@@ -188,7 +188,7 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
         log.debug('spleeter yt-dlp stderr: %s', text.trimEnd())
       })
       proc.on('error', reject)
-      proc.on('close', code => {
+      proc.on('close', (code) => {
         log.debug('spleeter yt-dlp exited code=%d', code)
         if (code === 0) return resolve()
         const tail = stderr.trim().split('\n').pop() || `yt-dlp exited ${code}`

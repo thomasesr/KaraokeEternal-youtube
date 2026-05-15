@@ -26,7 +26,7 @@ function spawnAsync (cmd: string, args: string[]): Promise<void> {
     proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString()).slice(-4000) })
     proc.stdout.on('data', () => {})
     proc.on('error', reject)
-    proc.on('close', code => {
+    proc.on('close', (code) => {
       if (code === 0) return resolve()
       reject(new Error(stderr.trim().split('\n').pop() || `${cmd} exited ${code}`))
     })

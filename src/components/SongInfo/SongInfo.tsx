@@ -53,16 +53,28 @@ const SongInfo = () => {
       <div key={item.mediaId} className={styles.media}>
         {item.path + (item.path.indexOf('/') === 0 ? '/' : '\\') + item.relPath}
         <br />
-        <span className={styles.label}>{t('songInfo.duration')}: </span>
+        <span className={styles.label}>
+          {t('songInfo.duration')}
+          :
+          {' '}
+        </span>
         {formatDuration(item.duration)}
         <br />
-        <span className={styles.label}>{t('songInfo.mediaId')}: </span>
+        <span className={styles.label}>
+          {t('songInfo.mediaId')}
+          :
+          {' '}
+        </span>
         {mediaId}
 
         {activeLabel && (
           <>
             <br />
-            <span className={styles.label}>{t('songInfo.status')}: </span>
+            <span className={styles.label}>
+              {t('songInfo.status')}
+              :
+              {' '}
+            </span>
             <strong>{activeLabel}</strong>
           </>
         )}
@@ -71,7 +83,11 @@ const SongInfo = () => {
         {isAdmin && (
           <>
             <br />
-            <span className={styles.label}>{t('songInfo.globalDefault')}: </span>
+            <span className={styles.label}>
+              {t('songInfo.globalDefault')}
+              :
+              {' '}
+            </span>
             {isGlobal
               && (
                 <span>
@@ -83,7 +99,8 @@ const SongInfo = () => {
             {!isGlobal
               && (
                 <span>
-                  {t('common.no')}&nbsp;
+                  {t('common.no')}
+&nbsp;
                   <a onClick={() => handleSetGlobal(mediaId, true)}>{t('common.set')}</a>
                 </span>
               )}
@@ -94,7 +111,11 @@ const SongInfo = () => {
         {(isAdmin || isRoomManager) && typeof roomId === 'number' && (
           <>
             <br />
-            <span className={styles.label}>{t('songInfo.roomDefault')}: </span>
+            <span className={styles.label}>
+              {t('songInfo.roomDefault')}
+              :
+              {' '}
+            </span>
             {isRoom
               && (
                 <span>
@@ -106,7 +127,8 @@ const SongInfo = () => {
             {!isRoom
               && (
                 <span>
-                  {t('common.no')}&nbsp;
+                  {t('common.no')}
+&nbsp;
                   <a onClick={() => handleSetRoom(mediaId, true)}>{t('common.set')}</a>
                 </span>
               )}
@@ -117,7 +139,11 @@ const SongInfo = () => {
         {typeof userId === 'number' && (
           <>
             <br />
-            <span className={styles.label}>{t('songInfo.myVersion')}: </span>
+            <span className={styles.label}>
+              {t('songInfo.myVersion')}
+              :
+              {' '}
+            </span>
             {isUser
               && (
                 <span>
@@ -129,7 +155,8 @@ const SongInfo = () => {
             {!isUser
               && (
                 <span>
-                  {t('common.no')}&nbsp;
+                  {t('common.no')}
+&nbsp;
                   <a onClick={() => handleSetUser(mediaId, true)}>{t('common.set')}</a>
                 </span>
               )}
@@ -147,10 +174,18 @@ const SongInfo = () => {
     >
       <div className={styles.container}>
         <p>
-          <span className={styles.label}>{t('songInfo.songId')}: </span>
+          <span className={styles.label}>
+            {t('songInfo.songId')}
+            :
+            {' '}
+          </span>
           {songId}
           <br />
-          <span className={styles.label}>{t('songInfo.mediaFiles')}: </span>
+          <span className={styles.label}>
+            {t('songInfo.mediaFiles')}
+            :
+            {' '}
+          </span>
           {isLoading ? '?' : media.result.length}
         </p>
 
