@@ -19,6 +19,16 @@ export function subscribePush (): AppThunk {
         return
       }
 
+      // Request permission if not already decided. Safari needs this called
+      // in a user gesture context (handled by callers); Chrome/Firefox work here.
+      if ('Notification' in window) {
+        if (Notification.permission === 'denied') return
+        if (Notification.permission === 'default') {
+          const perm = await Notification.requestPermission()
+          if (perm !== 'granted') return
+        }
+      }
+
       const keyRes = await fetch('api/push/vapid-public-key', { credentials: 'include' })
       if (!keyRes.ok) throw new Error('Failed to get VAPID public key')
       const { publicKey } = await keyRes.json()

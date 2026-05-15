@@ -12,6 +12,7 @@ import Modal from 'components/Modal/Modal'
 import SongInfo from 'components/SongInfo/SongInfo'
 import Routes from '../Routes/Routes'
 import { clearErrorMessage, setFooterHeight, setHeaderHeight } from 'store/modules/ui'
+import { subscribePush } from 'store/modules/push'
 
 const CoreLayout = () => {
   const isPlayerRoute = useMatch('/player')
@@ -31,7 +32,17 @@ const CoreLayout = () => {
 
   const ui = useAppSelector(state => state.ui)
   const theme = useAppSelector(state => state.prefs.theme)
+  const userId = useAppSelector(state => state.user.userId)
   const closeError = () => dispatch(clearErrorMessage())
+
+  // Auto-subscribe to push when the user logs in or loads the page while logged in.
+  // Chrome/Firefox will show the permission dialog here; Safari requires a user
+  // gesture so the NotifPrefs checkbox remains the Safari path.
+  useEffect(() => {
+    if (userId) {
+      dispatch(subscribePush())
+    }
+  }, [dispatch, userId])
 
   useEffect(() => {
     if (theme && theme !== 'blue') {
