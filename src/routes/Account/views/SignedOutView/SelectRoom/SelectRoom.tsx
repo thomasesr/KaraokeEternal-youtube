@@ -1,10 +1,9 @@
-import React, { useRef } from 'react'
+import React from 'react'
 import clsx from 'clsx'
-import InputRadio from 'components/InputRadio/InputRadio'
 import styles from './SelectRoom.css'
 import type { Room } from 'shared/types'
 
-interface SelectRoomProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+interface SelectRoomProps {
   className?: string
   rooms: {
     result: number[]
@@ -18,7 +17,7 @@ interface SelectRoomProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
 }
 
 const SelectRoom = ({
-  onRoomSelect: onRoomIdChange,
+  onRoomSelect,
   onRoomPasswordChange,
   className,
   rooms,
@@ -26,60 +25,43 @@ const SelectRoom = ({
   roomPassword,
   showAllRooms,
 }: SelectRoomProps) => {
-  const roomPasswordRefs = useRef<Record<number, HTMLInputElement | null>>({})
+  const visibleRooms = showAllRooms
+    ? rooms.result
+    : rooms.result.filter(id => id === roomId)
 
-  const setPasswordRef = (roomId: number) => (el: HTMLInputElement | null) => {
-    roomPasswordRefs.current[roomId] = el
-  }
+  const selectedRoom = roomId !== null ? rooms.entities[roomId] : null
+  const showPassword = selectedRoom?.hasPassword ?? false
 
-  const handleRoomChange = (value: string) => {
-    const selectedRoomId = value
-
-    Object.entries(roomPasswordRefs.current).forEach(([id, ref]) => {
-      if (ref) {
-        if (id === selectedRoomId) {
-          ref.classList.remove(styles.hidden)
-          ref.focus()
-        } else {
-          ref.classList.add(styles.hidden)
-        }
-      }
-    })
-
-    onRoomIdChange(parseInt(selectedRoomId))
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    onRoomSelect(parseInt(e.target.value))
   }
 
   return (
     <div className={clsx(styles.container, className)}>
-      {rooms.result.map((id) => {
-        if (!showAllRooms && id !== roomId) return null
+      <select
+        className={styles.select}
+        value={roomId ?? ''}
+        onChange={handleChange}
+        aria-label='Select room'
+        size={Math.max(2, visibleRooms.length)}
+      >
+        {visibleRooms.map(id => (
+          <option key={id} value={id}>
+            {rooms.entities[id].name}
+          </option>
+        ))}
+      </select>
 
-        return (
-          <div key={`room-${id}`}>
-            <InputRadio
-              name='roomId'
-              className={clsx(styles.option, id === roomId && styles.checked)}
-              label={rooms.entities[id].name}
-              value={id}
-              onChange={handleRoomChange}
-              checked={id === roomId}
-            />
-
-            {rooms.entities[id]?.hasPassword && (
-              <input
-                type='password'
-                autoComplete='off'
-                className={clsx((roomId === null || id !== roomId) && styles.hidden)}
-                onChange={(e) => { onRoomPasswordChange(e.target.value) }}
-                placeholder='room password (required)'
-                aria-label='room password (required)'
-                ref={setPasswordRef(id)}
-                value={roomPassword}
-              />
-            )}
-          </div>
-        )
-      })}
+      {showPassword && (
+        <input
+          type='password'
+          autoComplete='off'
+          onChange={(e) => { onRoomPasswordChange(e.target.value) }}
+          placeholder='room password (required)'
+          aria-label='room password (required)'
+          value={roomPassword}
+        />
+      )}
     </div>
   )
 }
