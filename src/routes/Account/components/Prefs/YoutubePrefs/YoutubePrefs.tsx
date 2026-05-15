@@ -137,14 +137,14 @@ const YoutubePrefs = () => {
             onChange={handleToggleEnabled}
             disabled={isSaving}
           />
-          Enable YouTube search
+          {t('prefs.ytEnableSearch')}
         </label>
 
         <div className={styles.row}>
           <label>{t('prefs.ytWhoCanSearch')}</label>
           <label className={styles.toggleRow} style={{ padding: 0 }}>
             <input type='checkbox' checked disabled />
-            Admins (always)
+            {t('prefs.ytAdminsAlways')}
           </label>
           {(['room_manager', 'standard', 'guest'] as const).map(role => (
             <label key={role} className={styles.toggleRow} style={{ padding: 0 }}>
@@ -172,7 +172,7 @@ const YoutubePrefs = () => {
             onChange={handlePathChange}
             disabled={isSaving || paths.result.length === 0}
           >
-            <option value=''>— select a media folder —</option>
+            <option value=''>{t('prefs.ytSelectFolder')}</option>
             {paths.result.map((pathId) => {
               const p = paths.entities[pathId]
               return (
@@ -181,7 +181,7 @@ const YoutubePrefs = () => {
             })}
           </select>
           {paths.result.length === 0 && (
-            <div className={styles.note}>Add a media folder first under “Media Folders”.</div>
+            <div className={styles.note}>{t('prefs.ytAddFolderFirst')}</div>
           )}
         </div>
 
@@ -197,9 +197,7 @@ const YoutubePrefs = () => {
               <option key={p} value={p}>{QUALITY_LABEL[p]}</option>
             ))}
           </select>
-          <div className={styles.note}>
-            Caps the resolution selected by yt-dlp. Lower = smaller files, faster downloads.
-          </div>
+          <div className={styles.note}>{t('prefs.ytQualityNote')}</div>
         </div>
 
         <div className={styles.row}>
@@ -223,9 +221,7 @@ const YoutubePrefs = () => {
 
         <div className={styles.row}>
           <label htmlFor='yt-mbScore'>
-            MusicBrainz minimum match score:
-            {' '}
-            {config.musicbrainzMinScore}
+            {t('prefs.ytMbScoreLabel', { score: config.musicbrainzMinScore })}
           </label>
           <input
             id='yt-mbScore'
@@ -237,10 +233,7 @@ const YoutubePrefs = () => {
             onChange={handleScoreChange}
             disabled={isSaving}
           />
-          <div className={styles.note}>
-            Below this score, the user is prompted to confirm the artist + song title before download.
-            Higher = stricter (more prompts); lower = trust MusicBrainz more.
-          </div>
+          <div className={styles.note}>{t('prefs.ytMbScoreNote')}</div>
         </div>
 
         <label className={styles.toggleRow}>
@@ -250,26 +243,22 @@ const YoutubePrefs = () => {
             onChange={handleToggleCookies}
             disabled={isSaving}
           />
-          Use cookies for yt-dlp (age-gated content)
+          {t('prefs.ytUseCookies')}
         </label>
 
         <div className={styles.row}>
           <label htmlFor='yt-apiKey'>
-            YouTube Data API key
+            {t('prefs.ytApiKeyLabel')}
             {config.isApiKeyConfigured && (
               <span className={styles.lockedBadge}>
-                {config.isApiKeyFromEnv ? 'set via env' : 'configured'}
+                {config.isApiKeyFromEnv ? t('prefs.ytSetViaEnv') : t('prefs.ytConfigured')}
               </span>
             )}
           </label>
           {config.isApiKeyFromEnv
             ? (
                 <div className={styles.note}>
-                  The key is provided by the
-                  {' '}
-                  <code>KES_YOUTUBE_API_KEY</code>
-                  {' '}
-                  environment variable and cannot be changed at runtime.
+                  {t('prefs.ytApiKeyEnvNote')}
                 </div>
               )
             : (
@@ -289,7 +278,7 @@ const YoutubePrefs = () => {
                       variant='primary'
                       disabled={isSaving || !apiKey.trim()}
                     >
-                      Save key
+                      {t('prefs.ytSaveKey')}
                     </Button>
                     <Button
                       onClick={() => setShowKey(s => !s)}
@@ -303,7 +292,7 @@ const YoutubePrefs = () => {
                         variant='default'
                         disabled={isSaving}
                       >
-                        Clear
+                        {t('common.clear')}
                       </Button>
                     )}
                   </div>
@@ -314,9 +303,9 @@ const YoutubePrefs = () => {
 
         <div className={styles.row}>
           <label htmlFor='yt-cookies'>
-            Cookies (Netscape format, used by yt-dlp)
+            {t('prefs.ytCookiesLabel')}
             {config.isCookiesConfigured && (
-              <span className={styles.lockedBadge}>configured</span>
+              <span className={styles.lockedBadge}>{t('prefs.ytConfigured')}</span>
             )}
           </label>
           <textarea
@@ -331,21 +320,14 @@ const YoutubePrefs = () => {
             spellCheck={false}
             autoComplete='off'
           />
-          <div className={styles.note}>
-            Export with a browser extension that emits Netscape-format
-            {' '}
-            <code>cookies.txt</code>
-            . Required only for age-gated or region-locked videos. Enable
-            {' '}
-            “Use cookies for yt-dlp” above to send them with downloads.
-          </div>
+          <div className={styles.note}>{t('prefs.ytCookiesNote')}</div>
           <div className={styles.btnRow}>
             <Button
               onClick={handleSaveCookies}
               variant='primary'
               disabled={isSaving || !cookies.trim()}
             >
-              Save cookies
+              {t('prefs.ytSaveCookies')}
             </Button>
             {config.isCookiesConfigured && (
               <Button
@@ -353,7 +335,7 @@ const YoutubePrefs = () => {
                 variant='default'
                 disabled={isSaving}
               >
-                Clear
+                {t('common.clear')}
               </Button>
             )}
           </div>

@@ -16,7 +16,10 @@
     "roomPasswordRequired": "room password (required)",
     "changeUsernamePlaceholder": "change username (optional)",
     "changePasswordPlaceholder": "change password (optional)",
-    "newPasswordConfirmPlaceholder": "new password confirm"
+    "newPasswordConfirmPlaceholder": "new password confirm",
+    "welcome": "Welcome",
+    "firstRunDesc": "Create your admin account to get started. All data is locally stored and never shared.",
+    "createAccount": "Create Account"
   },
   "account": {
     "myAccount": "My Account",
@@ -64,7 +67,26 @@
     "ytShow": "Show",
     "ytClearCookies": "Clear stored YouTube cookies.txt?",
     "ytCookiesPlaceholder": "Paste contents of cookies.txt here",
-    "ytCookiesReplacePlaceholder": "Paste replacement cookies.txt contents…"
+    "ytCookiesReplacePlaceholder": "Paste replacement cookies.txt contents…",
+    "removeFolder": "Remove Folder",
+    "roomManagerLabel": "Room manager (exclusive uploader)",
+    "unmanagedOption": "— unmanaged (visible to all) —",
+    "ytEnableSearch": "Enable YouTube search",
+    "ytAdminsAlways": "Admins (always)",
+    "ytSelectFolder": "— select a media folder —",
+    "ytAddFolderFirst": "Add a media folder first under \"Media Folders\".",
+    "ytQualityNote": "Caps the resolution selected by yt-dlp. Lower = smaller files, faster downloads.",
+    "ytMbScoreLabel": "MusicBrainz minimum match score: {{score}}",
+    "ytMbScoreNote": "Below this score, the user is prompted to confirm the artist + song title before download. Higher = stricter (more prompts); lower = trust MusicBrainz more.",
+    "ytUseCookies": "Use cookies for yt-dlp (age-gated content)",
+    "ytApiKeyLabel": "YouTube Data API key",
+    "ytSetViaEnv": "set via env",
+    "ytConfigured": "configured",
+    "ytApiKeyEnvNote": "The key is provided by the KES_YOUTUBE_API_KEY environment variable and cannot be changed at runtime.",
+    "ytSaveKey": "Save key",
+    "ytCookiesLabel": "Cookies (Netscape format, used by yt-dlp)",
+    "ytCookiesNote": "Export with a browser extension that emits Netscape-format cookies.txt. Required only for age-gated or region-locked videos. Enable \"Use cookies for yt-dlp\" above to send them with downloads.",
+    "ytSaveCookies": "Save cookies"
   },
   "rooms": {
     "myRooms": "My Rooms",
@@ -84,7 +106,16 @@
     "qrOpacity": "Opacity",
     "allowStandardUsers": "Allow new standard users",
     "allowGuests": "Allow new guests",
-    "roomManagers": "Room Managers"
+    "roomManagers": "Room Managers",
+    "all": "All",
+    "open": "Open",
+    "closed": "Closed",
+    "status_open": "open",
+    "status_closed": "closed",
+    "clearQueue": "Clear Queue",
+    "removeRoom": "Remove Room",
+    "removeRoomConfirm": "Remove room \"{{name}}\" and its queue?",
+    "clearQueueConfirm": "Clear all songs from \"{{name}}\"'s queue?"
   },
   "users": {
     "users": "Users",
@@ -105,11 +136,15 @@
     "lyricsSize": "Size",
     "background": "Background",
     "smoothScroll": "Smooth scroll",
-    "launchPlayer": "Launch Player"
+    "launchPlayer": "Launch Player",
+    "noPlayerInRoom": "No player in room"
   },
   "library": {
     "search": "search",
-    "searchYoutube": "Search YouTube"
+    "searchYoutube": "Search YouTube",
+    "libraryEmpty": "Library Empty",
+    "addMediaFolders": "Add media folders",
+    "toGetStarted": "to get started."
   },
   "youtube": {
     "typeQuery": "Type a query and tap the YouTube button to search.",
@@ -135,6 +170,39 @@
     "songInfo": "Song Info",
     "uploadMedia": "Upload Media",
     "changelog": "Changelog & Sponsors",
-    "setDownloadPath": "Set a download path in Account → YouTube"
+    "setDownloadPath": "Set a download path in Account → YouTube",
+    "done": "Done",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "no": "No",
+    "set": "(Set)",
+    "unset": "(Unset)",
+    "clear": "(Clear)"
+  },
+  "songInfo": {
+    "songId": "Song ID",
+    "mediaFiles": "Media Files",
+    "duration": "Duration",
+    "mediaId": "Media ID",
+    "status": "Status",
+    "activeUser": "Active (your choice)",
+    "activeRoom": "Active (room default)",
+    "activeGlobal": "Active (global default)",
+    "globalDefault": "Global default",
+    "roomDefault": "Room default",
+    "myVersion": "My version"
+  },
+  "queue": {
+    "getARoom": "Get a Room!",
+    "signInToRoom": "Sign in to a room",
+    "toStartQueuing": "to start queueing songs.",
+    "queueEmpty": "Queue Empty",
+    "tapSong": "Tap a song in the",
+    "library": "library",
+    "toQueueIt": "to queue it.",
+    "removeMyUpcoming": "Remove all your upcoming songs?",
+    "removeUpcomingFor": "Remove all upcoming songs for \"{{name}}\"?",
+    "skipRemoveMyUpcoming": "Skip and remove all your upcoming songs?",
+    "skipRemoveUpcomingFor": "Skip and remove all upcoming songs for \"{{name}}\"?"
   }
 }

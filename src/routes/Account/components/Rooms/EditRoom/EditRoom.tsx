@@ -64,13 +64,13 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
   }
 
   const handleRemoveClick = () => {
-    if (room && confirm(`Remove room "${room.name}" and its queue?`)) {
+    if (room && confirm(t('rooms.removeRoomConfirm', { name: room.name }))) {
       dispatch(removeRoom(room.roomId))
     }
   }
 
   const handleClearQueueClick = () => {
-    if (room && confirm(`Clear all songs from "${room.name}"'s queue?`)) {
+    if (room && confirm(t('rooms.clearQueueConfirm', { name: room.name }))) {
       dispatch(clearRoomQueue(room.roomId))
     }
   }
@@ -127,8 +127,8 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
             name='status'
             defaultValue={room?.status ?? 'open'}
           >
-            <option value='open'>Open</option>
-            <option value='closed'>Closed</option>
+            <option value='open'>{t('rooms.open')}</option>
+            <option value='closed'>{t('rooms.closed')}</option>
           </select>
         </div>
 
@@ -146,16 +146,16 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
           </Button>
           {canClearQueue && (
             <Button onClick={handleClearQueueClick} className={styles.btn} variant='default'>
-              Clear Queue
+              {t('rooms.clearQueue')}
             </Button>
           )}
           {canRemove && room && (
             <Button onClick={handleRemoveClick} className={styles.btn} variant='danger'>
-              Remove Room
+              {t('rooms.removeRoom')}
             </Button>
           )}
           <Button onClick={handleClose} variant='default'>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

@@ -16,7 +16,10 @@
     "roomPasswordRequired": "senha da sala (obrigatório)",
     "changeUsernamePlaceholder": "alterar usuário (opcional)",
     "changePasswordPlaceholder": "alterar senha (opcional)",
-    "newPasswordConfirmPlaceholder": "confirmar nova senha"
+    "newPasswordConfirmPlaceholder": "confirmar nova senha",
+    "welcome": "Bem-vindo",
+    "firstRunDesc": "Crie sua conta de admin para começar. Todos os dados são armazenados localmente e nunca compartilhados.",
+    "createAccount": "Criar Conta"
   },
   "account": {
     "myAccount": "Minha Conta",
@@ -64,7 +67,26 @@
     "ytShow": "Mostrar",
     "ytClearCookies": "Limpar cookies.txt do YouTube?",
     "ytCookiesPlaceholder": "Cole o conteúdo do cookies.txt aqui",
-    "ytCookiesReplacePlaceholder": "Cole os novos conteúdos do cookies.txt…"
+    "ytCookiesReplacePlaceholder": "Cole os novos conteúdos do cookies.txt…",
+    "removeFolder": "Remover Pasta",
+    "roomManagerLabel": "Gerente de sala (uploader exclusivo)",
+    "unmanagedOption": "— sem gerente (visível para todos) —",
+    "ytEnableSearch": "Ativar pesquisa no YouTube",
+    "ytAdminsAlways": "Admins (sempre)",
+    "ytSelectFolder": "— selecionar uma pasta de mídia —",
+    "ytAddFolderFirst": "Adicione uma pasta de mídia primeiro em \"Pastas de Mídia\".",
+    "ytQualityNote": "Limita a resolução selecionada pelo yt-dlp. Menor = arquivos menores, downloads mais rápidos.",
+    "ytMbScoreLabel": "Pontuação mínima MusicBrainz: {{score}}",
+    "ytMbScoreNote": "Abaixo desta pontuação, o usuário é solicitado a confirmar o artista + título antes do download. Maior = mais restrito; menor = confiar mais no MusicBrainz.",
+    "ytUseCookies": "Usar cookies para yt-dlp (conteúdo com restrição de idade)",
+    "ytApiKeyLabel": "Chave da API do YouTube Data",
+    "ytSetViaEnv": "definido via env",
+    "ytConfigured": "configurado",
+    "ytApiKeyEnvNote": "A chave é fornecida pela variável de ambiente KES_YOUTUBE_API_KEY e não pode ser alterada em tempo de execução.",
+    "ytSaveKey": "Salvar chave",
+    "ytCookiesLabel": "Cookies (formato Netscape, usado pelo yt-dlp)",
+    "ytCookiesNote": "Exporte com uma extensão do navegador que emite cookies.txt no formato Netscape. Necessário apenas para vídeos com restrição de idade ou região. Ative \"Usar cookies para yt-dlp\" acima para enviá-los nos downloads.",
+    "ytSaveCookies": "Salvar cookies"
   },
   "rooms": {
     "myRooms": "Minhas Salas",
@@ -84,7 +106,16 @@
     "qrOpacity": "Opacidade",
     "allowStandardUsers": "Permitir novos usuários",
     "allowGuests": "Permitir convidados",
-    "roomManagers": "Gerentes de Sala"
+    "roomManagers": "Gerentes de Sala",
+    "all": "Todas",
+    "open": "Aberta",
+    "closed": "Fechada",
+    "status_open": "aberta",
+    "status_closed": "fechada",
+    "clearQueue": "Limpar Fila",
+    "removeRoom": "Remover Sala",
+    "removeRoomConfirm": "Remover a sala \"{{name}}\" e sua fila?",
+    "clearQueueConfirm": "Limpar todas as músicas da fila de \"{{name}}\"?"
   },
   "users": {
     "users": "Usuários",
@@ -105,11 +136,15 @@
     "lyricsSize": "Tamanho",
     "background": "Fundo",
     "smoothScroll": "Rolagem suave",
-    "launchPlayer": "Abrir Player"
+    "launchPlayer": "Abrir Player",
+    "noPlayerInRoom": "Sem player na sala"
   },
   "library": {
     "search": "pesquisar",
-    "searchYoutube": "Pesquisar no YouTube"
+    "searchYoutube": "Pesquisar no YouTube",
+    "libraryEmpty": "Biblioteca Vazia",
+    "addMediaFolders": "Adicionar pastas de mídia",
+    "toGetStarted": "para começar."
   },
   "youtube": {
     "typeQuery": "Digite uma busca e toque no botão do YouTube para pesquisar.",
@@ -135,6 +170,39 @@
     "songInfo": "Info da Música",
     "uploadMedia": "Enviar Mídia",
     "changelog": "Histórico & Patrocinadores",
-    "setDownloadPath": "Configure um caminho de download em Conta → YouTube"
+    "setDownloadPath": "Configure um caminho de download em Conta → YouTube",
+    "done": "Concluído",
+    "cancel": "Cancelar",
+    "yes": "Sim",
+    "no": "Não",
+    "set": "(Definir)",
+    "unset": "(Remover)",
+    "clear": "(Limpar)"
+  },
+  "songInfo": {
+    "songId": "ID da Música",
+    "mediaFiles": "Arquivos de Mídia",
+    "duration": "Duração",
+    "mediaId": "ID da Mídia",
+    "status": "Status",
+    "activeUser": "Ativo (sua escolha)",
+    "activeRoom": "Ativo (padrão da sala)",
+    "activeGlobal": "Ativo (padrão global)",
+    "globalDefault": "Padrão global",
+    "roomDefault": "Padrão da sala",
+    "myVersion": "Minha versão"
+  },
+  "queue": {
+    "getARoom": "Entre em uma Sala!",
+    "signInToRoom": "Entre em uma sala",
+    "toStartQueuing": "para começar a adicionar músicas.",
+    "queueEmpty": "Fila Vazia",
+    "tapSong": "Toque em uma música na",
+    "library": "biblioteca",
+    "toQueueIt": "para adicioná-la.",
+    "removeMyUpcoming": "Remover todas as suas músicas na fila?",
+    "removeUpcomingFor": "Remover todas as músicas na fila de \"{{name}}\"?",
+    "skipRemoveMyUpcoming": "Pular e remover todas as suas músicas na fila?",
+    "skipRemoveUpcomingFor": "Pular e remover todas as músicas na fila de \"{{name}}\"?"
   }
 }

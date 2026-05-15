@@ -47,8 +47,8 @@ const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
       title={t('prefs.mediaFolder')}
       buttons={(
         <>
-          <Button onClick={handleRemove} variant='danger'>Remove Folder</Button>
-          <Button onClick={onClose} variant='primary'>Done</Button>
+          <Button onClick={handleRemove} variant='danger'>{t('prefs.removeFolder')}</Button>
+          <Button onClick={onClose} variant='primary'>{t('common.done')}</Button>
         </>
       )}
     >
@@ -77,13 +77,13 @@ const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
             onChange={event => handleChange({ isAudioOnlyEnabled: event.currentTarget.checked })}
           />
           <div>
-            <label className={styles.label}>Room manager (exclusive uploader)</label>
+            <label className={styles.label}>{t('prefs.roomManagerLabel')}</label>
             <select
               className={styles.select}
               value={path?.managedByUserId ?? ''}
               onChange={handleManagerChange}
             >
-              <option value=''>— unmanaged (visible to all) —</option>
+              <option value=''>{t('prefs.unmanagedOption')}</option>
               {roomManagers.map(uid => (
                 <option key={uid} value={uid}>
                   {users!.entities[uid].name}{users!.entities[uid].username ? ` (${users!.entities[uid].username})` : ''}

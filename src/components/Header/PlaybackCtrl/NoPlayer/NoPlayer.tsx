@@ -8,7 +8,7 @@ const NoPlayer = () => {
   return (
     <div className={styles.container}>
       <p className={styles.msg}>
-        No player in room (
+        {t('display.noPlayerInRoom')} (
         <Link to='/player' target='_blank' replace>{t('display.launchPlayer')}</Link>
         )
       </p>

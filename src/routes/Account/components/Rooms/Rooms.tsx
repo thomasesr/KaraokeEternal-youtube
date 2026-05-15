@@ -48,7 +48,7 @@ const Rooms = () => {
       <tr key={String(roomId)}>
         <td translate='no'><a data-room-id={roomId} onClick={handleOpen}>{room.name}</a></td>
         <td>
-          {room.status}
+          {t(`rooms.status_${room.status}`)}
           {isAdmin && room.numUsers > 0 && (
             <>
 &nbsp;
@@ -68,9 +68,9 @@ const Rooms = () => {
   const roomsFilter = isAdmin
     ? (
         <select className={styles.roomsFilter} onChange={handleFilterChange} value={filterStatus === false ? 'all' : filterStatus as string}>
-          <option key='all' value='all'>All</option>
-          <option key='open' value='open'>Open</option>
-          <option key='closed' value='closed'>Closed</option>
+          <option key='all' value='all'>{t('rooms.all')}</option>
+          <option key='open' value='open'>{t('rooms.open')}</option>
+          <option key='closed' value='closed'>{t('rooms.closed')}</option>
         </select>
       )
     : null

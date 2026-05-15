@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import clsx from 'clsx'
+import { useTranslation } from 'react-i18next'
 import { useSwipeable } from 'react-swipeable'
 import { useLongPress } from 'use-long-press'
 import { useAppDispatch } from 'store/hooks'
@@ -72,6 +73,7 @@ const QueueItem = ({
   userId,
   wait,
 }: QueueItemProps) => {
+  const { t } = useTranslation()
   const [isExpanded, setExpanded] = useState(false)
   const longPressActiveRef = useRef(false)
   const dispatch = useAppDispatch()
@@ -107,7 +109,9 @@ const QueueItem = ({
   })
 
   const bindRemovePressHandlers = useLongPress(() => {
-    const confirmText = isOwner ? 'Remove all your upcoming songs?' : `Remove all upcoming songs for "${userDisplayName}"?`
+    const confirmText = isOwner
+      ? t('queue.removeMyUpcoming')
+      : t('queue.removeUpcomingFor', { name: userDisplayName })
     longPressActiveRef.current = true
 
     if (confirm(confirmText)) {
@@ -116,7 +120,9 @@ const QueueItem = ({
   }, { threshold: LONG_PRESS_THRESHOLD_MS, cancelOnMovement: true })
 
   const bindSkipPressHandlers = useLongPress(() => {
-    const confirmText = isOwner ? 'Skip and remove all your upcoming songs?' : `Skip and remove all upcoming songs for "${userDisplayName}"?`
+    const confirmText = isOwner
+      ? t('queue.skipRemoveMyUpcoming')
+      : t('queue.skipRemoveUpcomingFor', { name: userDisplayName })
     longPressActiveRef.current = true
 
     if (confirm(confirmText)) {
