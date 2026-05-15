@@ -49,6 +49,8 @@ export const login = createAsyncThunk(
 
     if (redirect) {
       AppRouter.navigate(basename.replace(/\/$/, '') + redirect)
+    } else if ((user as any).isGuest) {
+      AppRouter.navigate(basename.replace(/\/$/, '') + '/library')
     }
   },
 )
@@ -100,6 +102,8 @@ export const createAccount = createAsyncThunk<void, FormData, { state: RootState
 
     if (redirect) {
       AppRouter.navigate(basename.replace(/\/$/, '') + redirect)
+    } else if ((user as any).isGuest) {
+      AppRouter.navigate(basename.replace(/\/$/, '') + '/library')
     }
   },
 )
