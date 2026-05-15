@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import clsx from 'clsx'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { setFilterStr, resetFilterStr, toggleFilterStarred } from '../../modules/library'
 import { setYoutubeMode, youtubeSearch, fetchYoutubeAccess } from 'store/modules/youtube'
@@ -7,6 +8,7 @@ import Button from 'components/Button/Button'
 import styles from './LibraryHeader.css'
 
 const LibraryHeader = () => {
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const { filterStr, filterStarred } = useAppSelector(state => state.library)
   const userId = useAppSelector(state => state.user.userId)
@@ -71,7 +73,7 @@ const LibraryHeader = () => {
       <input
         type='search'
         className={styles.searchInput}
-        placeholder='search'
+        placeholder={t('library.search')}
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
@@ -89,7 +91,7 @@ const LibraryHeader = () => {
           className={clsx(styles.btnYoutube, ytMode && styles.active)}
           icon='YOUTUBE'
           onClick={handleYoutubeClick}
-          title='Search YouTube'
+          title={t('library.searchYoutube')}
         />
       )}
       <Button

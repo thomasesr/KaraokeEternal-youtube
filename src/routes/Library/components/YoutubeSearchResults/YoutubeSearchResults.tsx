@@ -204,7 +204,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
   if (!searchQuery) {
     return (
       <div className={styles.container} style={containerStyle}>
-        <div className={styles.message}>Type a query and tap the YouTube button to search.</div>
+        <div className={styles.message}>{t('youtube.typeQuery')}</div>
       </div>
     )
   }
@@ -212,11 +212,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
   if (searchResults.length === 0) {
     return (
       <div className={styles.container} style={containerStyle}>
-        <div className={styles.message}>
-          No YouTube results for "
-          {searchQuery}
-          ".
-        </div>
+        <div className={styles.message}>{t('youtube.noResults', { query: searchQuery })}</div>
       </div>
     )
   }
@@ -229,14 +225,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
       onScroll={onScroll}
     >
       <div className={styles.heading}>
-        {searchResults.length}
-        {' '}
-        YouTube result
-        {searchResults.length === 1 ? '' : 's'}
-        {' '}
-        for "
-        {searchQuery}
-        "
+        {t('youtube.resultHeading', { count: searchResults.length, query: searchQuery })}
       </div>
 
       {sorted.map(item => (
@@ -265,14 +254,14 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
                 variant='default'
                 onClick={() => window.open(`https://www.youtube.com/watch?v=${item.videoId}`, '_blank', 'noopener,noreferrer')}
               >
-                Open on YouTube
+                {t('youtube.openOnYoutube')}
               </Button>
               {(() => {
                 const job = downloads[item.videoId]
                 if (job?.status === 'downloading' || job?.status === 'queued') {
                   const label = (job.stage && job.stage !== 'downloading')
                     ? stageLabel(job.stage)
-                    : `Downloading ${Math.round(job.progress)}%`
+                    : t('youtube.downloading', { progress: Math.round(job.progress) })
                   return (
                     <Button as='span' variant='primary' disabled>
                       {label}
@@ -282,11 +271,11 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
                 if (job?.status === 'done') {
                   return (
                     <Button as='span' variant='default' disabled>
-                      Downloaded
+                      {t('youtube.downloaded')}
                     </Button>
                   )
                 }
-                const errTitle = job?.status === 'error' ? job.error ?? 'Download failed' : undefined
+                const errTitle = job?.status === 'error' ? job.error ?? t('youtube.downloadFailed') : undefined
                 const isIdentifying = identifyingId === item.videoId
                 return (
                   <Button
@@ -295,7 +284,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
                     title={!downloadPathConfigured ? t('common.setDownloadPath') : errTitle}
                     onClick={() => onDownload(item.videoId, item.title, item.duration, item.isKaraoke)}
                   >
-                    {isIdentifying ? 'Identifying…' : (job?.status === 'error' ? 'Retry' : 'Download')}
+                    {isIdentifying ? t('youtube.identifying') : (job?.status === 'error' ? t('youtube.retry') : t('youtube.download'))}
                   </Button>
                 )
               })()}
@@ -319,11 +308,11 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeading}>
               {modal.reason === 'lowScore'
-                ? `MusicBrainz match too weak (score ${modal.score ?? '?'}). Confirm artist + title:`
-                : 'Could not auto-detect artist/title. Enter them:'}
+                ? t('youtube.mbMatchWeak', { score: modal.score ?? '?' })
+                : t('youtube.noAutoDetect')}
             </div>
             <label className={styles.modalLabel}>
-              Artist
+              {t('youtube.artist')}
               <input
                 type='text'
                 value={modal.artist}
@@ -333,7 +322,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
               />
             </label>
             <label className={styles.modalLabel}>
-              Song title
+              {t('youtube.songTitle')}
               <input
                 type='text'
                 value={modal.title}
@@ -343,13 +332,13 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
             </label>
             {modal.error && <div className={styles.error}>{modal.error}</div>}
             <div className={styles.actions}>
-              <Button variant='default' onClick={() => setModal(null)} disabled={modal.busy}>Cancel</Button>
+              <Button variant='default' onClick={() => setModal(null)} disabled={modal.busy}>{t('youtube.cancel')}</Button>
               <Button
                 variant='primary'
                 onClick={onModalConfirm}
                 disabled={modal.busy || !modal.artist.trim() || !modal.title.trim()}
               >
-                {modal.busy ? 'Verifying…' : 'Download'}
+                {modal.busy ? t('youtube.verifying') : t('youtube.download')}
               </Button>
             </div>
           </div>

@@ -19,6 +19,10 @@
     "newPasswordConfirmPlaceholder": "new password confirm"
   },
   "account": {
+    "myAccount": "My Account",
+    "signedInAs": "Signed in as",
+    "signOut": "Sign Out",
+    "updateAccount": "Update Account",
     "passwordRequired": "Please enter your current password to make changes.",
     "currentPasswordPlaceholder": "current password"
   },
@@ -37,6 +41,9 @@
     "watchFolder": "Watch folder",
     "videoKeying": "Allow video background keying",
     "processAudioOnly": "Process audio-only files (mp3/flac/wav/etc. without lyrics sidecar)",
+    "mediaFolders": "Media Folders",
+    "addMediaFolderHint": "Add a media folder to get started.",
+    "scanFolders": "Scan Folders",
     "addFolder": "Add Folder",
     "ytWhoCanSearch": "Who can search and download",
     "ytRoleManagers": "Room managers",
@@ -99,6 +106,29 @@
     "background": "Background",
     "smoothScroll": "Smooth scroll",
     "launchPlayer": "Launch Player"
+  },
+  "library": {
+    "search": "search",
+    "searchYoutube": "Search YouTube"
+  },
+  "youtube": {
+    "typeQuery": "Type a query and tap the YouTube button to search.",
+    "noResults": "No YouTube results for \"{{query}}\".",
+    "resultHeading_one": "{{count}} YouTube result for \"{{query}}\"",
+    "resultHeading_other": "{{count}} YouTube results for \"{{query}}\"",
+    "openOnYoutube": "Open on YouTube",
+    "downloading": "Downloading {{progress}}%",
+    "downloaded": "Downloaded",
+    "downloadFailed": "Download failed",
+    "identifying": "Identifying…",
+    "retry": "Retry",
+    "download": "Download",
+    "mbMatchWeak": "MusicBrainz match too weak (score {{score}}). Confirm artist + title:",
+    "noAutoDetect": "Could not auto-detect artist/title. Enter them:",
+    "artist": "Artist",
+    "songTitle": "Song title",
+    "verifying": "Verifying…",
+    "cancel": "Cancel"
   },
   "common": {
     "loading": "Loading...",

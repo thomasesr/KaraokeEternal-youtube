@@ -19,6 +19,10 @@
     "newPasswordConfirmPlaceholder": "confirmar nova senha"
   },
   "account": {
+    "myAccount": "Minha Conta",
+    "signedInAs": "Conectado como",
+    "signOut": "Sair",
+    "updateAccount": "Atualizar Conta",
     "passwordRequired": "Digite sua senha atual para fazer alterações.",
     "currentPasswordPlaceholder": "senha atual"
   },
@@ -29,7 +33,7 @@
     "themeDarkGreen": "Verde Escuro",
     "themeDarkRed": "Vermelho Escuro",
     "themeLight": "Claro",
-    "player": "Tocador",
+    "player": "Player",
     "replayGain": "ReplayGain (seguro)",
     "lrcOffset": "Offset LRC padrão ({{offset}} ms)",
     "lrcFontSize": "Tamanho da letra LRC ({{size}}%)",
@@ -37,6 +41,9 @@
     "watchFolder": "Monitorar pasta",
     "videoKeying": "Permitir chroma key de vídeo",
     "processAudioOnly": "Processar arquivos somente de áudio (mp3/flac/wav/etc. sem sidecar de letras)",
+    "mediaFolders": "Pastas de Mídia",
+    "addMediaFolderHint": "Adicione uma pasta de mídia para começar.",
+    "scanFolders": "Escanear Pastas",
     "addFolder": "Adicionar Pasta",
     "ytWhoCanSearch": "Quem pode pesquisar e baixar",
     "ytRoleManagers": "Gerentes de sala",
@@ -98,7 +105,30 @@
     "lyricsSize": "Tamanho",
     "background": "Fundo",
     "smoothScroll": "Rolagem suave",
-    "launchPlayer": "Abrir Tocador"
+    "launchPlayer": "Abrir Player"
+  },
+  "library": {
+    "search": "pesquisar",
+    "searchYoutube": "Pesquisar no YouTube"
+  },
+  "youtube": {
+    "typeQuery": "Digite uma busca e toque no botão do YouTube para pesquisar.",
+    "noResults": "Nenhum resultado do YouTube para \"{{query}}\".",
+    "resultHeading_one": "{{count}} resultado do YouTube para \"{{query}}\"",
+    "resultHeading_other": "{{count}} resultados do YouTube para \"{{query}}\"",
+    "openOnYoutube": "Abrir no YouTube",
+    "downloading": "Baixando {{progress}}%",
+    "downloaded": "Baixado",
+    "downloadFailed": "Falha no download",
+    "identifying": "Identificando…",
+    "retry": "Tentar novamente",
+    "download": "Baixar",
+    "mbMatchWeak": "Correspondência MusicBrainz fraca (pontuação {{score}}). Confirme artista + título:",
+    "noAutoDetect": "Não foi possível detectar artista/título automaticamente. Insira-os:",
+    "artist": "Artista",
+    "songTitle": "Título da música",
+    "verifying": "Verificando…",
+    "cancel": "Cancelar"
   },
   "common": {
     "loading": "Carregando...",

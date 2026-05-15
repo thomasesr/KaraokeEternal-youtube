@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import HttpApi from 'lib/HttpApi'
@@ -15,6 +16,7 @@ import type { Path } from 'shared/types'
 const api = new HttpApi('prefs/path')
 
 const PathPrefs = () => {
+  const { t } = useTranslation()
   const paths = useAppSelector(state => state.prefs.paths)
   const [isChoosing, setChoosing] = useState(false)
   const [editingPath, setEditingPath] = useState<Path | null>(null)
@@ -84,13 +86,13 @@ const PathPrefs = () => {
     <Accordion headingComponent={(
       <div className={styles.heading}>
         <Icon icon='FOLDER_MUSIC' />
-        <div className={styles.title}>Media Folders</div>
+        <div className={styles.title}>{t('prefs.mediaFolders')}</div>
       </div>
     )}
     >
       <div className={styles.content}>
         {paths.result.length === 0
-          && <p style={{ marginTop: 0 }}>Add a media folder to get started.</p>}
+          && <p style={{ marginTop: 0 }}>{t('prefs.addMediaFolderHint')}</p>}
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId='droppable'>
             {provided => (
@@ -114,11 +116,11 @@ const PathPrefs = () => {
         <div className={styles.btnContainer}>
           {paths.result.length > 0 && (
             <Button onClick={handleRefreshAll} variant='default'>
-              Scan Folders
+              {t('prefs.scanFolders')}
             </Button>
           )}
           <Button onClick={handleOpenChooser} variant='primary'>
-            Add Folder
+            {t('prefs.addFolder')}
           </Button>
         </div>
 

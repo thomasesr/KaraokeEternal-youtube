@@ -56,11 +56,11 @@ const Account = () => {
   }
 
   return (
-    <Panel title='My Account' contentClassName={styles.content}>
+    <Panel title={t('account.myAccount')} contentClassName={styles.content}>
       <>
         <p>
-          Signed in as&nbsp;
-          <strong>{user.isGuest ? 'guest' : user.username}</strong>
+          {t('account.signedInAs')}&nbsp;
+          <strong>{user.isGuest ? t('auth.guest') : user.username}</strong>
         </p>
 
         <AccountForm
@@ -83,11 +83,11 @@ const Account = () => {
           <div className={styles.btnContainer}>
             {isDirty && (
               <Button type='submit' variant='primary'>
-                Update Account
+                {t('account.updateAccount')}
               </Button>
             )}
             <Button onClick={handleSignOut} variant='default'>
-              Sign Out
+              {t('account.signOut')}
             </Button>
           </div>
         </AccountForm>
