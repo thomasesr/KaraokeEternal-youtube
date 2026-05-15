@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { useAppSelector } from 'store/hooks'
 import Panel from 'components/Panel/Panel'
 import Icon from 'components/Icon/Icon'
 import Logo from 'components/Logo/Logo'
@@ -15,6 +16,9 @@ const curYear = new Date().getFullYear()
 const About = () => {
   const { t } = useTranslation()
   const [isChangelogOpen, setChangelogOpen] = useState(false)
+  const roomId = useAppSelector(state => state.user.roomId)
+  const rooms = useAppSelector(state => state.rooms)
+  const roomName = roomId ? rooms.entities[roomId]?.name : undefined
   const toggleChangelog = () => setChangelogOpen(prevState => !prevState)
 
   return (
@@ -22,7 +26,7 @@ const About = () => {
       <>
         {/* @ts-expect-error: global via Webpack */}
         <a href={__KE_URL_HOME__} target='_blank' rel='noreferrer'>
-          <Logo className={styles.logo} />
+          <Logo className={styles.logo} roomName={roomName} />
         </a>
         <p className={styles.sm}>
           &copy;

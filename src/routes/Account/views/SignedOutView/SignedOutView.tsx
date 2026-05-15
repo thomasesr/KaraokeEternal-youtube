@@ -129,7 +129,7 @@ const SignedOutView = () => {
 
   return (
     <div className={styles.container} style={{ maxWidth: Math.max(340, ui.contentWidth * 0.66) }}>
-      <Logo className={styles.logo} />
+      <Logo className={styles.logo} roomName={rooms.entities[roomId ?? rooms.result[0]]?.name} />
 
       {showRoomSection && (
         <>
