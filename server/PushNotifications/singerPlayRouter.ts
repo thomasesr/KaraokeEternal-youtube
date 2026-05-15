@@ -23,9 +23,10 @@ router.post('/singer-play', (ctx) => {
     // verify this user is the next singer
     let nextUserId: number | null = null
 
-    for (const s of (ctx.io as import('socket.io').Server).of('/').sockets.values()) {
-      if (s.user?.roomId === roomId && s._lastPlayerStatus) {
-        nextUserId = s._lastPlayerStatus.nextUserId ?? null
+    for (const s of ctx.io.of('/').sockets.values()) {
+      const sock = s as any
+      if (sock.user?.roomId === roomId && sock._lastPlayerStatus) {
+        nextUserId = sock._lastPlayerStatus.nextUserId ?? null
         break
       }
     }

@@ -6,6 +6,11 @@ import getLogger from '../lib/Log.js'
 
 const log = getLogger('PushNotifications')
 
+export interface NotificationAction {
+  action: string
+  title: string
+}
+
 export interface PushSubscriptionKeys {
   auth: string
   p256dh: string
@@ -77,7 +82,7 @@ class PushNotifications {
     log.verbose('push subscription removed for userId %s', userId)
   }
 
-  static async sendToUser (userId: number, title: string, body: string, actions?: webpush.NotificationAction[]): Promise<void> {
+  static async sendToUser (userId: number, title: string, body: string, actions?: NotificationAction[]): Promise<void> {
     this.init()
 
     const query = sql`
