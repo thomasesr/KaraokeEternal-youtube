@@ -102,6 +102,7 @@ export const requestScanStop = createAsyncThunk(
 // ------------------------------------
 interface PrefsState {
   isFirstRun?: boolean
+  theme: string
   isScanning: boolean
   isReplayGainEnabled: boolean
   lrcDefaultOffset: number
@@ -122,6 +123,7 @@ interface PrefsState {
 }
 
 const initialState: PrefsState = {
+  theme: 'blue',
   isScanning: false,
   isReplayGainEnabled: false,
   lrcDefaultOffset: 0,

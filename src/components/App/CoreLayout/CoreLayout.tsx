@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useMatch } from 'react-router'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import useResizeObserver from 'use-resize-observer'
@@ -30,7 +30,16 @@ const CoreLayout = () => {
   })
 
   const ui = useAppSelector(state => state.ui)
+  const theme = useAppSelector(state => state.prefs.theme)
   const closeError = () => dispatch(clearErrorMessage())
+
+  useEffect(() => {
+    if (theme && theme !== 'blue') {
+      document.documentElement.setAttribute('data-theme', theme)
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
+  }, [theme])
 
   return (
     <>

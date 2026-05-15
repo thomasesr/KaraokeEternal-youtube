@@ -1,5 +1,6 @@
 @import '~modern-normalize/modern-normalize.css';
 @import './variables.css';
+@import './themes.css';
 @import './fonts.css';
 
 html {

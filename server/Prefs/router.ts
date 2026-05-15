@@ -29,8 +29,8 @@ router.get('/', (ctx) => {
     return
   }
 
-  // non-admins only get roles
-  ctx.body = { roles: prefs.roles }
+  // non-admins get roles and current theme
+  ctx.body = { roles: prefs.roles, theme: (prefs as any).theme ?? 'blue' }
 })
 
 // add a media path

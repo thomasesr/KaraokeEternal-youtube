@@ -1,0 +1,65 @@
+/* Dark Green theme */
+[data-theme="green"] {
+  --hue-blue: 140;
+  --hue-pink: 60;
+}
+
+/* Dark Red/Warm theme */
+[data-theme="red"] {
+  --hue-blue: 5;
+  --hue-pink: 315;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --hue-blue: 220;
+  --hue-pink: 270;
+
+  --bg-color: hsl(220, 20%, 96%);
+  --text-color: hsl(220, 15%, 20%);
+  --link-color: hsl(220, 80%, 45%);
+  --mark-bg-color: hsl(220, 60%, 75%);
+
+  --input-color: hsl(220, 15%, 15%);
+  --input-bg-color: hsl(220, 20%, 98%);
+  --input-placeholder-color: hsl(220, 10%, 55%);
+  --input-outline-color: hsl(220, 80%, 55%);
+
+  --btn-bg-color: hsl(220, 40%, 65%);
+  --btn-active-bg-color: hsl(220, 80%, 45%);
+  --btn-primary-color: #fff;
+  --btn-primary-bg-color: hsl(220, 80%, 45%);
+
+  --btn-danger-bg-color: hsl(270, 55%, 55%);
+
+  --chrome-bg-color: hsla(220, 30%, 92%, 0.9);
+  --chrome-border-color: hsla(220, 20%, 70%, 0.6);
+  --header-notice-bg-color: hsl(220, 60%, 55%);
+
+  --panel-bg-color: hsl(220, 20%, 90%);
+
+  --artist-folder-color: hsl(220, 15%, 20%);
+  --artist-folder-bg-color: hsl(220, 60%, 70%);
+  --artist-folder-starred-color: #fff;
+  --artist-folder-starred-bg-color: hsl(220, 80%, 45%);
+  --artist-name-color: hsl(220, 15%, 25%);
+
+  --song-item-btn-bg-color: hsl(220, 50%, 80%);
+  --song-item-btn-active-color: #fff;
+  --song-item-btn-active-bg-color: hsl(220, 80%, 45%);
+
+  --alpha-picker-color: hsl(220, 60%, 70%);
+  --queued-item-color: hsl(270, 55%, 40%);
+
+  --transport-btn-bg-color: hsl(270, 55%, 55%);
+  --transport-volume-track-color: hsl(220, 20%, 75%);
+  --transport-volume-track-active-color: hsl(220, 80%, 45%);
+
+  --up-next-bg-color-from: hsl(220, 55%, 65%);
+  --up-next-bg-color-to: hsl(220, 55%, 75%);
+  --up-now-bg-color-from: hsl(270, 45%, 60%);
+  --up-now-bg-color-to: hsl(270, 45%, 72%);
+
+  --text-shadow: none;
+  --box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+}
