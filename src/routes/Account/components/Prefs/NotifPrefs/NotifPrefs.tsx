@@ -29,6 +29,12 @@ const NotifPrefs = () => {
 
   const handleToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.currentTarget.checked) {
+      // Request permission synchronously in the user gesture handler — Safari
+      // requires this before any async operation breaks the gesture chain.
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') return
+      }
       await dispatch(subscribePush())
       setSubscribed(true)
     } else {

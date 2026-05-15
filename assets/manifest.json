@@ -1,0 +1,19 @@
+{
+  "name": "Karaoke Eternal",
+  "short_name": "KaraokeEternal",
+  "description": "Host karaoke with your own music library",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/app.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

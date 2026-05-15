@@ -200,15 +200,22 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
 
   PushNotifications.init()
 
-  // serve service worker with broad scope so it covers the whole app path
+  // serve service worker and PWA manifest at the app root path
   app.use(async (ctx, next) => {
-    if (ctx.path !== `${urlPath}sw.js`) return next()
-    ctx.set('Content-Type', 'application/javascript; charset=utf-8')
-    ctx.set('Service-Worker-Allowed', urlPath)
-    ctx.body = await promisify(fs.readFile)(
-      path.join(env.KES_PATH_ASSETS, 'sw.js'),
-      'utf8',
-    )
+    if (ctx.path === `${urlPath}sw.js`) {
+      ctx.set('Content-Type', 'application/javascript; charset=utf-8')
+      ctx.set('Service-Worker-Allowed', urlPath)
+      ctx.body = await promisify(fs.readFile)(path.join(env.KES_PATH_ASSETS, 'sw.js'), 'utf8')
+      return
+    }
+
+    if (ctx.path === `${urlPath}manifest.json`) {
+      ctx.set('Content-Type', 'application/manifest+json; charset=utf-8')
+      ctx.body = await promisify(fs.readFile)(path.join(env.KES_PATH_ASSETS, 'manifest.json'), 'utf8')
+      return
+    }
+
+    return next()
   })
 
   // serve index.html with dynamic base tag at the main SPA routes
