@@ -86,7 +86,10 @@
     "ytSaveKey": "Salvar chave",
     "ytCookiesLabel": "Cookies (formato Netscape, usado pelo yt-dlp)",
     "ytCookiesNote": "Exporte com uma extensão do navegador que emite cookies.txt no formato Netscape. Necessário apenas para vídeos com restrição de idade ou região. Ative \"Usar cookies para yt-dlp\" acima para enviá-los nos downloads.",
-    "ytSaveCookies": "Salvar cookies"
+    "ytSaveCookies": "Salvar cookies",
+    "ytEnhancedLrcNote1": "Quando ativado, usa ctc-forced-aligner para adicionar timestamps por palavra após separação vocal. Requer ",
+    "ytEnhancedLrcNote2": " no PATH. Defina ",
+    "ytEnhancedLrcNote3": " para usar CUDA."
   },
   "rooms": {
     "myRooms": "Minhas Salas",
@@ -123,7 +126,16 @@
     "colUsername": "Usuário",
     "colRole": "Função",
     "colJoined": "Entrou em",
-    "createUser": "Criar Usuário"
+    "createUser": "Criar Usuário",
+    "all": "Todos",
+    "online": "Online",
+    "updateUser": "Atualizar Usuário",
+    "removeUser": "Remover Usuário",
+    "removeUserConfirm": "Remover usuário \"{{name}}\"?\n\nSuas músicas na fila também serão removidas.",
+    "role_admin": "admin",
+    "role_room_manager": "gerente de sala",
+    "role_standard": "usuário",
+    "role_guest": "convidado"
   },
   "display": {
     "display": "Exibição",
@@ -144,7 +156,15 @@
     "searchYoutube": "Pesquisar no YouTube",
     "libraryEmpty": "Biblioteca Vazia",
     "addMediaFolders": "Adicionar pastas de mídia",
-    "toGetStarted": "para começar."
+    "toGetStarted": "para começar.",
+    "artistHeading_one": "{{count}} artista",
+    "artistHeading_other": "{{count}} artistas",
+    "artistHeadingStarred_one": "{{count}} artista favorito",
+    "artistHeadingStarred_other": "{{count}} artistas favoritos",
+    "songHeading_one": "{{count}} música",
+    "songHeading_other": "{{count}} músicas",
+    "songHeadingStarred_one": "{{count}} música favorita",
+    "songHeadingStarred_other": "{{count}} músicas favoritas"
   },
   "youtube": {
     "typeQuery": "Digite uma busca e toque no botão do YouTube para pesquisar.",
@@ -178,6 +198,13 @@
     "set": "(Definir)",
     "unset": "(Remover)",
     "clear": "(Limpar)"
+  },
+  "about": {
+    "title": "Sobre",
+    "licenses": "Licenças",
+    "github": "GitHub",
+    "star": "Estrelar",
+    "sponsor": "Patrocinar"
   },
   "songInfo": {
     "songId": "ID da Música",

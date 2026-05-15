@@ -213,9 +213,11 @@ const YoutubePrefs = () => {
             ))}
           </select>
           <div className={styles.note}>
-            When enabled, uses ctc-forced-aligner to add per-word timestamps to lyrics after vocal
-            separation. Requires <code>ctc-forced-aligner</code> on PATH. Set{' '}
-            <code>CTC_USE_GPU=1</code> env var to use CUDA.
+            {t('prefs.ytEnhancedLrcNote1')}
+            <code>ctc-forced-aligner</code>
+            {t('prefs.ytEnhancedLrcNote2')}
+            <code>CTC_USE_GPU=1</code>
+            {t('prefs.ytEnhancedLrcNote3')}
           </div>
         </div>
 

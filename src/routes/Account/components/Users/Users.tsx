@@ -59,7 +59,7 @@ const Users = () => {
             )
           </td>
         )}
-        <td>{user.role}</td>
+        <td>{t(`users.role_${user.role}`, { defaultValue: user.role })}</td>
         <td>{formatDateTime(new Date(user.dateCreated * 1000))}</td>
       </tr>
     )
@@ -71,8 +71,8 @@ const Users = () => {
 
   const userFilter = (
     <select className={styles.usersFilter} onChange={handleFilterChange} value={filterOnline ? 'online' : filterRoomId || 'all'}>
-      <option key='all' value='all'>All</option>
-      <option key='online' value='online'>Online</option>
+      <option key='all' value='all'>{t('users.all')}</option>
+      <option key='online' value='online'>{t('users.online')}</option>
       <optgroup label={t('users.onlineIn')}>
         {roomOpts}
       </optgroup>
@@ -100,7 +100,7 @@ const Users = () => {
 
         <br />
         <Button onClick={handleOpen} variant='primary'>
-          Create User
+          {t('users.createUser')}
         </Button>
 
         {isEditorOpen && (

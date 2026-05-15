@@ -86,7 +86,10 @@
     "ytSaveKey": "Save key",
     "ytCookiesLabel": "Cookies (Netscape format, used by yt-dlp)",
     "ytCookiesNote": "Export with a browser extension that emits Netscape-format cookies.txt. Required only for age-gated or region-locked videos. Enable \"Use cookies for yt-dlp\" above to send them with downloads.",
-    "ytSaveCookies": "Save cookies"
+    "ytSaveCookies": "Save cookies",
+    "ytEnhancedLrcNote1": "When enabled, uses ctc-forced-aligner to add per-word timestamps to lyrics after vocal separation. Requires ",
+    "ytEnhancedLrcNote2": " on PATH. Set ",
+    "ytEnhancedLrcNote3": " env var to use CUDA."
   },
   "rooms": {
     "myRooms": "My Rooms",
@@ -123,7 +126,16 @@
     "colUsername": "Username",
     "colRole": "Role",
     "colJoined": "Joined",
-    "createUser": "Create User"
+    "createUser": "Create User",
+    "all": "All",
+    "online": "Online",
+    "updateUser": "Update User",
+    "removeUser": "Remove User",
+    "removeUserConfirm": "Remove user \"{{name}}\"?\n\nTheir queued songs will also be removed.",
+    "role_admin": "admin",
+    "role_room_manager": "room manager",
+    "role_standard": "user",
+    "role_guest": "guest"
   },
   "display": {
     "display": "Display",
@@ -144,7 +156,15 @@
     "searchYoutube": "Search YouTube",
     "libraryEmpty": "Library Empty",
     "addMediaFolders": "Add media folders",
-    "toGetStarted": "to get started."
+    "toGetStarted": "to get started.",
+    "artistHeading_one": "{{count}} artist",
+    "artistHeading_other": "{{count}} artists",
+    "artistHeadingStarred_one": "{{count}} starred artist",
+    "artistHeadingStarred_other": "{{count}} starred artists",
+    "songHeading_one": "{{count}} song",
+    "songHeading_other": "{{count}} songs",
+    "songHeadingStarred_one": "{{count}} starred song",
+    "songHeadingStarred_other": "{{count}} starred songs"
   },
   "youtube": {
     "typeQuery": "Type a query and tap the YouTube button to search.",
@@ -178,6 +198,13 @@
     "set": "(Set)",
     "unset": "(Unset)",
     "clear": "(Clear)"
+  },
+  "about": {
+    "title": "About",
+    "licenses": "Licenses",
+    "github": "GitHub",
+    "star": "Star",
+    "sponsor": "Sponsor"
   },
   "songInfo": {
     "songId": "Song ID",

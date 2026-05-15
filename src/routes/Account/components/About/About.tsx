@@ -18,7 +18,7 @@ const About = () => {
   const toggleChangelog = () => setChangelogOpen(prevState => !prevState)
 
   return (
-    <Panel title='About' contentClassName={styles.content}>
+    <Panel title={t('about.title')} contentClassName={styles.content}>
       <>
         {/* @ts-expect-error: global via Webpack */}
         <a href={__KE_URL_HOME__} target='_blank' rel='noreferrer'>
@@ -39,7 +39,7 @@ const About = () => {
           {' '}
           |
           {' '}
-          <a href='/licenses.txt' target='_blank'>Licenses</a>
+          <a href='/licenses.txt' target='_blank'>{t('about.licenses')}</a>
         </p>
 
         <div className={styles.ghButtonContainer}>
@@ -47,14 +47,14 @@ const About = () => {
             {/* @ts-expect-error: global via Webpack */}
             <a href={__KE_URL_REPO__} target='_blank' rel='noreferrer'>
               <Icon icon='GITHUB_REPO' size={16} />
-              GitHub
+              {t('about.github')}
             </a>
           </div>
           <div className={clsx(styles.ghButton, styles.star)}>
             {/* @ts-expect-error: global via Webpack */}
             <a href={__KE_URL_REPO__} target='_blank' rel='noreferrer'>
               <Icon icon='GITHUB_STAR' size={16} />
-              Star
+              {t('about.star')}
             </a>
           </div>
 
@@ -62,20 +62,20 @@ const About = () => {
             {/* @ts-expect-error: global via Webpack */}
             <a href={__KE_URL_SPONSOR__} target='_blank' rel='noreferrer'>
               <Icon icon='GITHUB_SPONSOR' size={16} />
-              Sponsor
+              {t('about.sponsor')}
             </a>
           </div>
         </div>
 
         {isChangelogOpen && (
           <Modal
-            title='Changelog & Sponsors'
+            title={t('common.changelog')}
             className={styles.changelog}
             onClose={toggleChangelog}
             scrollable
             buttons={(
               <Button variant='primary' onClick={toggleChangelog}>
-                Done
+                {t('common.done')}
               </Button>
             )}
           >

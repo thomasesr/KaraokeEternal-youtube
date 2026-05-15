@@ -23,7 +23,7 @@ const EditUser = ({ user, onClose }: EditUserProps) => {
   }
 
   const handleRemoveClick = () => {
-    if (user && confirm(`Remove user "${user.username}"?\n\nTheir queued songs will also be removed.`)) {
+    if (user && confirm(t('users.removeUserConfirm', { name: user.username }))) {
       dispatch(removeUser(user.userId))
     }
   }
@@ -38,24 +38,24 @@ const EditUser = ({ user, onClose }: EditUserProps) => {
         <div className={styles.btnContainer}>
           {!user && (
             <Button type='submit' className={styles.btn} variant='primary'>
-              Create User
+              {t('users.createUser')}
             </Button>
           )}
 
           {user && (
             <Button type='submit' className={styles.btn} variant='primary'>
-              Update User
+              {t('users.updateUser')}
             </Button>
           )}
 
           {user && (
             <Button onClick={handleRemoveClick} className={styles.btn} variant='danger'>
-              Remove User
+              {t('users.removeUser')}
             </Button>
           )}
 
           <Button onClick={onClose} variant='default'>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </AccountForm>

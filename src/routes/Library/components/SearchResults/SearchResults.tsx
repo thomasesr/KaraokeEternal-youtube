@@ -1,4 +1,5 @@
 import React, { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ensureState } from 'redux-optimistic-ui'
 import { RootState } from 'store/store'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
@@ -46,17 +47,16 @@ const RowComponent = ({
   songsResult,
   expandedArtistResults,
 }: RowComponentProps<CustomRowProps>) => {
+  const { t } = useTranslation()
   const { starredSongs } = useAppSelector(state => ensureState(state.userStars))
   const { upcoming } = useAppSelector(getSongsStatus)
 
   // # artist results heading
   if (index === 0) {
+    const artistKey = filterStarred ? 'library.artistHeadingStarred' : 'library.artistHeading'
     return (
       <div key='artistsHeading' style={style} className={styles.artistsHeading}>
-        {artistsResult.length}
-        {' '}
-        {filterStarred ? 'starred ' : ''}
-        {artistsResult.length === 1 ? 'artist' : 'artists'}
+        {t(artistKey, { count: artistsResult.length })}
       </div>
     )
   }
@@ -85,12 +85,10 @@ const RowComponent = ({
 
   // # song results heading
   if (index === artistsResult.length + 1) {
+    const songKey = filterStarred ? 'library.songHeadingStarred' : 'library.songHeading'
     return (
       <div key='songsHeading' style={style} className={styles.songsHeading}>
-        {songsResult.length}
-        {' '}
-        {filterStarred ? 'starred ' : ''}
-        {songsResult.length === 1 ? 'song' : 'songs'}
+        {t(songKey, { count: songsResult.length })}
       </div>
     )
   }
