@@ -13,8 +13,10 @@ import SongInfo from 'components/SongInfo/SongInfo'
 import Routes from '../Routes/Routes'
 import { clearErrorMessage, setFooterHeight, setHeaderHeight } from 'store/modules/ui'
 import { subscribePush } from 'store/modules/push'
+import usePwaRoom from 'hooks/usePwaRoom'
 
 const CoreLayout = () => {
+  usePwaRoom()
   const isPlayerRoute = useMatch('/player')
   const dispatch = useAppDispatch()
   const headerRef = useRef<HTMLDivElement>(null)

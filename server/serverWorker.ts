@@ -16,6 +16,7 @@ import koaRange from 'koa-range'
 import koaStatic from 'koa-static'
 import Media from './Media/Media.js'
 import Prefs from './Prefs/Prefs.js'
+import Rooms from './Rooms/Rooms.js'
 import libraryRouter from './Library/router.js'
 import mediaRouter from './Media/router.js'
 import prefsRouter from './Prefs/router.js'
@@ -210,8 +211,27 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
     }
 
     if (ctx.path === `${urlPath}manifest.json`) {
+      const roomId = ctx.query.roomId ? parseInt(ctx.query.roomId as string, 10) : null
+      const rooms = roomId ? Rooms.get(roomId) : null
+      const room = rooms?.entities[roomId!] ?? null
+      const roomName = room?.name ?? null
+
+      const manifest = {
+        name: roomName ? `Karaoke ${roomName}` : 'Karaoke Eternal',
+        short_name: roomName ?? 'KaraokeEternal',
+        description: 'Host karaoke with your own music library',
+        start_url: roomId ? `./?roomId=${roomId}` : './',
+        scope: './',
+        display: 'standalone',
+        background_color: '#000000',
+        theme_color: '#000000',
+        orientation: 'any',
+        icons: [{ src: 'assets/app.png', sizes: 'any', type: 'image/png', purpose: 'any maskable' }],
+      }
+
       ctx.set('Content-Type', 'application/manifest+json; charset=utf-8')
-      ctx.body = await promisify(fs.readFile)(path.join(env.KES_PATH_ASSETS, 'manifest.json'), 'utf8')
+      ctx.set('Cache-Control', 'no-cache')
+      ctx.body = JSON.stringify(manifest)
       return
     }
 
