@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import Accordion from 'components/Accordion/Accordion'
 import InputCheckbox from 'components/InputCheckbox/InputCheckbox'
@@ -15,6 +16,7 @@ interface QRPrefsProps {
 }
 
 const QRPrefs = ({ onChange, prefs = {}, roomPassword, roomPasswordDirty }: QRPrefsProps) => {
+  const { t } = useTranslation()
   const [isQRPasswordEnabled, setIsQRPasswordEnabled] = useState(!!prefs?.qr?.password)
 
   const handleSetPref = useCallback((update: Partial<IRoomPrefs>) => {
@@ -39,7 +41,7 @@ const QRPrefs = ({ onChange, prefs = {}, roomPassword, roomPasswordDirty }: QRPr
       <div className={styles.content}>
         <div className={styles.field}>
           <InputCheckbox
-            label='Show QR code'
+            label={t('rooms.showQr')}
             checked={prefs?.qr?.isEnabled ?? false}
             onChange={event => handleSetPref({ qr: { ...prefs.qr, isEnabled: event.currentTarget.checked } })}
           />
@@ -47,7 +49,7 @@ const QRPrefs = ({ onChange, prefs = {}, roomPassword, roomPasswordDirty }: QRPr
         {prefs?.qr?.isEnabled && roomPassword && (
           <div className={styles.field}>
             <InputCheckbox
-              label='Include room password'
+              label={t('rooms.includeRoomPassword')}
               checked={isQRPasswordEnabled}
               onChange={(event) => {
                 const checked = event.currentTarget.checked
@@ -65,12 +67,12 @@ const QRPrefs = ({ onChange, prefs = {}, roomPassword, roomPasswordDirty }: QRPr
               value={prefs?.qr?.password ?? ''}
               onChange={e => handleSetPref({ qr: { ...prefs.qr, password: e.target.value } })}
               onFocus={e => e.target.select()}
-              placeholder='re-enter room password'
+              placeholder={t('rooms.reenterRoomPassword')}
             />
           </div>
         )}
         <div className={clsx(styles.field)}>
-          <label id='label-qr-size'>Size</label>
+          <label id='label-qr-size'>{t('rooms.qrSize')}</label>
           <Slider
             className={styles.slider}
             min={0}
@@ -82,7 +84,7 @@ const QRPrefs = ({ onChange, prefs = {}, roomPassword, roomPasswordDirty }: QRPr
           />
         </div>
         <div className={clsx(styles.field)}>
-          <label id='label-qr-opacity'>Opacity</label>
+          <label id='label-qr-opacity'>{t('rooms.qrOpacity')}</label>
           <Slider
             className={styles.slider}
             min={0.25}

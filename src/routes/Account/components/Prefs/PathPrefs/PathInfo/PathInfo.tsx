@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { fetchUsers } from 'routes/Account/modules/users'
 import { setPathManager } from 'store/modules/prefs'
@@ -16,6 +17,7 @@ interface PathInfoProps {
 }
 
 const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const users = useAppSelector(state => state.users)
 
@@ -42,7 +44,7 @@ const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
   return (
     <Modal
       onClose={onClose}
-      title='Media Folder'
+      title={t('prefs.mediaFolder')}
       buttons={(
         <>
           <Button onClick={handleRemove} variant='danger'>Remove Folder</Button>
@@ -60,17 +62,17 @@ const PathInfo = ({ onClose, onRemove, onUpdate, path }: PathInfoProps) => {
 
         <form className={styles.form}>
           <InputCheckbox
-            label='Watch folder'
+            label={t('prefs.watchFolder')}
             defaultChecked={path?.prefs?.isWatchingEnabled}
             onChange={event => handleChange({ isWatchingEnabled: event.currentTarget.checked })}
           />
           <InputCheckbox
-            label='Allow video background keying'
+            label={t('prefs.videoKeying')}
             defaultChecked={path?.prefs?.isVideoKeyingEnabled}
             onChange={event => handleChange({ isVideoKeyingEnabled: event.currentTarget.checked })}
           />
           <InputCheckbox
-            label='Process audio-only files (mp3/flac/wav/etc. without lyrics sidecar)'
+            label={t('prefs.processAudioOnly')}
             defaultChecked={path?.prefs?.isAudioOnlyEnabled}
             onChange={event => handleChange({ isAudioOnlyEnabled: event.currentTarget.checked })}
           />

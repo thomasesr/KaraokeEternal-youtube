@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Button from 'components/Button/Button'
 import PathItem from './PathItem/PathItem'
 import Modal from 'components/Modal/Modal'
@@ -24,6 +25,7 @@ interface PathChooserProps {
 }
 
 const PathChooser = ({ onCancel, onChoose }: PathChooserProps) => {
+  const { t } = useTranslation()
   const listRef = useRef<HTMLDivElement>(null)
   const [pathInfo, setPathInfo] = useState<PathInfoType>({
     current: null,
@@ -57,7 +59,7 @@ const PathChooser = ({ onCancel, onChoose }: PathChooserProps) => {
 
   return (
     <Modal
-      title='Add Folder'
+      title={t('prefs.addFolder')}
       className={styles.modal}
       onClose={onCancel}
       scrollable
@@ -67,7 +69,7 @@ const PathChooser = ({ onCancel, onChoose }: PathChooserProps) => {
             Cancel
           </Button>
           <Button onClick={handleChoose} variant='primary'>
-            Add Folder
+            {t('prefs.addFolder')}
           </Button>
         </div>
       )}

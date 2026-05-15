@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from 'store/hooks'
 import { createUser, removeUser, updateUser } from '../../../modules/users'
 import Button from 'components/Button/Button'
@@ -13,6 +14,7 @@ interface EditUserProps {
 }
 
 const EditUser = ({ user, onClose }: EditUserProps) => {
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
 
   const handleSubmit = (data: FormData) => {
@@ -30,7 +32,7 @@ const EditUser = ({ user, onClose }: EditUserProps) => {
     <Modal
       className={styles.modal}
       onClose={onClose}
-      title={user ? user.username : 'Create User'}
+      title={user ? user.username : t('users.createUser')}
     >
       <AccountForm user={user} onSubmit={handleSubmit} showRole autoFocus={!user}>
         <div className={styles.btnContainer}>

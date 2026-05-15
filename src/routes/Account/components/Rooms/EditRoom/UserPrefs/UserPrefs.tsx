@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppSelector } from 'store/hooks'
 import Accordion from 'components/Accordion/Accordion'
 import InputCheckbox from 'components/InputCheckbox/InputCheckbox'
@@ -12,6 +13,7 @@ interface UserPrefsProps {
 }
 
 const UserPrefs = ({ onChange, prefs = {} }: UserPrefsProps) => {
+  const { t } = useTranslation()
   const roles = useAppSelector(state => state.prefs.roles)
 
   const getRoleId = (roleName: string) => {
@@ -50,7 +52,7 @@ const UserPrefs = ({ onChange, prefs = {} }: UserPrefsProps) => {
       <div className={styles.content}>
         <div className={styles.field}>
           <InputCheckbox
-            label='Allow new standard users'
+            label={t('rooms.allowStandardUsers')}
             name='standard'
             checked={allowNewStandard}
             onChange={handleChange}
@@ -58,7 +60,7 @@ const UserPrefs = ({ onChange, prefs = {} }: UserPrefsProps) => {
         </div>
         <div className={styles.field}>
           <InputCheckbox
-            label='Allow new guests'
+            label={t('rooms.allowGuests')}
             name='guest'
             checked={allowNewGuest}
             onChange={handleChange}

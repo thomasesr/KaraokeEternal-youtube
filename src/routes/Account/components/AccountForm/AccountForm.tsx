@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import InputImage from 'components/InputImage/InputImage'
 import { UserWithRole } from 'shared/types'
 import styles from './AccountForm.css'
@@ -24,6 +25,7 @@ const AccountForm = ({
   showPassword = true,
   user,
 }: AccountFormProps) => {
+  const { t } = useTranslation()
   const username = useRef<HTMLInputElement>(null)
   const newPassword = useRef<HTMLInputElement>(null)
   const newPasswordConfirm = useRef<HTMLInputElement>(null)
@@ -112,7 +114,7 @@ const AccountForm = ({
           autoComplete='off'
           autoFocus={autoFocus}
           onChange={updateDirty}
-          placeholder={user && user.userId !== null ? 'change username (optional)' : 'username or email'}
+          placeholder={user && user.userId !== null ? t('auth.changeUsernamePlaceholder') : t('auth.usernamePlaceholder')}
           // https://github.com/facebook/react/issues/23301
           ref={(r) => {
             if (r) username.current = r
@@ -126,7 +128,7 @@ const AccountForm = ({
           type='password'
           autoComplete='new-password'
           onChange={updateDirty}
-          placeholder={user && user.userId !== null ? 'change password (optional)' : 'password'}
+          placeholder={user && user.userId !== null ? t('auth.changePasswordPlaceholder') : t('auth.passwordPlaceholder')}
           ref={newPassword}
         />
       )}
@@ -135,7 +137,7 @@ const AccountForm = ({
         <input
           type='password'
           autoComplete='new-password'
-          placeholder={user && user.userId !== null ? 'new password confirm' : 'confirm password'}
+          placeholder={user && user.userId !== null ? t('auth.newPasswordConfirmPlaceholder') : t('auth.confirmPasswordPlaceholder')}
           ref={newPasswordConfirm}
         />
       )}
@@ -149,7 +151,7 @@ const AccountForm = ({
           type='text'
           defaultValue={user?.name ?? ''}
           onChange={updateDirty}
-          placeholder='display name'
+          placeholder={t('auth.displayNamePlaceholder')}
           ref={name}
         />
       </div>

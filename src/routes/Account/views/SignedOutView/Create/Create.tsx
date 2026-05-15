@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Button from 'components/Button/Button'
 import InputImage from 'components/InputImage/InputImage'
 import styles from './Create.css'
@@ -22,6 +23,7 @@ const Create = ({
   onSubmit,
   onFirstFieldRef,
 }: CreateProps) => {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [image, setImage] = useState<Blob | undefined>(undefined)
@@ -44,7 +46,7 @@ const Create = ({
             autoComplete='off'
             value={username}
             onChange={e => onUsernameChange(e.target.value)}
-            placeholder='username or email'
+            placeholder={t('auth.usernamePlaceholder')}
             ref={onFirstFieldRef}
           />
           <input
@@ -52,12 +54,12 @@ const Create = ({
             autoComplete='new-password'
             value={password}
             onChange={e => onPasswordChange(e.target.value)}
-            placeholder='password'
+            placeholder={t('auth.passwordPlaceholder')}
           />
           <input
             type='password'
             autoComplete='new-password'
-            placeholder='confirm password'
+            placeholder={t('auth.confirmPasswordPlaceholder')}
             value={passwordConfirm}
             onChange={e => setPasswordConfirm(e.target.value)}
           />
@@ -68,7 +70,7 @@ const Create = ({
         <InputImage onSelect={setImage} />
         <input
           type='text'
-          placeholder='display name'
+          placeholder={t('auth.displayNamePlaceholder')}
           value={name}
           onChange={e => setName(e.target.value)}
           ref={guest ? onFirstFieldRef : undefined}
@@ -76,7 +78,7 @@ const Create = ({
       </div>
 
       <Button type='submit' variant='primary'>
-        Join
+        {t('auth.joinBtn')}
       </Button>
     </form>
   )

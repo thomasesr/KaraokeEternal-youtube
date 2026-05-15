@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { fetchRooms } from 'store/modules/rooms'
@@ -120,6 +121,7 @@ const SignedOutView = () => {
   const allowNewGuest = getAllowed('guest')
   const allowNewStandard = getAllowed('standard')
   const allowNew = allowNewStandard || allowNewGuest
+  const { t } = useTranslation()
 
   useEffect(() => {
     firstFieldRef.current?.focus()
@@ -131,7 +133,7 @@ const SignedOutView = () => {
 
       {showRoomSection && (
         <>
-          <h1>Join room...</h1>
+          <h1>{t('auth.joinRoom')}</h1>
           <SelectRoom
             rooms={rooms}
             roomId={roomId}
@@ -147,15 +149,15 @@ const SignedOutView = () => {
         {allowNew
           ? (
               <>
-                <h1>Join as...</h1>
+                <h1>{t('auth.joinAs')}</h1>
                 <div className={styles.radioContainer}>
-                  <InputRadio name='type' value='returning' checked={mode === 'returning'} onChange={setMode} label='Returning user' />
-                  {allowNewStandard && <InputRadio name='type' value='standard' checked={mode === 'standard'} onChange={setMode} label='New user' />}
-                  {allowNewGuest && <InputRadio name='type' value='guest' checked={mode === 'guest'} onChange={setMode} label='Guest' />}
+                  <InputRadio name='type' value='returning' checked={mode === 'returning'} onChange={setMode} label={t('auth.returningUser')} />
+                  {allowNewStandard && <InputRadio name='type' value='standard' checked={mode === 'standard'} onChange={setMode} label={t('auth.newUser')} />}
+                  {allowNewGuest && <InputRadio name='type' value='guest' checked={mode === 'guest'} onChange={setMode} label={t('auth.guest')} />}
                 </div>
               </>
             )
-          : <h1>Sign in</h1>}
+          : <h1>{t('auth.signIn')}</h1>}
 
         {(mode === 'returning' || !allowNew) && (
           <SignIn

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Accordion from 'components/Accordion/Accordion'
 import Icon from 'components/Icon/Icon'
@@ -10,6 +11,7 @@ const PlayerPrefs = () => {
   const isReplayGainEnabled = useAppSelector(state => state.prefs.isReplayGainEnabled)
   const lrcDefaultOffset = useAppSelector(state => state.prefs.lrcDefaultOffset)
   const lrcFontSize = useAppSelector(state => state.prefs.lrcFontSize ?? 1)
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
 
   const toggleCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,7 +32,7 @@ const PlayerPrefs = () => {
       headingComponent={(
         <div className={styles.heading}>
           <Icon icon='TELEVISION_PLAY' size={32} className={styles.icon} />
-          <div className={styles.title}>Player</div>
+          <div className={styles.title}>{t('prefs.player')}</div>
         </div>
       )}
     >
@@ -43,11 +45,11 @@ const PlayerPrefs = () => {
             name='isReplayGainEnabled'
           />
           {' '}
-          ReplayGain (clip-safe)
+          {t('prefs.replayGain')}
         </label>
         <div className={styles.field}>
           <label id='label-lrc-default-offset'>
-            Default LRC offset ({lrcDefaultOffset > 0 ? '+' : ''}{lrcDefaultOffset} ms)
+            {t('prefs.lrcOffset', { offset: lrcDefaultOffset > 0 ? `+${lrcDefaultOffset}` : lrcDefaultOffset })}
           </label>
           <Slider
             min={-1000}
@@ -61,7 +63,7 @@ const PlayerPrefs = () => {
         </div>
         <div className={styles.field}>
           <label id='label-lrc-font-size'>
-            LRC lyrics size ({Math.round(lrcFontSize * 100)}%)
+            {t('prefs.lrcFontSize', { size: Math.round(lrcFontSize * 100) })}
           </label>
           <Slider
             min={0.5}

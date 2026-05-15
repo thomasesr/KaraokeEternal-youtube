@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import Panel from 'components/Panel/Panel'
 import Icon from 'components/Icon/Icon'
@@ -12,6 +13,7 @@ import styles from './About.css'
 const curYear = new Date().getFullYear()
 
 const About = () => {
+  const { t } = useTranslation()
   const [isChangelogOpen, setChangelogOpen] = useState(false)
   const toggleChangelog = () => setChangelogOpen(prevState => !prevState)
 
@@ -33,7 +35,7 @@ const About = () => {
           {__KE_VERSION__}
         </p>
         <p>
-          <a className={styles.pseudolink} onClick={toggleChangelog}>Changelog &amp; Sponsors</a>
+          <a className={styles.pseudolink} onClick={toggleChangelog}>{t('common.changelog')}</a>
           {' '}
           |
           {' '}

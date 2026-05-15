@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Button from 'components/Button/Button'
 import Modal from 'components/Modal/Modal'
@@ -16,6 +17,7 @@ const SongInfo = () => {
   const { isAdmin, role, roomId, userId } = useAppSelector(state => state.user)
   const isRoomManager = role === 'room_manager'
 
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const handleCloseSongInfo = () => dispatch(closeSongInfo())
 
@@ -141,7 +143,7 @@ const SongInfo = () => {
     <Modal
       visible={isVisible}
       onClose={handleCloseSongInfo}
-      title='Song Info'
+      title={t('common.songInfo')}
     >
       <div className={styles.container}>
         <p>
@@ -153,7 +155,7 @@ const SongInfo = () => {
         </p>
 
         <div className={styles.mediaContainer}>
-          {isLoading ? <p>Loading...</p> : mediaDetails}
+          {isLoading ? <p>{t('common.loading')}</p> : mediaDetails}
         </div>
 
         <div>

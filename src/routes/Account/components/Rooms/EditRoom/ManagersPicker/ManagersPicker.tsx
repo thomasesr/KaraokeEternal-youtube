@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { fetchUsers } from 'routes/Account/modules/users'
 import Accordion from 'components/Accordion/Accordion'
@@ -12,6 +13,7 @@ interface ManagersPickerProps {
 }
 
 const ManagersPicker = ({ selected, onChange }: ManagersPickerProps) => {
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const users = useAppSelector(state => state.users)
 
@@ -36,7 +38,7 @@ const ManagersPicker = ({ selected, onChange }: ManagersPickerProps) => {
       headingComponent={(
         <div className={styles.heading}>
           <Icon icon='PERSON' />
-          <div>Room Managers</div>
+          <div>{t('rooms.roomManagers')}</div>
         </div>
       )}
     >

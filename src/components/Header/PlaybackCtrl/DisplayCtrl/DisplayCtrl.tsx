@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import Modal, { ModalProps } from 'components/Modal/Modal'
 import Button from 'components/Button/Button'
@@ -42,6 +43,8 @@ const DisplayCtrl = ({
   onRequestOptions,
   onClose,
 }: DisplayCtrlProps) => {
+  const { t } = useTranslation()
+
   const handleAlpha = (val: number) => {
     if (mediaType === 'cdg' || mediaType === 'lrc') onRequestOptions({ cdgAlpha: val })
     else if (mediaType === 'mp4' || isVideoKeyingEnabled) onRequestOptions({ mp4Alpha: val })
@@ -79,7 +82,7 @@ const DisplayCtrl = ({
     <Modal
       className={styles.modal}
       onClose={onClose}
-      title='Display'
+      title={t('display.display')}
       buttons={<Button variant='primary' onClick={onClose}>Done</Button>}
     >
       <div className={styles.container}>
@@ -87,7 +90,7 @@ const DisplayCtrl = ({
           <fieldset>
             <legend>
               <InputCheckbox
-                label='Visualizer'
+                label={t('display.visualizer')}
                 checked={isVisualizerEnabled}
                 disabled={!isWebGLSupported}
                 onChange={handleToggleVisualizer}
@@ -100,21 +103,21 @@ const DisplayCtrl = ({
                   <div className={styles.presetButtons}>
                     <Button
                       onClick={handlePresetPrev}
-                      aria-label='Previous preset'
+                      aria-label={t('display.prevPreset')}
                       aria-controls='visualizer-preset-name'
                     >
                       <Icon icon='CHEVRON_LEFT' />
                     </Button>
                     <Button
                       onClick={handlePresetRandom}
-                      aria-label='Random preset'
+                      aria-label={t('display.randomPreset')}
                       aria-controls='visualizer-preset-name'
                     >
                       <Icon icon='DICE' />
                     </Button>
                     <Button
                       onClick={handlePresetNext}
-                      aria-label='Next preset'
+                      aria-label={t('display.nextPreset')}
                       aria-controls='visualizer-preset-name'
                     >
                       <Icon icon='CHEVRON_RIGHT' />
@@ -131,7 +134,7 @@ const DisplayCtrl = ({
                 </div>
 
                 <div className={styles.field}>
-                  <label id='label-visualizer-sensitivity'>Sensitivity</label>
+                  <label id='label-visualizer-sensitivity'>{t('display.sensitivity')}</label>
                   <Slider
                     min={0}
                     max={2}
@@ -156,12 +159,12 @@ const DisplayCtrl = ({
         <div className={clsx(styles.section, styles.lyrics)}>
           <fieldset>
             <legend>
-              <label>Lyrics</label>
+              <label>{t('display.lyrics')}</label>
             </legend>
 
             {mediaType === 'cdg' && (
               <div className={styles.field}>
-                <label id='label-lyrics-size'>Size</label>
+                <label id='label-lyrics-size'>{t('display.lyricsSize')}</label>
                 <Slider
                   min={0.4}
                   max={0.9}
@@ -176,7 +179,7 @@ const DisplayCtrl = ({
 
             {(mediaType === 'cdg' || mediaType === 'lrc' || isVideoKeyingEnabled) && (
               <div className={styles.field}>
-                <label id='label-lyrics-background'>Background</label>
+                <label id='label-lyrics-background'>{t('display.background')}</label>
                 <Slider
                   min={0}
                   max={1}
@@ -192,7 +195,7 @@ const DisplayCtrl = ({
             {mediaType === 'lrc' && (
               <>
                 <div className={styles.field}>
-                  <label id='label-lrc-font-size'>Size ({Math.round(lrcFontSize * 100)}%)</label>
+                  <label id='label-lrc-font-size'>{t('prefs.lrcFontSize', { size: Math.round(lrcFontSize * 100) })}</label>
                   <Slider
                     min={0.5}
                     max={2}
@@ -205,13 +208,13 @@ const DisplayCtrl = ({
                 </div>
                 <div className={styles.field}>
                   <InputCheckbox
-                    label='Smooth scroll'
+                    label={t('display.smoothScroll')}
                     checked={lrcSmoothScroll}
                     onChange={handleLrcSmoothScroll}
                   />
                 </div>
                 <div className={styles.field}>
-                  <label id='label-lrc-offset'>Offset ({lrcOffset > 0 ? '+' : ''}{lrcOffset} ms)</label>
+                  <label id='label-lrc-offset'>{t('prefs.lrcOffset', { offset: lrcOffset > 0 ? `+${lrcOffset}` : lrcOffset })}</label>
                   <Slider
                     min={-1000}
                     max={1000}

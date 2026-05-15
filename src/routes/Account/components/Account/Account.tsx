@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { requestLogout, updateAccount } from 'store/modules/user'
 import { removeItem } from 'routes/Queue/modules/queue'
@@ -13,6 +14,7 @@ const Account = () => {
   const user = useAppSelector(state => state.user)
   const upcomingQueueIds = useAppSelector(state => getUpcoming(state, user.userId))
 
+  const { t } = useTranslation()
   const curPassword = useRef(null)
   const [isDirty, setDirty] = useState(false)
 
@@ -42,7 +44,7 @@ const Account = () => {
   const handleSubmit = (data: FormData) => {
     if (!user.isGuest) {
       if (!curPassword.current.value.trim()) {
-        alert('Please enter your current password to make changes.')
+        alert(t('account.passwordRequired'))
         curPassword.current.focus()
         return
       }
@@ -72,7 +74,7 @@ const Account = () => {
             <input
               type='password'
               autoComplete='current-password'
-              placeholder='current password'
+              placeholder={t('account.currentPasswordPlaceholder')}
               ref={curPassword}
             />
 

@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppSelector } from 'store/hooks'
 import Panel from 'components/Panel/Panel'
 import Button from 'components/Button/Button'
@@ -8,6 +9,7 @@ import styles from './MediaUpload.css'
 const api = new HttpApi('')
 
 const MediaUpload = () => {
+  const { t } = useTranslation()
   const managedPathId = useAppSelector(state => state.user.managedPathId)
   const fileRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle')
@@ -48,7 +50,7 @@ const MediaUpload = () => {
   }
 
   return (
-    <Panel title='Upload Media'>
+    <Panel title={t('common.uploadMedia')}>
       <form onSubmit={handleSubmit} className={styles.form}>
         <p className={styles.hint}>
           Upload karaoke media files (mp3+cdg, mp3+lrc, mp4, audio-only mp3) or ZIP archives.

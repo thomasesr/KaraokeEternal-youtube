@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import styles from './SelectRoom.css'
 import type { Room } from 'shared/types'
@@ -25,6 +26,7 @@ const SelectRoom = ({
   roomPassword,
   showAllRooms,
 }: SelectRoomProps) => {
+  const { t } = useTranslation()
   const visibleRooms = showAllRooms
     ? rooms.result
     : rooms.result.filter(id => id === roomId)
@@ -42,7 +44,7 @@ const SelectRoom = ({
         className={styles.select}
         value={roomId ?? ''}
         onChange={handleChange}
-        aria-label='Select room'
+        aria-label={t('auth.selectRoom')}
         size={Math.max(2, visibleRooms.length)}
       >
         {visibleRooms.map(id => (
@@ -57,8 +59,8 @@ const SelectRoom = ({
           type='password'
           autoComplete='off'
           onChange={(e) => { onRoomPasswordChange(e.target.value) }}
-          placeholder='room password (required)'
-          aria-label='room password (required)'
+          placeholder={t('auth.roomPasswordRequired')}
+          aria-label={t('auth.roomPasswordRequired')}
           value={roomPassword}
         />
       )}

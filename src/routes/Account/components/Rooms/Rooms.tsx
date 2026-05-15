@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { formatDateTime } from 'lib/dateTime'
 import Panel from 'components/Panel/Panel'
@@ -19,6 +20,7 @@ const Rooms = () => {
   const managedRoomIds = useAppSelector(state => state.user.managedRoomIds)
   const isManager = role === 'room_manager'
 
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const handleClose = () => dispatch(closeRoomEditor())
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -73,7 +75,7 @@ const Rooms = () => {
       )
     : null
 
-  const panelTitle = isManager && !isAdmin ? 'My Rooms' : 'Rooms'
+  const panelTitle = isManager && !isAdmin ? t('rooms.myRooms') : t('rooms.rooms')
 
   return (
     <Panel title={panelTitle} titleComponent={roomsFilter}>
@@ -81,9 +83,9 @@ const Rooms = () => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Status</th>
-              <th>Created</th>
+              <th>{t('rooms.colName')}</th>
+              <th>{t('rooms.colStatus')}</th>
+              <th>{t('rooms.colCreated')}</th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +97,7 @@ const Rooms = () => {
           <>
             <br />
             <Button onClick={handleOpen} variant='primary'>
-              Create Room
+              {t('rooms.createRoom')}
             </Button>
           </>
         )}

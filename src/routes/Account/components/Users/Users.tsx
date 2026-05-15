@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { closeUserEditor, fetchUsers, filterByOnline, filterByRoom, openUserEditor, type UserWithRoomsAndRole } from '../../modules/users'
 import { formatDateTime } from 'lib/dateTime'
@@ -16,6 +17,7 @@ const Users = () => {
   const rooms = useAppSelector(state => state.rooms)
   const users = useAppSelector(getUsers)
 
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const handleClose = () => dispatch(closeUserEditor())
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -71,7 +73,7 @@ const Users = () => {
     <select className={styles.usersFilter} onChange={handleFilterChange} value={filterOnline ? 'online' : filterRoomId || 'all'}>
       <option key='all' value='all'>All</option>
       <option key='online' value='online'>Online</option>
-      <optgroup label='Online in...'>
+      <optgroup label={t('users.onlineIn')}>
         {roomOpts}
       </optgroup>
     </select>
@@ -79,16 +81,16 @@ const Users = () => {
 
   return (
     <Panel
-      title='Users'
+      title={t('users.users')}
       titleComponent={userFilter}
     >
       <>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Username</th>
-              <th>Role</th>
-              <th>Joined</th>
+              <th>{t('users.colUsername')}</th>
+              <th>{t('users.colRole')}</th>
+              <th>{t('users.colJoined')}</th>
             </tr>
           </thead>
           <tbody>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Spinner from 'components/Spinner/Spinner'
 import Button from 'components/Button/Button'
@@ -61,6 +62,7 @@ function stageLabel (stage: string | null): string {
 }
 
 const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const {
     isSearching, isLoadingMore, searchError, searchQuery,
@@ -290,7 +292,7 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
                   <Button
                     variant='primary'
                     disabled={!downloadPathConfigured || isIdentifying}
-                    title={!downloadPathConfigured ? 'Set a download path in Account → YouTube' : errTitle}
+                    title={!downloadPathConfigured ? t('common.setDownloadPath') : errTitle}
                     onClick={() => onDownload(item.videoId, item.title, item.duration, item.isKaraoke)}
                   >
                     {isIdentifying ? 'Identifying…' : (job?.status === 'error' ? 'Retry' : 'Download')}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Accordion from 'components/Accordion/Accordion'
 import Icon from 'components/Icon/Icon'
@@ -7,37 +8,30 @@ import { fetchYoutubeConfig, saveYoutubeConfig } from 'store/modules/youtube'
 import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ENHANCED_LRC_BACKENDS } from 'shared/types'
 import type { YoutubeQualityPreset, YoutubeRole, YoutubeEnhancedLrcBackend } from 'shared/types'
 
-const ROLE_LABEL: Record<Exclude<YoutubeRole, 'admin'>, { label: string, hint: string }> = {
-  room_manager: {
-    label: 'Room managers',
-    hint: 'Hosts who manage one or more rooms (rotation, status, etc.).',
-  },
-  standard: {
-    label: 'Returning users',
-    hint: 'Signed-in accounts with a username and password.',
-  },
-  guest: {
-    label: 'Guests',
-    hint: 'Users who joined a room without an account.',
-  },
-}
-
-const QUALITY_LABEL: Record<YoutubeQualityPreset, string> = {
-  best: 'Best available',
-  '1080p': '1080p (Full HD)',
-  '720p': '720p (HD)',
-  '480p': '480p (SD)',
-  '360p': '360p (low)',
-}
-
-const ENHANCED_LRC_LABEL: Record<YoutubeEnhancedLrcBackend, string> = {
-  none: 'Disabled',
-  ctc: 'ctc-forced-aligner (word-level timestamps)',
-}
 import styles from './YoutubePrefs.css'
 
 const YoutubePrefs = () => {
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
+
+  const ROLE_LABEL: Record<Exclude<YoutubeRole, 'admin'>, { label: string, hint: string }> = {
+    room_manager: { label: t('prefs.ytRoleManagers'), hint: t('prefs.ytRoleManagersHint') },
+    standard:     { label: t('prefs.ytRoleReturning'), hint: t('prefs.ytRoleReturningHint') },
+    guest:        { label: t('prefs.ytRoleGuests'), hint: t('prefs.ytRoleGuestsHint') },
+  }
+
+  const QUALITY_LABEL: Record<YoutubeQualityPreset, string> = {
+    best: t('prefs.ytQualityBest'),
+    '1080p': '1080p (Full HD)',
+    '720p': '720p (HD)',
+    '480p': '480p (SD)',
+    '360p': '360p (low)',
+  }
+
+  const ENHANCED_LRC_LABEL: Record<YoutubeEnhancedLrcBackend, string> = {
+    none: t('prefs.ytQualityDisabled'),
+    ctc: 'ctc-forced-aligner (word-level timestamps)',
+  }
   const config = useAppSelector(state => state.youtube.config)
   const isConfigLoaded = useAppSelector(state => state.youtube.isConfigLoaded)
   const isSaving = useAppSelector(state => state.youtube.isSaving)
@@ -110,7 +104,7 @@ const YoutubePrefs = () => {
   }
 
   const handleClearKey = () => {
-    if (!confirm('Clear the YouTube API key?')) return
+    if (!confirm(t('prefs.ytClearApiKey'))) return
     dispatch(saveYoutubeConfig({ apiKey: null }))
     setApiKey('')
   }
@@ -122,7 +116,7 @@ const YoutubePrefs = () => {
   }
 
   const handleClearCookies = () => {
-    if (!confirm('Clear stored YouTube cookies.txt?')) return
+    if (!confirm(t('prefs.ytClearCookies'))) return
     dispatch(saveYoutubeConfig({ cookies: null }))
     setCookies('')
   }
@@ -147,7 +141,7 @@ const YoutubePrefs = () => {
         </label>
 
         <div className={styles.row}>
-          <label>Who can search and download</label>
+          <label>{t('prefs.ytWhoCanSearch')}</label>
           <label className={styles.toggleRow} style={{ padding: 0 }}>
             <input type='checkbox' checked disabled />
             Admins (always)
@@ -171,7 +165,7 @@ const YoutubePrefs = () => {
         </div>
 
         <div className={styles.row}>
-          <label htmlFor='yt-pathId'>Download into media folder</label>
+          <label htmlFor='yt-pathId'>{t('prefs.ytDownloadPath')}</label>
           <select
             id='yt-pathId'
             value={config.downloadPathId ?? ''}
@@ -192,7 +186,7 @@ const YoutubePrefs = () => {
         </div>
 
         <div className={styles.row}>
-          <label htmlFor='yt-quality'>Default download quality</label>
+          <label htmlFor='yt-quality'>{t('prefs.ytQuality')}</label>
           <select
             id='yt-quality'
             value={config.qualityPreset}
@@ -209,7 +203,7 @@ const YoutubePrefs = () => {
         </div>
 
         <div className={styles.row}>
-          <label htmlFor='yt-enhancedLrc'>Enhanced LRC (word-level timestamps)</label>
+          <label htmlFor='yt-enhancedLrc'>{t('prefs.ytEnhancedLrc')}</label>
           <select
             id='yt-enhancedLrc'
             value={config.enhancedLrcBackend ?? 'none'}
@@ -285,7 +279,7 @@ const YoutubePrefs = () => {
                     type={showKey ? 'text' : 'password'}
                     value={apiKey}
                     onChange={e => setApiKey(e.currentTarget.value)}
-                    placeholder={config.isApiKeyConfigured ? 'Replace existing key…' : 'Paste your key here'}
+                    placeholder={config.isApiKeyConfigured ? t('prefs.ytApiKeyReplacePlaceholder') : t('prefs.ytApiKeyPlaceholder')}
                     autoComplete='off'
                     disabled={isSaving}
                   />
@@ -301,7 +295,7 @@ const YoutubePrefs = () => {
                       onClick={() => setShowKey(s => !s)}
                       variant='default'
                     >
-                      {showKey ? 'Hide' : 'Show'}
+                      {showKey ? t('prefs.ytHide') : t('prefs.ytShow')}
                     </Button>
                     {config.isApiKeyConfigured && (
                       <Button
@@ -331,8 +325,8 @@ const YoutubePrefs = () => {
             value={cookies}
             onChange={e => setCookies(e.currentTarget.value)}
             placeholder={config.isCookiesConfigured
-              ? 'Paste replacement cookies.txt contents…'
-              : 'Paste contents of cookies.txt here'}
+              ? t('prefs.ytCookiesReplacePlaceholder')
+              : t('prefs.ytCookiesPlaceholder')}
             disabled={isSaving}
             spellCheck={false}
             autoComplete='off'

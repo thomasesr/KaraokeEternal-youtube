@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import {
   clearRoomQueue,
@@ -28,6 +29,7 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
   const [managers, setManagers] = useState<number[]>(room?.managers ?? [])
   const [prevRoom, setPrevRoom] = useState(room)
   const [isPasswordDirty, setIsPasswordDirty] = useState(false)
+  const { t } = useTranslation()
   const dispatch = useAppDispatch()
 
   const isAdmin = useAppSelector(state => state.user.isAdmin)
@@ -97,7 +99,7 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
     <Modal
       className={styles.modal}
       onClose={handleClose}
-      title={room ? 'Edit Room' : 'Create Room'}
+      title={room ? t('rooms.editRoom') : t('rooms.createRoom')}
     >
       <form onSubmit={handleSubmit} ref={formRef} className={styles.form}>
         <div className={styles.fieldContainer}>
@@ -106,7 +108,7 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
             autoComplete='off'
             defaultValue={room ? room.name : ''}
             name='name'
-            placeholder='room name'
+            placeholder={t('rooms.roomNamePlaceholder')}
             // https://github.com/facebook/react/issues/23301
             ref={r => typeof room === 'undefined' ? r?.setAttribute('autofocus', 'true') : undefined}
           />
@@ -118,7 +120,7 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
             name='password'
             onChange={handlePasswordChange}
             onFocus={e => e.target.select()}
-            placeholder='room password (optional)'
+            placeholder={t('rooms.roomPasswordOptionalPlaceholder')}
           />
 
           <select
@@ -140,7 +142,7 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
 
         <div className={styles.btnContainer}>
           <Button type='submit' variant='primary' className={styles.btn}>
-            {room ? 'Update Room' : 'Create Room'}
+            {room ? t('rooms.updateRoom') : t('rooms.createRoom')}
           </Button>
           {canClearQueue && (
             <Button onClick={handleClearQueueClick} className={styles.btn} variant='default'>
