@@ -39,6 +39,7 @@ const CoreLayout = () => {
   // Chrome/Firefox will show the permission dialog here; Safari requires a user
   // gesture so the NotifPrefs checkbox remains the Safari path.
   useEffect(() => {
+    console.log('[CoreLayout] userId changed:', userId, '| Notification permission:', ('Notification' in window ? Notification.permission : 'API unavailable'), '| serviceWorker:', 'serviceWorker' in navigator, '| PushManager:', 'PushManager' in window)
     if (userId) {
       dispatch(subscribePush())
     }

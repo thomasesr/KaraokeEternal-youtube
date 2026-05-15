@@ -97,13 +97,15 @@ class PushNotifications {
       p256dh: string
     }>(String(query), query.parameters)
 
+    log.info('sendToUser userId=%s title="%s" subscriptions=%s', userId, title, rows.length)
     if (rows.length === 0) return
 
     const payload = JSON.stringify({ title, body, actions: actions ?? [] })
 
     const sends = rows.map(async (row) => {
+      log.info('sending push to endpoint: %s', row.endpoint.slice(0, 60) + '...')
       try {
-        await webpush.sendNotification(
+        const result = await webpush.sendNotification(
           {
             endpoint: row.endpoint,
             expirationTime: row.expirationTime ?? undefined,
@@ -111,15 +113,15 @@ class PushNotifications {
           },
           payload,
         )
+        log.info('push sent OK statusCode=%s', result.statusCode)
       } catch (err) {
         const webPushErr = err as { statusCode?: number, message?: string }
+        log.error('push send FAILED statusCode=%s message=%s endpoint=%s',
+          webPushErr.statusCode, webPushErr.message, row.endpoint.slice(0, 60) + '...')
         if (webPushErr.statusCode === 410 || webPushErr.statusCode === 404) {
-          // subscription expired or invalid — clean it up
           const delQuery = sql`DELETE FROM pushSubscriptions WHERE endpoint = ${row.endpoint}`
           db.run(String(delQuery), delQuery.parameters)
-          log.verbose('removed expired push subscription: %s', row.endpoint)
-        } else {
-          log.error('push send error for userId %s: %s', userId, webPushErr.message)
+          log.info('removed expired push subscription')
         }
       }
     })

@@ -6,10 +6,23 @@ import PlayerQR from '../PlayerQR/PlayerQR'
 import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
 import { playerLeave, playerError, playerLoad, playerPlay, playerStatus, playerUpdate, type PlayerState } from '../../modules/player'
 import getRoomPrefs from '../../selectors/getRoomPrefs'
-import { PLAYER_EMIT_LEAD_WARN } from 'shared/actionTypes'
 import type { QueueItem } from 'shared/types'
 
 const DEFAULT_NOTIFY_LEAD_SECONDS = 20
+
+function sendPushNotification (
+  userId: number,
+  title: string,
+  body: string,
+  actions?: Array<{ action: string; title: string }>,
+): void {
+  fetch(`${document.baseURI}api/push/send`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, title, body, actions }),
+  }).catch(err => console.error('[push] send error:', err))
+}
 
 interface PlayerControllerProps {
   width: number
@@ -33,6 +46,10 @@ const PlayerController = (props: PlayerControllerProps) => {
   const defaultOffsetApplied = useRef(false)
   const defaultFontSizeApplied = useRef(false)
   const leadWarnFired = useRef(false)
+  const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // kept in sync so setTimeout callbacks can read current state without stale closure
+  const isWaitingRef = useRef(player.isWaitingForSinger)
+  const nextUserIdRef = useRef(player.nextUserId)
 
   useEffect(() => {
     if (!defaultOffsetApplied.current && typeof prefs.lrcDefaultOffset === 'number') {
@@ -47,6 +64,10 @@ const PlayerController = (props: PlayerControllerProps) => {
       defaultFontSizeApplied.current = true
     }
   }, [prefs.lrcFontSize, dispatch])
+
+  // keep refs current for use inside setTimeout callbacks
+  useEffect(() => { isWaitingRef.current = player.isWaitingForSinger }, [player.isWaitingForSinger])
+  useEffect(() => { nextUserIdRef.current = player.nextUserId }, [player.nextUserId])
 
   // reset lead warn flag when song changes
   useEffect(() => {
@@ -149,13 +170,44 @@ const PlayerController = (props: PlayerControllerProps) => {
 
       if (timeRemaining > 0 && timeRemaining <= leadSeconds) {
         leadWarnFired.current = true
-        dispatch({
-          type: PLAYER_EMIT_LEAD_WARN,
-          payload: { nextUserId: player.nextUserId },
-        })
+        sendPushNotification(
+          player.nextUserId,
+          'You\'re up next!',
+          'Get ready — your song is starting soon.',
+        )
       }
     }
-  }, [dispatch, player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyLeadSeconds])
+  }, [player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyLeadSeconds])
+
+  // waiting notification: fire when player pauses waiting for next singer
+  useEffect(() => {
+    if (player.isWaitingForSinger && player.nextUserId !== null) {
+      sendPushNotification(
+        player.nextUserId,
+        'It\'s your turn to sing!',
+        'Step up and press Play when ready.',
+        [{ action: 'play-now', title: 'Play Now' }],
+      )
+
+      if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
+      waitingTimerRef.current = setTimeout(() => {
+        waitingTimerRef.current = null
+        if (isWaitingRef.current && nextUserIdRef.current !== null) {
+          sendPushNotification(
+            nextUserIdRef.current,
+            'Still waiting for you!',
+            'The room is ready. Press Play to start.',
+            [{ action: 'play-now', title: 'Play Now' }],
+          )
+        }
+      }, 10_000)
+    } else {
+      if (waitingTimerRef.current) {
+        clearTimeout(waitingTimerRef.current)
+        waitingTimerRef.current = null
+      }
+    }
+  }, [player.isWaitingForSinger, player.nextUserId])
 
   // always emit status when any of these change
   useEffect(() => handleStatus({ isVideoKeyingEnabled: queueItem?.isVideoKeyingEnabled }), [
@@ -170,7 +222,10 @@ const PlayerController = (props: PlayerControllerProps) => {
   ])
 
   // on unmount
-  useEffect(() => () => dispatch(playerLeave()), [dispatch])
+  useEffect(() => () => {
+    dispatch(playerLeave())
+    if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
+  }, [dispatch])
 
   // playing for first time or playing next?
   useEffect(() => {
