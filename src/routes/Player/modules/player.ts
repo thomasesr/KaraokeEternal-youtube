@@ -111,6 +111,8 @@ export interface PlayerState {
   isWebGLSupported: boolean
   mediaType: string | null
   mp4Alpha: number
+  duration: number
+  isWaitingForSinger: boolean
   nextUserId: number | null
   position: number
   queueId: number
@@ -138,6 +140,8 @@ const initialState: PlayerState = {
   isWebGLSupported: getWebGLSupport(),
   mediaType: null,
   mp4Alpha: 0.5,
+  duration: 0,
+  isWaitingForSinger: false,
   nextUserId: null,
   position: 0,
   queueId: -1,
@@ -170,6 +174,7 @@ const playerReducer = createReducer(initialState, (builder) => {
     })
     .addCase(playerCmdPlay, (state) => {
       state.isPlaying = true
+      state.isWaitingForSinger = false
     })
     .addCase(playerCmdReplay, (state, { payload }) => {
       state._isReplayingQueueId = payload.queueId

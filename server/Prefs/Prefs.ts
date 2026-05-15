@@ -264,6 +264,17 @@ class Prefs {
     return this.rotateJwtKey()
   }
 
+  static getSystemPref (key: string): string | null {
+    const query = sql`SELECT data FROM prefs WHERE key = ${key}`
+    const row = db.get<{ data: string }>(String(query), query.parameters)
+    return row?.data ? JSON.parse(row.data) : null
+  }
+
+  static setSystemPref (key: string, value: string): void {
+    const query = sql`REPLACE INTO prefs (key, data) VALUES (${key}, ${JSON.stringify(value)})`
+    db.run(String(query), query.parameters)
+  }
+
   /**
    * Create or rotate JWT secret key
    */

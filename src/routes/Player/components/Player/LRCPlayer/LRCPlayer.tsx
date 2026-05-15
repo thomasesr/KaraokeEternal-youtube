@@ -33,7 +33,7 @@ interface LRCPlayerProps {
   onError(error: string): void
   onLoad(): void
   onPlay(): void
-  onStatus(status: { position: number }): void
+  onStatus(status: { position: number, duration?: number }): void
 }
 
 class LRCPlayer extends React.Component<LRCPlayerProps> {
@@ -215,7 +215,7 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
     if (!this.audio.current || this.audio.current.paused) return
     const pos = this.audio.current.currentTime - this.props.lrcOffset / 1000
 
-    this.props.onStatus({ position: pos })
+    this.props.onStatus({ position: pos, duration: this.audio.current.duration || 0 })
 
     const { lines } = this.state
 

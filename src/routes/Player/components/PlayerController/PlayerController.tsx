@@ -6,7 +6,10 @@ import PlayerQR from '../PlayerQR/PlayerQR'
 import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
 import { playerLeave, playerError, playerLoad, playerPlay, playerStatus, playerUpdate, type PlayerState } from '../../modules/player'
 import getRoomPrefs from '../../selectors/getRoomPrefs'
+import { PLAYER_EMIT_LEAD_WARN } from 'shared/actionTypes'
 import type { QueueItem } from 'shared/types'
+
+const DEFAULT_NOTIFY_LEAD_SECONDS = 20
 
 interface PlayerControllerProps {
   width: number
@@ -29,6 +32,7 @@ const PlayerController = (props: PlayerControllerProps) => {
   const dispatch = useAppDispatch()
   const defaultOffsetApplied = useRef(false)
   const defaultFontSizeApplied = useRef(false)
+  const leadWarnFired = useRef(false)
 
   useEffect(() => {
     if (!defaultOffsetApplied.current && typeof prefs.lrcDefaultOffset === 'number') {
@@ -43,6 +47,11 @@ const PlayerController = (props: PlayerControllerProps) => {
       defaultFontSizeApplied.current = true
     }
   }, [prefs.lrcFontSize, dispatch])
+
+  // reset lead warn flag when song changes
+  useEffect(() => {
+    leadWarnFired.current = false
+  }, [player.queueId])
 
   const handleStatus = useCallback((status?: Partial<PlayerState>) => dispatch(playerStatus(status)), [dispatch])
   const handleLoad = () => dispatch(playerLoad())
@@ -68,6 +77,7 @@ const PlayerController = (props: PlayerControllerProps) => {
       historyJSON: JSON.stringify(history),
       isAtQueueEnd: false,
       isPlaying: true,
+      isWaitingForSinger: false,
       isVideoKeyingEnabled: nextItem.isVideoKeyingEnabled,
       mediaType: nextItem.mediaType,
       position: 0,
@@ -90,6 +100,7 @@ const PlayerController = (props: PlayerControllerProps) => {
       handleStatus({
         historyJSON: JSON.stringify(history),
         isAtQueueEnd: true,
+        isWaitingForSinger: false,
         mediaType: null,
         _isPlayingNext: false,
       })
@@ -97,11 +108,12 @@ const PlayerController = (props: PlayerControllerProps) => {
       return
     }
 
-    // play next
+    // advance queue but pause — wait for next singer to press play
     handleStatus({
       historyJSON: JSON.stringify(history),
       isAtQueueEnd: false,
-      isPlaying: true,
+      isPlaying: false,
+      isWaitingForSinger: true,
       isVideoKeyingEnabled: nextQueueItem.isVideoKeyingEnabled,
       mediaType: nextQueueItem.mediaType,
       position: 0,
@@ -122,6 +134,28 @@ const PlayerController = (props: PlayerControllerProps) => {
       }
     }
   }, [handleStatus, nextQueueItem, player.nextUserId, queue, queueItem])
+
+  // lead warn: fire once when time remaining drops to threshold
+  useEffect(() => {
+    if (
+      !leadWarnFired.current
+      && player.nextUserId !== null
+      && player.duration > 0
+      && player.isPlaying
+      && !player.isWaitingForSinger
+    ) {
+      const leadSeconds = roomPrefs?.notifyLeadSeconds ?? DEFAULT_NOTIFY_LEAD_SECONDS
+      const timeRemaining = player.duration - player.position
+
+      if (timeRemaining > 0 && timeRemaining <= leadSeconds) {
+        leadWarnFired.current = true
+        dispatch({
+          type: PLAYER_EMIT_LEAD_WARN,
+          payload: { nextUserId: player.nextUserId },
+        })
+      }
+    }
+  }, [dispatch, player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyLeadSeconds])
 
   // always emit status when any of these change
   useEffect(() => handleStatus({ isVideoKeyingEnabled: queueItem?.isVideoKeyingEnabled }), [
@@ -166,6 +200,10 @@ const PlayerController = (props: PlayerControllerProps) => {
     }
   }, [handleStatus, player.isErrored, player.isPlaying])
 
+  const waitingUser = player.isWaitingForSinger && queueItem
+    ? (queueItem as QueueItem).userDisplayName
+    : null
+
   return (
     <>
       <Player
@@ -175,7 +213,7 @@ const PlayerController = (props: PlayerControllerProps) => {
         lrcOffset={player.lrcOffset}
         lrcSmoothScroll={player.lrcSmoothScroll}
         isPlaying={player.isPlaying}
-        isVisible={!!queueItem && !player.isErrored && !player.isAtQueueEnd}
+        isVisible={!!queueItem && !player.isErrored && !player.isAtQueueEnd && !player.isWaitingForSinger}
         isReplayGainEnabled={prefs.isReplayGainEnabled}
         isVideoKeyingEnabled={!!queueItem?.isVideoKeyingEnabled}
         isWebGLSupported={player.isWebGLSupported}
@@ -204,6 +242,8 @@ const PlayerController = (props: PlayerControllerProps) => {
         isAtQueueEnd={player.isAtQueueEnd}
         isQueueEmpty={!queue.result.length}
         isErrored={player.isErrored}
+        isWaitingForSinger={player.isWaitingForSinger}
+        waitingForUser={waitingUser}
         width={props.width}
         height={props.height}
       />

@@ -22,7 +22,7 @@ interface CDGPlayerProps {
   onError(error: string): void
   onLoad(): void
   onPlay(): void
-  onStatus(status: { position: number }): void
+  onStatus(status: { position: number, duration?: number }): void
 }
 
 class CDGPlayer extends React.Component<CDGPlayerProps> {
@@ -179,6 +179,7 @@ class CDGPlayer extends React.Component<CDGPlayerProps> {
     if (!this.audio.current) return
 
     this.props.onStatus({
+      duration: this.audio.current.duration || 0,
       position: this.audio.current.currentTime,
     })
   }

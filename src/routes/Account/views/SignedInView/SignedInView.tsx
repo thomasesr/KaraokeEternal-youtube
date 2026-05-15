@@ -6,6 +6,7 @@ import usersReducer, { sliceInjectNoOp } from '../../modules/users'
 import About from '../../components/About/About'
 import Account from '../../components/Account/Account'
 import MediaUpload from '../../components/MediaUpload/MediaUpload'
+import NotifPrefs from '../../components/Prefs/NotifPrefs/NotifPrefs'
 import Prefs from '../../components/Prefs/Prefs'
 import Rooms from '../../components/Rooms/Rooms'
 import Users from '../../components/Users/Users'
@@ -38,6 +39,8 @@ const SignedInView = () => {
         && <Prefs />}
 
       <MediaUpload />
+
+      <NotifPrefs />
 
       <Account />
 

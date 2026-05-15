@@ -14,6 +14,7 @@ import ui from './modules/ui'
 import user from './modules/user'
 import userStars from './modules/userStars'
 import youtube from './modules/youtube'
+import push from './modules/push'
 
 export interface LazyLoadedSlices {} // eslint-disable-line @typescript-eslint/no-empty-object-type
 
@@ -21,6 +22,7 @@ const combinedReducer = combineSlices({
   artists,
   library,
   prefs,
+  push,
   queue: optimistic(queue),
   rooms,
   songs,

@@ -89,7 +89,10 @@
     "ytSaveCookies": "Salvar cookies",
     "ytEnhancedLrcNote1": "Quando ativado, usa ctc-forced-aligner para adicionar timestamps por palavra após separação vocal. Requer ",
     "ytEnhancedLrcNote2": " no PATH. Defina ",
-    "ytEnhancedLrcNote3": " para usar CUDA."
+    "ytEnhancedLrcNote3": " para usar CUDA.",
+    "notifTitle": "Notificações",
+    "notifEnable": "Me notificar quando for minha vez de cantar",
+    "notifNote": "Você receberá uma notificação antes da sua música começar e novamente quando o player estiver te esperando."
   },
   "rooms": {
     "myRooms": "Minhas Salas",
@@ -118,7 +121,10 @@
     "clearQueue": "Limpar Fila",
     "removeRoom": "Remover Sala",
     "removeRoomConfirm": "Remover a sala \"{{name}}\" e sua fila?",
-    "clearQueueConfirm": "Limpar todas as músicas da fila de \"{{name}}\"?"
+    "clearQueueConfirm": "Limpar todas as músicas da fila de \"{{name}}\"?",
+    "notifyTitle": "Notificações do Cantor",
+    "notifyLeadLabel": "Aviso antecipado: {{seconds}}s antes da música acabar",
+    "notifyLeadNote": "Quantos segundos antes do fim da música atual para notificar o próximo cantor."
   },
   "users": {
     "users": "Usuários",

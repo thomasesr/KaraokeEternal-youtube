@@ -23,6 +23,9 @@ import roomsRouter from './Rooms/router.js'
 import uploadRouter from './Upload/router.js'
 import userRouter from './User/router.js'
 import youtubeRouter from './Youtube/router.js'
+import pushRouter from './PushNotifications/router.js'
+import singerPlayRouter from './PushNotifications/singerPlayRouter.js'
+import PushNotifications from './PushNotifications/PushNotifications.js'
 import pushQueuesAndLibrary from './lib/pushQueuesAndLibrary.js'
 import { Server as SocketIO } from 'socket.io'
 import socketActions from './socket.js'
@@ -191,7 +194,22 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
   baseRouter.use(uploadRouter.routes())
   baseRouter.use(userRouter.routes())
   baseRouter.use(youtubeRouter.routes())
+  baseRouter.use(pushRouter.routes())
+  baseRouter.use(singerPlayRouter.routes())
   app.use(baseRouter.routes())
+
+  PushNotifications.init()
+
+  // serve service worker with broad scope so it covers the whole app path
+  app.use(async (ctx, next) => {
+    if (ctx.path !== `${urlPath}sw.js`) return next()
+    ctx.set('Content-Type', 'application/javascript; charset=utf-8')
+    ctx.set('Service-Worker-Allowed', urlPath)
+    ctx.body = await promisify(fs.readFile)(
+      path.join(env.KES_PATH_ASSETS, 'sw.js'),
+      'utf8',
+    )
+  })
 
   // serve index.html with dynamic base tag at the main SPA routes
   const createIndexMiddleware = (content) => {

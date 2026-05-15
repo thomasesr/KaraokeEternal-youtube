@@ -49,6 +49,7 @@ export interface IRoomPrefs {
   roles?: Record<number, {
     allowNew: boolean
   }>
+  notifyLeadSeconds?: number
 }
 
 export interface Room {

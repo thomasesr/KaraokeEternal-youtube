@@ -13,6 +13,8 @@ interface PlayerTextOverlayProps {
   isAtQueueEnd: boolean
   isQueueEmpty: boolean
   isErrored: boolean
+  isWaitingForSinger?: boolean
+  waitingForUser?: string | null
   width: number
   height: number
 }
@@ -21,6 +23,8 @@ const PlayerTextOverlay = ({
   isQueueEmpty,
   isAtQueueEnd,
   isErrored,
+  isWaitingForSinger,
+  waitingForUser,
   nextQueueItem,
   queueItem,
   width,
@@ -32,8 +36,29 @@ const PlayerTextOverlay = ({
 
   let Component
 
-  if (isQueueEmpty || (isAtQueueEnd && !nextQueueItem)) {
-    Component = <ColorCycle text='CAN HAZ MOAR SONGZ?' className={styles.backdrop} />
+  if (isWaitingForSinger) {
+    Component = (
+      <>
+        <svg width='0' height='0' style={{ position: 'absolute' }}>
+          <defs>
+            <linearGradient id='play-icon-gradient' x1='0%' y1='0%' x2='100%' y2='100%'>
+              <stop offset='0%' className={styles.gradientStop1} />
+              <stop offset='100%' className={styles.gradientStop2} />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className={styles.waitingContainer}>
+          {waitingForUser && (
+            <ColorCycle text={`${waitingForUser.toUpperCase()}'S TURN`} className={styles.backdrop} />
+          )}
+          <button className={styles.playButton} onClick={handlePlay} aria-label='Play'>
+            <Icon icon='PLAY' />
+          </button>
+        </div>
+      </>
+    )
+  } else if (isQueueEmpty || (isAtQueueEnd && !nextQueueItem)) {
+    Component = <ColorCycle text='NO MORE SONGS IN QUEUE! :(' className={styles.backdrop} />
   } else if (!queueItem || (isAtQueueEnd && nextQueueItem)) {
     Component = (
       <>

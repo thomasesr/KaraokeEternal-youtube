@@ -89,7 +89,10 @@
     "ytSaveCookies": "Save cookies",
     "ytEnhancedLrcNote1": "When enabled, uses ctc-forced-aligner to add per-word timestamps to lyrics after vocal separation. Requires ",
     "ytEnhancedLrcNote2": " on PATH. Set ",
-    "ytEnhancedLrcNote3": " env var to use CUDA."
+    "ytEnhancedLrcNote3": " env var to use CUDA.",
+    "notifTitle": "Notifications",
+    "notifEnable": "Notify me when it's my turn to sing",
+    "notifNote": "You'll get a push notification before your song starts and again when the player is waiting for you."
   },
   "rooms": {
     "myRooms": "My Rooms",
@@ -118,7 +121,10 @@
     "clearQueue": "Clear Queue",
     "removeRoom": "Remove Room",
     "removeRoomConfirm": "Remove room \"{{name}}\" and its queue?",
-    "clearQueueConfirm": "Clear all songs from \"{{name}}\"'s queue?"
+    "clearQueueConfirm": "Clear all songs from \"{{name}}\"'s queue?",
+    "notifyTitle": "Singer Notifications",
+    "notifyLeadLabel": "Advance notice: {{seconds}}s before song ends",
+    "notifyLeadNote": "How many seconds before the current song ends to notify the next singer."
   },
   "users": {
     "users": "Users",
