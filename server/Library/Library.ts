@@ -44,7 +44,11 @@ class Library {
     {
       const query = sql`
         SELECT duration, songs.artistId AS artistId, songs.songId AS songId, songs.title AS title,
-          MAX(isPreferred) AS isPreferred, COUNT(DISTINCT media.mediaId) AS numMedia
+          MAX(isPreferred) AS isPreferred, COUNT(DISTINCT media.mediaId) AS numMedia,
+          CASE
+            WHEN SUM(CASE WHEN paths.managedByUserId IS NULL THEN 1 ELSE 0 END) > 0 THEN NULL
+            ELSE MIN(paths.managedByUserId)
+          END AS managedByUserId
         FROM media
           INNER JOIN songs USING (songId)
           INNER JOIN paths USING (pathId)

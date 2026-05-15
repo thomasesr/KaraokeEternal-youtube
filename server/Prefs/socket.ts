@@ -1,7 +1,8 @@
 import getLogger from '../lib/Log.js'
 import Library from '../Library/Library.js'
 import Prefs from './Prefs.js'
-import { LIBRARY_PUSH, PREFS_PATH_SET_PRIORITY, PREFS_PUSH, PREFS_SET, _ERROR } from '../../shared/actionTypes.js'
+import UserPlayerPrefs from '../UserPlayerPrefs/UserPlayerPrefs.js'
+import { LIBRARY_PUSH, PREFS_PATH_SET_PRIORITY, PREFS_PUSH, PREFS_SET, USER_PLAYER_PREFS_SET, USER_PLAYER_PREFS_PUSH, _ERROR } from '../../shared/actionTypes.js'
 const log = getLogger(`server[${process.pid}]`)
 
 const ACTION_HANDLERS = {
@@ -17,6 +18,18 @@ const ACTION_HANDLERS = {
     log.info('%s (%s) set pref %s = %s', sock.user.name, sock.id, payload.key, payload.data)
 
     pushPrefs(sock)
+  },
+  [USER_PLAYER_PREFS_SET]: (sock, { payload }, acknowledge) => {
+    if (!sock.user.isAdmin) {
+      acknowledge({ type: USER_PLAYER_PREFS_SET + _ERROR, error: 'Unauthorized' })
+      return
+    }
+    UserPlayerPrefs.set(sock.user.userId, payload.key, payload.data)
+    log.info('%s (%s) set user player pref %s = %s', sock.user.name, sock.id, payload.key, payload.data)
+    sock.server.to(sock.id).emit('action', {
+      type: USER_PLAYER_PREFS_PUSH,
+      payload: UserPlayerPrefs.get(sock.user.userId),
+    })
   },
   [PREFS_PATH_SET_PRIORITY]: (sock, { payload }, acknowledge) => {
     if (!sock.user.isAdmin) {

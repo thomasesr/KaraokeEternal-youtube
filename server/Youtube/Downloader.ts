@@ -172,6 +172,91 @@ export interface Job {
 
 const jobs = new Map<string, Job>()
 
+// ---------------------------------------------------------------------------
+// Probe cache — stores yt-dlp format-probe results keyed by videoId + quality
+// preset + cookie flag. Entries expire after PROBE_TTL_MS so stale format IDs
+// are not reused across long sessions. Inflight dedup prevents duplicate probes
+// when probe() and start() race for the same video.
+// ---------------------------------------------------------------------------
+
+interface ProbeEntry {
+  format: string
+  needsRemux: boolean
+  probeDuration: number | null
+  expiresAt: number
+}
+
+const PROBE_TTL_MS = 5 * 60 * 1000
+const probeCache = new Map<string, ProbeEntry>()
+const probeInflight = new Map<string, Promise<ProbeEntry>>()
+
+function probeKey (videoId: string, qualityPreset: YoutubeQualityPreset | undefined, useCookies: boolean): string {
+  return `${videoId}:${qualityPreset ?? 'best'}:${useCookies ? '1' : '0'}`
+}
+
+async function runProbe (videoId: string, qualityPreset: YoutubeQualityPreset | undefined, useCookies: boolean): Promise<ProbeEntry> {
+  const url = `https://www.youtube.com/watch?v=${videoId}`
+  const heightCap = HEIGHT_CAP_BY_PRESET[qualityPreset ?? 'best']
+  const cookies = useCookies ? Prefs.getYoutubeCookies() : null
+  let cookieFile: string | null = null
+  if (cookies) {
+    cookieFile = path.join(os.tmpdir(), `kes-yt-probe-${videoId}-${Date.now()}.txt`)
+    await fsp.writeFile(cookieFile, cookies, { mode: 0o600 })
+  }
+  try {
+    log.verbose('yt-dlp probing formats: %s', videoId)
+    const probe = await probeFormats(url, cookieFile)
+    const probeDuration = typeof probe.duration === 'number' ? Math.round(probe.duration) : null
+    log.debug('yt-dlp probe: %d formats, duration=%s', probe.formats.length, probeDuration ?? 'n/a')
+    const sel = selectFormats(probe.formats, heightCap)
+    if (!sel) {
+      const anyVideo = probe.formats.some(isVideo)
+      if (!anyVideo) {
+        if (probe.stderr.trim()) log.warn('yt-dlp probe (%s) stderr:\n%s', videoId, probe.stderr.trim())
+        const hint = hintFor(classifyFailure(probe.stderr))
+          ?? 'no diagnostic markers in stderr — re-run yt-dlp manually with the same URL to inspect.'
+        throw new Error(`yt-dlp probe returned no video streams: ${hint}`)
+      }
+      throw new Error(`No video formats at or below ${heightCap}p — try a lower quality preset or "best"`)
+    }
+    const format = sel.audioId ? `${sel.videoId}+${sel.audioId}` : sel.videoId
+    log.info('yt-dlp probe %s: picked %s (remux=%s, cap=%s)', videoId, format, sel.needsRemux, heightCap ?? 'none')
+    log.debug('yt-dlp format selection: videoId=%s audioId=%s needsRemux=%s', sel.videoId, sel.audioId, sel.needsRemux)
+    return { format, needsRemux: sel.needsRemux, probeDuration, expiresAt: Date.now() + PROBE_TTL_MS }
+  } finally {
+    cleanupCookies(cookieFile)
+  }
+}
+
+// Returns a cached probe result or starts a new probe if none exists or the
+// cached entry has expired. Concurrent callers for the same key share the
+// single inflight promise so yt-dlp is only invoked once per unique video.
+function ensureProbe (videoId: string, qualityPreset: YoutubeQualityPreset | undefined, useCookies: boolean): Promise<ProbeEntry> {
+  const key = probeKey(videoId, qualityPreset, useCookies)
+  const cached = probeCache.get(key)
+  if (cached && cached.expiresAt > Date.now()) {
+    log.verbose('yt-dlp probe cache hit: %s', videoId)
+    return Promise.resolve(cached)
+  }
+  const inflight = probeInflight.get(key)
+  if (inflight) {
+    log.verbose('yt-dlp probe inflight, awaiting: %s', videoId)
+    return inflight
+  }
+  const promise = runProbe(videoId, qualityPreset, useCookies)
+    .then((entry) => {
+      probeCache.set(key, entry)
+      probeInflight.delete(key)
+      return entry
+    })
+    .catch((err) => {
+      probeInflight.delete(key)
+      throw err
+    })
+  probeInflight.set(key, promise)
+  return promise
+}
+
 export class DownloaderError extends Error {
   status: number
   constructor (message: string, status: number) {
@@ -201,6 +286,13 @@ export const Downloader = {
   isActive (videoId: string): boolean {
     const j = jobs.get(videoId)
     return !!j && (j.status === 'queued' || j.status === 'downloading')
+  },
+
+  // Public cache-warming entry point. Validates the videoId then delegates to
+  // ensureProbe so the result is ready in the cache before start() is called.
+  async probe (videoId: string, opts: { qualityPreset?: YoutubeQualityPreset, useCookies?: boolean } = {}): Promise<void> {
+    if (!VIDEO_ID_RE.test(videoId)) throw new DownloaderError('Invalid videoId', 422)
+    await ensureProbe(videoId, opts.qualityPreset, opts.useCookies ?? false)
   },
 
   async start (videoId: string, opts: StartOptions): Promise<Job> {
@@ -250,36 +342,16 @@ export const Downloader = {
       log.debug('yt-dlp cookies: none')
     }
 
-    const heightCap = HEIGHT_CAP_BY_PRESET[opts.qualityPreset ?? 'best']
-    log.debug('yt-dlp heightCap=%s', heightCap ?? 'none')
+    // Resolve format selection via the probe cache. If the client called
+    // probe() earlier the result is already warm and this returns immediately.
     let format: string
-    let needsRemux = true
-    let probeDuration: number | null = null
+    let needsRemux: boolean
+    let probeDuration: number | null
     try {
-      log.verbose('yt-dlp probing formats: %s', videoId)
-      const probe = await probeFormats(url, cookieFile)
-      probeDuration = typeof probe.duration === 'number' ? Math.round(probe.duration) : null
-      log.debug('yt-dlp probe: %d formats, duration=%s', probe.formats.length, probeDuration ?? 'n/a')
-      const sel = selectFormats(probe.formats, heightCap)
-      if (!sel) {
-        const anyVideo = probe.formats.some(isVideo)
-        if (!anyVideo) {
-          // Probe exited 0 but yt-dlp emitted no video formats — surface its warnings
-          // (normally swallowed) so the operator can see WHY (EJS, bot-challenge, etc.).
-          if (probe.stderr.trim()) {
-            log.warn('yt-dlp probe (%s) stderr:\n%s', videoId, probe.stderr.trim())
-          }
-          const hint = hintFor(classifyFailure(probe.stderr))
-            ?? 'no diagnostic markers in stderr — re-run yt-dlp manually with the same URL to inspect.'
-          throw new Error(`yt-dlp probe returned no video streams: ${hint}`)
-        }
-        throw new Error(`No video formats at or below ${heightCap}p — try a lower quality preset or "best"`)
-      }
-      format = sel.audioId ? `${sel.videoId}+${sel.audioId}` : sel.videoId
-      needsRemux = sel.needsRemux
-      log.info('yt-dlp probe %s: picked %s (remux=%s, cap=%s)',
-        videoId, format, needsRemux, heightCap ?? 'none')
-      log.debug('yt-dlp format selection: videoId=%s audioId=%s needsRemux=%s', sel.videoId, sel.audioId, sel.needsRemux)
+      const p = await ensureProbe(videoId, opts.qualityPreset, opts.useCookies ?? false)
+      format = p.format
+      needsRemux = p.needsRemux
+      probeDuration = p.probeDuration
     } catch (e) {
       cleanupCookies(cookieFile)
       cleanupTmpDir(tmpDir)
@@ -306,35 +378,49 @@ export const Downloader = {
       '-P', `home:${opts.destDir}`,
       '-P', `temp:${tmpDir}`,
       '-o', outTemplate,
-      '--print', 'after_move:filepath',
       url,
     ]
     if (needsRemux) args.splice(args.indexOf('-o'), 0, '--remux-video', 'mp4')
     if (cookieFile) args.unshift('--cookies', cookieFile)
 
-    log.info('yt-dlp start: %s -> %s', videoId, opts.destDir)
+    // Output path is predictable: merge-output-format mp4 always produces .mp4
+    const outputFile = path.join(opts.destDir, `${baseUnique}.mp4`)
+
+    // Weighted progress phases:
+    //   0-20%  : probe / JS challenge (already done by here)
+    //   20-90% : download (split between streams if 2-stream format)
+    //   90-100%: merge / remux (no yt-dlp output; jump to 100 on close)
+    const isTwoStream = format.includes('+')
+
+    log.info('yt-dlp start: %s -> %s (twoStream=%s)', videoId, opts.destDir, isTwoStream)
     log.debug('yt-dlp download args: %s', args.join(' '))
-    const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PYTHONUNBUFFERED: '1' } })
 
     job.status = 'downloading'
+    job.progress = 20
 
     let stderrTail = ''
-    let printedFile: string | null = null
+    let streamIdx = 0
 
     proc.stdout.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8')
       log.debug('yt-dlp stdout: %s', text.trimEnd())
       for (const line of text.split(/\r?\n/)) {
-        if (!line) continue
         const m = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(line)
-        if (m) {
-          job.progress = Math.min(100, parseFloat(m[1]))
-          continue
-        }
-        // last line printed by --print after_move:filepath is final filepath
-        if (line.startsWith('/') || /^[A-Za-z]:[\\/]/.test(line)) {
-          printedFile = line.trim()
-          log.debug('yt-dlp printed filepath: %s', printedFile)
+        if (!m) continue
+        const pct = parseFloat(m[1])
+        if (isTwoStream) {
+          if (streamIdx === 0) {
+            // video stream: 20-70%
+            job.progress = Math.round(20 + pct * 0.5)
+            if (pct >= 99.9) streamIdx = 1
+          } else {
+            // audio stream: 70-90%
+            job.progress = Math.round(70 + pct * 0.2)
+          }
+        } else {
+          // single stream: 20-90%
+          job.progress = Math.round(20 + pct * 0.7)
         }
       }
     })
@@ -355,16 +441,16 @@ export const Downloader = {
     })
 
     proc.on('close', async (code) => {
-      log.debug('yt-dlp download exited code=%d printedFile=%s', code, printedFile ?? 'none')
+      log.debug('yt-dlp download exited code=%d outputFile=%s', code, outputFile)
       cleanupCookies(cookieFile)
       cleanupTmpDir(tmpDir)
       if (code === 0) {
-        job.progress = 100
-        job.filename = printedFile
-        log.verbose('yt-dlp download complete, ingesting: %s -> %s', videoId, printedFile)
+        job.progress = 90 // merge/remux phase; set 100 after ingest
+        job.filename = outputFile
+        log.verbose('yt-dlp download complete, ingesting: %s -> %s', videoId, outputFile)
         try {
           await ingestDownloaded({
-            absPath: printedFile,
+            absPath: outputFile,
             duration: probeDuration ?? 0,
             artist: opts.artist,
             title: opts.title,
@@ -376,8 +462,9 @@ export const Downloader = {
             io: opts.io,
           })
           job.status = 'done'
+          job.progress = 100
           job.finishedAt = Date.now()
-          log.info('yt-dlp done + ingested: %s -> %s', videoId, printedFile)
+          log.info('yt-dlp done + ingested: %s -> %s', videoId, outputFile)
         } catch (e) {
           job.status = 'error'
           job.error = `Download finished but ingest failed: ${(e as Error).message}`

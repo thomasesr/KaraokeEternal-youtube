@@ -1,6 +1,6 @@
 import { createAction, createAsyncThunk, createReducer } from '@reduxjs/toolkit'
 import HttpApi from 'lib/HttpApi'
-import type { IYoutubeAccess, IYoutubePrefs, YoutubeQualityPreset, YoutubeRole } from 'shared/types'
+import type { IYoutubeAccess, IYoutubePrefs, YoutubeQualityPreset, YoutubeRole, YoutubeEnhancedLrcBackend } from 'shared/types'
 import {
   YOUTUBE_CONFIG_REQUEST,
   YOUTUBE_CONFIG_SAVE,
@@ -36,6 +36,7 @@ export interface YoutubeConfigPatch {
   qualityPreset?: YoutubeQualityPreset
   musicbrainzMinScore?: number
   allowedRoles?: YoutubeRole[]
+  enhancedLrcBackend?: YoutubeEnhancedLrcBackend
   apiKey?: string | null
   cookies?: string | null
 }
@@ -103,7 +104,7 @@ export interface YoutubeDownloadStartArgs {
   artist: string
   title: string
   duration?: number
-  mode?: 'spleeter'
+  mode?: 'spleeter' | 'audioonly'
 }
 
 export const youtubeDownloadStart = createAsyncThunk<IYoutubeDownloadJob, YoutubeDownloadStartArgs>(
@@ -114,6 +115,13 @@ export const youtubeDownloadStart = createAsyncThunk<IYoutubeDownloadJob, Youtub
 export const youtubeDownloadStatus = createAsyncThunk<IYoutubeDownloadJob, string>(
   YOUTUBE_DOWNLOAD_STATUS,
   async videoId => api.get<IYoutubeDownloadJob>(`/download/${encodeURIComponent(videoId)}`),
+)
+
+// Fire-and-forget thunk that warms the server-side yt-dlp probe cache for a
+// video. No reducer case needed — this is purely a server-side side-effect.
+export const youtubeProbe = createAsyncThunk<void, string>(
+  'youtube/PROBE',
+  async (videoId) => { await api.post<void>(`/probe/${encodeURIComponent(videoId)}`) },
 )
 
 export const clearYoutubeSearch = createAction('youtube/SEARCH_CLEAR')

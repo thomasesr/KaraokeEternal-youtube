@@ -63,7 +63,7 @@ function parseFilename (basename: string): { artist: string; title: string } | n
   return { artist, title }
 }
 
-async function runSpleeter (mp3Path: string, stemsDir: string): Promise<string> {
+async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accompaniment: string; vocals: string }> {
   const spleeterModel = process.env.SPLEETER_MODEL ?? '2stems'
   const spleeterData = process.env.SPLEETER_DATA ?? '/data/spleeter'
   const configPath = path.join(spleeterData, 'pretrained_models', spleeterModel, `${spleeterModel}.json`)
@@ -83,8 +83,8 @@ async function runSpleeter (mp3Path: string, stemsDir: string): Promise<string> 
 
   const stemSubdir = path.join(stemsDir, path.basename(mp3Path, '.mp3'))
   const accompaniment = path.join(stemSubdir, 'accompaniment.mp3')
+  const vocals = path.join(stemSubdir, 'vocals.mp3')
 
-  // verify spleeter produced expected output
   try {
     await fsp.stat(accompaniment)
   } catch {
@@ -97,10 +97,15 @@ async function runSpleeter (mp3Path: string, stemsDir: string): Promise<string> 
     )
   }
 
-  return accompaniment
+  return { accompaniment, vocals }
 }
 
-export async function processAudioOnly (file: string): Promise<{ zipPath: string }> {
+export type AudioOnlyProgressCallback = (stage: string, pct: number) => void
+
+export async function processAudioOnly (
+  file: string,
+  onProgress?: AudioOnlyProgressCallback,
+): Promise<{ zipPath: string }> {
   const ext = path.extname(file).toLowerCase()
   const dir = path.dirname(file)
   const basename = path.basename(file, ext)
@@ -114,6 +119,7 @@ export async function processAudioOnly (file: string): Promise<{ zipPath: string
     } else {
       const tempMp3 = path.join(tmpDir, 'audio.mp3')
       log.verbose('converting %s to mp3 320kbps', path.basename(file))
+      onProgress?.('converting', 5)
       await spawnCmd('ffmpeg', ['-i', file, '-b:a', '320k', '-y', tempMp3])
       mp3Path = tempMp3
     }
@@ -140,15 +146,19 @@ export async function processAudioOnly (file: string): Promise<{ zipPath: string
 
     if (!artist || !title) throw new Error(`no artist/title found for ${path.basename(file)}`)
 
-    // Step 3: spleeter — extract instrumental accompaniment
+    // Step 3: spleeter — extract instrumental accompaniment + vocals
+    onProgress?.('separating', 10)
     const stemsDir = path.join(tmpDir, 'stems')
-    const accompanimentMp3 = await runSpleeter(mp3Path, stemsDir)
+    const { accompaniment: accompanimentMp3, vocals: vocalsMp3 } = await runSpleeter(mp3Path, stemsDir)
+    onProgress?.('separating', 80)
 
     // Step 4: fetch LRC
     log.verbose('fetching LRC: "%s - %s" duration=%ds', artist, title, Math.round(duration))
+    onProgress?.('fetching-lrc', 85)
     const lrcContent = await fetchLrc(artist, title, duration)
 
-    // Step 5: zip accompaniment + lrc → dest
+    // Step 5: zip accompaniment + vocals + lrc → dest
+    onProgress?.('zipping', 90)
     const baseRaw = buildFilenameBase(artist, title)
     const base = await pickUniqueBase(dir, baseRaw)
     const lrcFile = path.join(tmpDir, `${base}.lrc`)
@@ -156,7 +166,7 @@ export async function processAudioOnly (file: string): Promise<{ zipPath: string
     const destZip = path.join(dir, `${base}.zip`)
 
     await fsp.writeFile(lrcFile, lrcContent, 'utf8')
-    await spawnCmd('zip', ['-j', zipTmp, accompanimentMp3, lrcFile])
+    await spawnCmd('zip', ['-j', zipTmp, accompanimentMp3, vocalsMp3, lrcFile])
 
     try {
       await fsp.rename(zipTmp, destZip)

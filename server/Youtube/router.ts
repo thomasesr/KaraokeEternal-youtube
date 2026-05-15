@@ -4,6 +4,7 @@ import Prefs from '../Prefs/Prefs.js'
 import { YoutubeService, YoutubeApiError } from './YoutubeService.js'
 import { Downloader, DownloaderError } from './Downloader.js'
 import SpleeterDownloader from './SpleeterDownloader.js'
+import AudioOnlyDownloader from './AudioOnlyDownloader.js'
 import { searchByTitle, searchByArtistTitle } from './MusicBrainz.js'
 import type {
   IYoutubeAccess,
@@ -11,8 +12,9 @@ import type {
   Prefs as PrefsType,
   YoutubeQualityPreset,
   YoutubeRole,
+  YoutubeEnhancedLrcBackend,
 } from '../../shared/types.js'
-import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ROLES } from '../../shared/types.js'
+import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ROLES, YOUTUBE_ENHANCED_LRC_BACKENDS } from '../../shared/types.js'
 
 interface RequestWithBody {
   body: Record<string, unknown>
@@ -28,6 +30,7 @@ const DEFAULT_CONFIG: Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEn
   qualityPreset: 'best',
   musicbrainzMinScore: 80,
   allowedRoles: ['admin'],
+  enhancedLrcBackend: 'none',
 }
 
 function normalizeAllowedRoles (input: unknown): YoutubeRole[] {
@@ -74,6 +77,9 @@ function getStoredConfig (): Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKe
     allowedRoles: stored.allowedRoles === undefined
       ? [...DEFAULT_CONFIG.allowedRoles]
       : normalizeAllowedRoles(stored.allowedRoles),
+    enhancedLrcBackend: YOUTUBE_ENHANCED_LRC_BACKENDS.includes(stored.enhancedLrcBackend as YoutubeEnhancedLrcBackend)
+      ? stored.enhancedLrcBackend as YoutubeEnhancedLrcBackend
+      : DEFAULT_CONFIG.enhancedLrcBackend,
   }
 }
 
@@ -143,6 +149,14 @@ router.put('/config', (ctx) => {
       }
     }
     next.allowedRoles = normalizeAllowedRoles(v)
+  }
+
+  if ('enhancedLrcBackend' in body) {
+    const v = body.enhancedLrcBackend
+    if (!YOUTUBE_ENHANCED_LRC_BACKENDS.includes(v as YoutubeEnhancedLrcBackend)) {
+      ctx.throw(422, `enhancedLrcBackend must be one of: ${YOUTUBE_ENHANCED_LRC_BACKENDS.join(', ')}`)
+    }
+    next.enhancedLrcBackend = v as YoutubeEnhancedLrcBackend
   }
 
   if ('downloadPathId' in body) {
@@ -255,6 +269,21 @@ router.get('/identify', async (ctx) => {
   }
 })
 
+// Warms the server-side probe cache for a video before the download is
+// initiated. Returns 204 on success so the client can fire-and-forget.
+router.post('/probe/:videoId', async (ctx) => {
+  const cfg = requireEnabled(ctx)
+  const videoId = ctx.params.videoId
+  if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
+  try {
+    await Downloader.probe(videoId, { qualityPreset: cfg.qualityPreset, useCookies: cfg.useCookies })
+    ctx.status = 204
+  } catch (err) {
+    if (err instanceof DownloaderError) ctx.throw(err.status, err.message)
+    throw err
+  }
+})
+
 router.post('/download', async (ctx) => {
   const cfg = requireEnabled(ctx)
   if (cfg.downloadPathId === null) ctx.throw(422, 'No download path configured')
@@ -269,7 +298,7 @@ router.post('/download', async (ctx) => {
   const artist = typeof body.artist === 'string' ? body.artist.trim() : ''
   const title = typeof body.title === 'string' ? body.title.trim() : ''
   const duration = typeof body.duration === 'number' ? body.duration : 0
-  const mode = body.mode === 'spleeter' ? 'spleeter' : 'karaoke'
+  const mode = body.mode === 'spleeter' ? 'spleeter' : body.mode === 'audioonly' ? 'audioonly' : 'karaoke'
 
   if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
   if (!artist) ctx.throw(422, 'Missing artist')
@@ -278,29 +307,25 @@ router.post('/download', async (ctx) => {
   if (title.length > TITLE_MAX_LEN) ctx.throw(422, `title too long (max ${TITLE_MAX_LEN})`)
 
   try {
+    const commonOpts = {
+      destDir: pathEntry.path,
+      pathId: cfg.downloadPathId,
+      useCookies: cfg.useCookies,
+      artist,
+      title,
+      duration,
+      roomId: ctx.user.roomId,
+      userId: ctx.user.userId,
+      io: ctx.io,
+    }
     const job = mode === 'spleeter'
-      ? await SpleeterDownloader.start(videoId, {
-        destDir: pathEntry.path,
-        pathId: cfg.downloadPathId,
-        useCookies: cfg.useCookies,
-        artist,
-        title,
-        duration,
-        roomId: ctx.user.roomId,
-        userId: ctx.user.userId,
-        io: ctx.io,
-      })
-      : await Downloader.start(videoId, {
-        destDir: pathEntry.path,
-        pathId: cfg.downloadPathId,
-        qualityPreset: cfg.qualityPreset,
-        useCookies: cfg.useCookies,
-        artist,
-        title,
-        roomId: ctx.user.roomId,
-        userId: ctx.user.userId,
-        io: ctx.io,
-      })
+      ? await SpleeterDownloader.start(videoId, commonOpts)
+      : mode === 'audioonly'
+        ? await AudioOnlyDownloader.start(videoId, commonOpts)
+        : await Downloader.start(videoId, {
+          ...commonOpts,
+          qualityPreset: cfg.qualityPreset,
+        })
     ctx.status = 202
     ctx.body = job
   } catch (err) {
@@ -313,7 +338,7 @@ router.get('/download/:videoId', (ctx) => {
   if (!ctx.user.userId) ctx.throw(401)
   const videoId = ctx.params.videoId
   if (!YoutubeService.isValidVideoId(videoId)) ctx.throw(422, 'Invalid videoId')
-  const job = Downloader.getJob(videoId) ?? SpleeterDownloader.getJob(videoId)
+  const job = Downloader.getJob(videoId) ?? SpleeterDownloader.getJob(videoId) ?? AudioOnlyDownloader.getJob(videoId)
   if (!job) ctx.throw(404, 'No such job')
   ctx.body = job
 })

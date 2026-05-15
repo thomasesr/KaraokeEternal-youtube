@@ -1,0 +1,28 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+  padding: var(--space-m);
+}
+
+.hint {
+  color: #999;
+  font-size: 0.9em;
+  margin: 0;
+}
+
+.input {
+  font-size: 0.9em;
+}
+
+.status {
+  color: #aaa;
+}
+
+.statusOk {
+  color: #6c6;
+}
+
+.statusErr {
+  color: #e55;
+}

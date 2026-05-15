@@ -13,3 +13,8 @@
   gap: var(--space-m);
   margin-bottom: var(--space-m);
 }
+
+.select {
+  width: 100%;
+  margin-top: var(--space-s);
+}

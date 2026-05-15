@@ -141,6 +141,19 @@ class Prefs {
   }
 
   /**
+   * Assign (or clear) the room_manager owner of a path.
+   * At most one path per user (enforced by unique index).
+   */
+  static setPathManager (pathId: number, userId: number | null): void {
+    const query = sql`
+      UPDATE paths
+      SET managedByUserId = ${userId}
+      WHERE pathId = ${pathId}
+    `
+    db.run(String(query), query.parameters)
+  }
+
+  /**
    * Set a path's JSON data
    * @param keyPrefix - key prefix; e.g. `prefs.`
    * @param data - key:value pair to set

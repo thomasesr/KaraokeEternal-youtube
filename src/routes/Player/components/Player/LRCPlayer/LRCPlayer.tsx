@@ -4,9 +4,15 @@ import styles from './LRCPlayer.css'
 
 const api = new HttpApi('media')
 
+interface LRCWord {
+  time: number
+  text: string
+}
+
 interface LRCLine {
   time: number
   text: string
+  words?: LRCWord[]
 }
 
 interface LRCPlayerProps {
@@ -35,8 +41,10 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
   container = React.createRef<HTMLDivElement>()
   lyricsInner = React.createRef<HTMLDivElement>()
   lineRefs: React.RefObject<HTMLDivElement>[] = []
+  wordSpanRefs: HTMLSpanElement[] = []
   rafId: number | null = null
   activeLineIdx = -1
+  activeWordIdx = -1
   scrollTargetIdx = -1
   metaFadeTriggered = false
 
@@ -119,7 +127,7 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
       >
         <div
           className={styles.lyricsBlur}
-          style={{ opacity: cdgAlpha, backgroundColor: `rgba(0,0,0,${cdgAlpha * 0.7})` }}
+          style={{ opacity: Math.min(1, cdgAlpha * 2), backgroundColor: `rgba(0,0,0,${Math.min(1, cdgAlpha * 1.4)})` }}
         />
         {showMeta && (
           <div className={`${styles.meta}${metaFading ? ` ${styles.metaFading}` : ''}`}>
@@ -140,7 +148,14 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
                   className={`${styles.line}${i === this.activeLineIdx ? ` ${styles.active}` : ''}`}
                   style={{ opacity: this.lineOpacity(dist) }}
                 >
-                  {line.text}
+                  {line.words
+                    ? line.words.map((w, wi) => (
+                        <React.Fragment key={wi}>
+                          <span data-wi={String(wi)}>{w.text}</span>
+                          {wi < line.words!.length - 1 && ' '}
+                        </React.Fragment>
+                      ))
+                    : line.text}
                 </div>
               )
             })}
@@ -226,30 +241,60 @@ class LRCPlayer extends React.Component<LRCPlayerProps> {
       this.updateTranslate(false, preScrollIdx)
     }
 
-    if (newActive === this.activeLineIdx) return
+    if (newActive !== this.activeLineIdx) {
+      const oldActive = this.activeLineIdx
+      this.activeLineIdx = newActive
+      if (newActive < this.scrollTargetIdx - 1) this.scrollTargetIdx = newActive
 
-    const oldActive = this.activeLineIdx
-    this.activeLineIdx = newActive
-    if (newActive < this.scrollTargetIdx - 1) this.scrollTargetIdx = newActive
+      if (oldActive === -1 && newActive >= 0 && this.state.showMeta) {
+        this.setState({ showMeta: false, metaFading: false })
+      }
 
-    if (oldActive === -1 && newActive >= 0 && this.state.showMeta) {
-      this.setState({ showMeta: false, metaFading: false })
+      // toggle active class directly — no setState, no re-render
+      if (oldActive >= 0) {
+        this.lineRefs[oldActive]?.current?.classList.remove(styles.active)
+        this.lineRefs[oldActive]?.current?.classList.add(styles.lineSung)
+      }
+      if (newActive >= 0) {
+        this.lineRefs[newActive]?.current?.classList.remove(styles.lineSung)
+        this.lineRefs[newActive]?.current?.classList.add(styles.active)
+      }
+
+      // update opacity for affected lines (±4 from old and new)
+      const focusIndex = newActive >= 0 ? newActive : 0
+      const rangeStart = Math.max(0, Math.min(oldActive >= 0 ? oldActive : focusIndex, focusIndex) - 4)
+      const rangeEnd = Math.min(lines.length - 1, Math.max(oldActive >= 0 ? oldActive : focusIndex, focusIndex) + 4)
+      for (let i = rangeStart; i <= rangeEnd; i++) {
+        const el = this.lineRefs[i]?.current
+        if (el) el.style.opacity = String(this.lineOpacity(Math.abs(i - focusIndex)))
+      }
+
+      this.updateTranslate(false)
+
+      // reset word highlight refs for new line — old words keep .wordSung (stay gold)
+      this.wordSpanRefs = []
+      this.activeWordIdx = -1
+      if (newActive >= 0 && lines[newActive].words && this.lineRefs[newActive]?.current) {
+        this.wordSpanRefs = Array.from(
+          this.lineRefs[newActive].current!.querySelectorAll<HTMLSpanElement>('[data-wi]')
+        )
+      }
     }
 
-    // toggle active class directly — no setState, no re-render
-    if (oldActive >= 0) this.lineRefs[oldActive]?.current?.classList.remove(styles.active)
-    if (newActive >= 0) this.lineRefs[newActive]?.current?.classList.add(styles.active)
-
-    // update opacity for affected lines (±4 from old and new)
-    const focusIndex = newActive >= 0 ? newActive : 0
-    const rangeStart = Math.max(0, Math.min(oldActive >= 0 ? oldActive : focusIndex, focusIndex) - 4)
-    const rangeEnd = Math.min(lines.length - 1, Math.max(oldActive >= 0 ? oldActive : focusIndex, focusIndex) + 4)
-    for (let i = rangeStart; i <= rangeEnd; i++) {
-      const el = this.lineRefs[i]?.current
-      if (el) el.style.opacity = String(this.lineOpacity(Math.abs(i - focusIndex)))
+    // word highlight sync (every tick)
+    if (newActive >= 0 && this.wordSpanRefs.length > 0 && lines[newActive].words) {
+      const words = lines[newActive].words!
+      let newWordIdx = -1
+      for (let wi = 0; wi < words.length; wi++) {
+        if (words[wi].time <= pos) newWordIdx = wi
+        else break
+      }
+      if (newWordIdx !== this.activeWordIdx) {
+        // past words keep .wordSung (stay gold) — only add to newly sung word
+        if (newWordIdx >= 0) this.wordSpanRefs[newWordIdx]?.classList.add(styles.wordSung)
+        this.activeWordIdx = newWordIdx
+      }
     }
-
-    this.updateTranslate(false)
   }
 
   updateIsPlaying = () => {
@@ -289,8 +334,24 @@ function parseLRC (text: string): { lines: LRCLine[], artist: string, title: str
     const tiMatch = rawLine.match(/^\[ti:\s*(.+?)\s*\]/)
     if (tiMatch) { title = tiMatch[1]; continue }
 
-    const lyric = rawLine.replace(/\[\d{1,2}:\d{2}[.:]\d{2,3}\]/g, '').trim()
+    const lyric = rawLine
+      .replace(/\[\d{1,2}:\d{2}[.:]\d{2,3}\]/g, '')
+      .replace(/<\d{1,2}:\d{2}[.:]\d{2,3}>/g, '')
+      .trim()
     if (!lyric || /^\[(?:al|by|length|re|ve):/.test(rawLine)) continue
+
+    // parse word-level timestamps (<mm:ss.cs>word)
+    const wordTagRe = /<(\d{1,2}):(\d{2})[.:](\d{2,3})>([^<\[]*)/g
+    let wm: RegExpExecArray | null
+    const words: LRCWord[] = []
+    wordTagRe.lastIndex = 0
+    while ((wm = wordTagRe.exec(rawLine)) !== null) {
+      const wtime = parseInt(wm[1], 10) * 60 + parseInt(wm[2], 10) + (
+        wm[3].length === 3 ? parseInt(wm[3], 10) / 1000 : parseInt(wm[3], 10) / 100
+      )
+      const wtext = wm[4].trim()
+      if (wtext) words.push({ time: wtime + offsetSecs, text: wtext })
+    }
 
     let match: RegExpExecArray | null
     tagRe.lastIndex = 0
@@ -300,7 +361,7 @@ function parseLRC (text: string): { lines: LRCLine[], artist: string, title: str
       const frac = match[3].length === 3
         ? parseInt(match[3], 10) / 1000
         : parseInt(match[3], 10) / 100
-      lines.push({ time: mins * 60 + secs + frac + offsetSecs, text: lyric })
+      lines.push({ time: mins * 60 + secs + frac + offsetSecs, text: lyric, words: words.length > 0 ? words : undefined })
     }
   }
 

@@ -5,6 +5,7 @@ import getFolders from '../lib/getFolders.js'
 import getWindowsDrives from '../lib/getWindowsDrives.js'
 import Prefs from './Prefs.js'
 import Media from '../Media/Media.js'
+import Library from '../Library/Library.js'
 import pushQueuesAndLibrary from '../lib/pushQueuesAndLibrary.js'
 import Rooms from '../Rooms/Rooms.js'
 import Queue from '../Queue/Queue.js'
@@ -91,6 +92,42 @@ router.put('/path/:pathId', (ctx) => {
       })
     }
   }
+})
+
+// set/clear room_manager for a media path
+router.put('/path/:pathId/manager', (ctx) => {
+  if (!ctx.user.isAdmin) {
+    ctx.throw(401)
+  }
+
+  const pathId = parseInt(ctx.params.pathId, 10)
+
+  if (isNaN(pathId)) {
+    ctx.throw(422, 'Invalid pathId')
+  }
+
+  const body = (ctx.request as unknown as RequestWithBody).body
+  const userId = body.userId === null || body.userId === undefined
+    ? null
+    : parseInt(String(body.userId), 10)
+
+  if (userId !== null && isNaN(userId)) {
+    ctx.throw(422, 'Invalid userId')
+  }
+
+  try {
+    Prefs.setPathManager(pathId, userId)
+  } catch (err) {
+    ctx.throw(409, err.message)
+  }
+
+  // invalidate library cache (managed visibility changed)
+  Library.cache.version = null
+
+  const prefs = Prefs.get() as unknown as PrefsType
+  ctx.body = prefs
+
+  pushQueuesAndLibrary(ctx.io)
 })
 
 // remove a media path

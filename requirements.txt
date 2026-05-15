@@ -1,0 +1,9 @@
+# GPU/CUDA requirements
+# Install: ./init.sh --install-gpu
+# or: pip3 install --break-system-packages -r requirements.txt
+
+yt-dlp
+tensorflow[and-cuda]
+spleeter-thomasesr==3.0.0a1
+ctc-forced-aligner
+unidecode

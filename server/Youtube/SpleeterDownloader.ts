@@ -6,8 +6,10 @@ import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
 import { ingestDownloaded } from './ingestDownloaded.js'
+import { enhanceWithCtc, isEnhancedLrc } from './EnhancedLrc.js'
 import type { Job } from './Downloader.js'
 import { DownloaderError } from './Downloader.js'
+import type { IYoutubePrefs } from '../../shared/types.js'
 
 const log = getLogger('Youtube')
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/
@@ -170,7 +172,7 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
     log.debug('spleeter yt-dlp args: %s', ytArgs.join(' '))
 
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn('yt-dlp', ytArgs, { stdio: ['ignore', 'pipe', 'pipe'] })
+      const proc = spawn('yt-dlp', ytArgs, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PYTHONUNBUFFERED: '1' } })
       let stderr = ''
       proc.stdout.on('data', (chunk: Buffer) => {
         const text = chunk.toString('utf8')
@@ -225,23 +227,39 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
     // spleeter outputs {stemsDir}/{inputBasenameWithoutExt}/accompaniment.mp3 with -c mp3
     const stemSubdir = path.join(stemsDir, `${base}-dl`)
     const accompanimentMp3 = path.join(stemSubdir, 'accompaniment.mp3')
-    log.debug('spleeter accompaniment mp3: %s', accompanimentMp3)
+    const vocalsMp3 = path.join(stemSubdir, 'vocals.mp3')
+    log.debug('spleeter stems: accompaniment=%s vocals=%s', accompanimentMp3, vocalsMp3)
 
     // --- fetch LRC ---
     job.stage = 'fetching-lrc'
     log.verbose('spleeter stage=fetching-lrc: %s "%s - %s" duration=%ds', videoId, opts.artist, opts.title, opts.duration)
 
-    const lrcContent = await fetchLrc(opts.artist, opts.title, opts.duration)
+    let lrcContent = await fetchLrc(opts.artist, opts.title, opts.duration)
     log.debug('spleeter lrc fetched: %d chars', lrcContent.length)
+
+    // --- optionally enhance LRC ---
+    const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
+    const enhancedLrcBackend = ytPrefs?.enhancedLrcBackend ?? 'none'
+    if (enhancedLrcBackend === 'ctc' && !isEnhancedLrc(lrcContent)) {
+      job.stage = 'enhancing-lrc'
+      log.verbose('spleeter stage=enhancing-lrc: %s', videoId)
+      try {
+        lrcContent = await enhanceWithCtc(vocalsMp3, lrcContent, tmpDir, { artist: opts.artist, title: opts.title })
+        log.debug('spleeter lrc enhanced: %d chars', lrcContent.length)
+      } catch (e) {
+        log.warn('spleeter lrc enhancement failed, using plain lrc: %s', (e as Error).message)
+      }
+    }
+
     await fsp.writeFile(lrcFile, lrcContent, 'utf8')
 
     job.progress = 90
 
-    // --- zip mp3 + lrc ---
+    // --- zip accompaniment + vocals + lrc ---
     job.stage = 'zipping'
     log.verbose('spleeter stage=zipping: %s -> %s', videoId, zipFile)
 
-    await spawnAsync('zip', ['-j', zipFile, accompanimentMp3, lrcFile], { label: 'zip' })
+    await spawnAsync('zip', ['-j', zipFile, accompanimentMp3, vocalsMp3, lrcFile], { label: 'zip' })
 
     job.progress = 95
     log.debug('spleeter zip done, moving %s -> %s', zipFile, destZip)

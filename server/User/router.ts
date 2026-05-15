@@ -37,16 +37,34 @@ const { sign: jwtSign } = jsonWebToken
 // Takes the "raw" object returned by the User class and massages it
 // into the shape used by the client (state.user) and in server-side
 // routers. Should be used to generate the JWT.
+const getManagedPathId = (userId: number): number | null => {
+  const query = sql`
+    SELECT pathId FROM paths WHERE managedByUserId = ${userId} LIMIT 1
+  `
+  const row = db.get<{ pathId: number }>(String(query), query.parameters)
+  return row?.pathId ?? null
+}
+
 const createUserCtx = (user, roomId) => {
+  const parsedRoomId = parseInt(roomId, 10) || null
+
+  // for standard/guest users in a room, include the room's manager userIds
+  // so the client can filter the library to show only relevant managed folders
+  const roomManagerIds = (user.role === 'standard' || user.role === 'guest') && parsedRoomId
+    ? Rooms.getManagers(parsedRoomId)
+    : []
+
   return {
     dateCreated: user.dateCreated,
     dateUpdated: user.dateUpdated,
     isAdmin: user.role === 'admin',
     isGuest: user.role === 'guest',
     managedRoomIds: user.role === 'room_manager' ? Rooms.getManagedRoomIds(user.userId) : [],
+    managedPathId: user.role === 'room_manager' ? getManagedPathId(user.userId) : null,
+    roomManagerIds,
     name: user.name,
     role: user.role,
-    roomId: parseInt(roomId, 10) || null,
+    roomId: parsedRoomId,
     userId: user.userId,
     username: user.username,
   }

@@ -1,6 +1,7 @@
 import FileScanner from './FileScanner/FileScanner.js'
 import Prefs from '../Prefs/Prefs.js'
 import getLogger from '../lib/Log.js'
+import type { EnhanceCandidate } from '../Youtube/EnhancedLrcQueue.js'
 
 const log = getLogger('queue')
 
@@ -9,7 +10,7 @@ class ScannerQueue {
   #isCanceling = false
   #q = []
   onIteration: (stats: any) => any
-  onDone: () => void
+  onDone: (candidates: EnhanceCandidate[]) => void
 
   constructor (onIteration, onDone) {
     this.onIteration = onIteration
@@ -50,16 +51,18 @@ class ScannerQueue {
 
   async start () {
     log.info('Starting media scan')
+    const allCandidates: any[] = []
 
     while (this.#q.length && !this.#isCanceling) {
       const prefs = Prefs.get()
       this.#instance = new FileScanner(prefs, { length: this.#q.length })
 
-      const stats = await this.#instance.scan(this.#q.shift())
+      const { stats, candidates } = await this.#instance.scan(this.#q.shift())
+      allCandidates.push(...candidates)
       this.onIteration(stats)
     }
 
-    this.onDone()
+    this.onDone(allCandidates)
   }
 
   stop () {

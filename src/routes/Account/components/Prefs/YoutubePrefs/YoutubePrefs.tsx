@@ -4,8 +4,8 @@ import Accordion from 'components/Accordion/Accordion'
 import Icon from 'components/Icon/Icon'
 import Button from 'components/Button/Button'
 import { fetchYoutubeConfig, saveYoutubeConfig } from 'store/modules/youtube'
-import { YOUTUBE_QUALITY_PRESETS } from 'shared/types'
-import type { YoutubeQualityPreset, YoutubeRole } from 'shared/types'
+import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ENHANCED_LRC_BACKENDS } from 'shared/types'
+import type { YoutubeQualityPreset, YoutubeRole, YoutubeEnhancedLrcBackend } from 'shared/types'
 
 const ROLE_LABEL: Record<Exclude<YoutubeRole, 'admin'>, { label: string, hint: string }> = {
   room_manager: {
@@ -28,6 +28,11 @@ const QUALITY_LABEL: Record<YoutubeQualityPreset, string> = {
   '720p': '720p (HD)',
   '480p': '480p (SD)',
   '360p': '360p (low)',
+}
+
+const ENHANCED_LRC_LABEL: Record<YoutubeEnhancedLrcBackend, string> = {
+  none: 'Disabled',
+  ctc: 'ctc-forced-aligner (word-level timestamps)',
 }
 import styles from './YoutubePrefs.css'
 
@@ -85,6 +90,10 @@ const YoutubePrefs = () => {
 
   const handleQualityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     dispatch(saveYoutubeConfig({ qualityPreset: e.currentTarget.value as YoutubeQualityPreset }))
+  }
+
+  const handleEnhancedLrcChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    dispatch(saveYoutubeConfig({ enhancedLrcBackend: e.currentTarget.value as YoutubeEnhancedLrcBackend }))
   }
 
   const handleScoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,6 +205,25 @@ const YoutubePrefs = () => {
           </select>
           <div className={styles.note}>
             Caps the resolution selected by yt-dlp. Lower = smaller files, faster downloads.
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <label htmlFor='yt-enhancedLrc'>Enhanced LRC (word-level timestamps)</label>
+          <select
+            id='yt-enhancedLrc'
+            value={config.enhancedLrcBackend ?? 'none'}
+            onChange={handleEnhancedLrcChange}
+            disabled={isSaving}
+          >
+            {YOUTUBE_ENHANCED_LRC_BACKENDS.map(b => (
+              <option key={b} value={b}>{ENHANCED_LRC_LABEL[b]}</option>
+            ))}
+          </select>
+          <div className={styles.note}>
+            When enabled, uses ctc-forced-aligner to add per-word timestamps to lyrics after vocal
+            separation. Requires <code>ctc-forced-aligner</code> on PATH. Set{' '}
+            <code>CTC_USE_GPU=1</code> env var to use CUDA.
           </div>
         </div>
 

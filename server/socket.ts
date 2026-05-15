@@ -6,6 +6,7 @@ import LibrarySocket from './Library/socket.js'
 import PlayerSocket from './Player/socket.js'
 import Prefs from './Prefs/Prefs.js'
 import PrefsSocket from './Prefs/socket.js'
+import UserPlayerPrefs from './UserPlayerPrefs/UserPlayerPrefs.js'
 import Rooms from './Rooms/Rooms.js'
 import RoomsSocket from './Rooms/socket.js'
 import Queue from './Queue/Queue.js'
@@ -19,6 +20,7 @@ import {
   PLAYER_STATUS,
   PLAYER_LEAVE,
   PREFS_PUSH,
+  USER_PLAYER_PREFS_PUSH,
   SOCKET_AUTH_ERROR,
   _ERROR,
 } from '../shared/actionTypes.js'
@@ -113,6 +115,10 @@ export default function (io, jwtKey) {
       io.to(sock.id).emit('action', {
         type: PREFS_PUSH,
         payload: Prefs.get(),
+      })
+      io.to(sock.id).emit('action', {
+        type: USER_PLAYER_PREFS_PUSH,
+        payload: UserPlayerPrefs.get(sock.user.userId),
       })
     }
 

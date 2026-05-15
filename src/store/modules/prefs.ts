@@ -6,11 +6,15 @@ import {
   PREFS_REQUEST,
   PREFS_SET,
   PREFS_PATH_UPDATE,
+  PREFS_PATH_SET_MANAGER,
   PREFS_PATH_SET_PRIORITY,
   PREFS_PUSH,
   PREFS_REQ_SCANNER_START,
   PREFS_REQ_SCANNER_STOP,
   SCANNER_WORKER_STATUS,
+  LRC_ENHANCE_STATUS,
+  USER_PLAYER_PREFS_SET,
+  USER_PLAYER_PREFS_PUSH,
   LOGOUT,
 } from 'shared/actionTypes'
 
@@ -22,10 +26,13 @@ const api = new HttpApi('prefs')
 // ------------------------------------
 const logout = createAction(LOGOUT)
 export const setPref = createAction<{ key: string, data: unknown }>(PREFS_SET)
+export const setUserPlayerPref = createAction<{ key: string, data: unknown }>(USER_PLAYER_PREFS_SET)
+const userPlayerPrefsPush = createAction<{ lrcFontSize: number; lrcDefaultOffset: number; isReplayGainEnabled: boolean }>(USER_PLAYER_PREFS_PUSH)
 export const receivePrefs = createAction<object>(PREFS_RECEIVE)
 export const setPathPriority = createAction<number[]>(PREFS_PATH_SET_PRIORITY)
 const prefsPush = createAction<PrefsState>(PREFS_PUSH)
 const scannerWorkerStatus = createAction<{ isScanning: boolean, pct: number, text: string }>(SCANNER_WORKER_STATUS)
+const lrcEnhanceStatus = createAction<{ isEnhancing: boolean, pct: number, text: string }>(LRC_ENHANCE_STATUS)
 
 export const setPathPrefs = createAsyncThunk(
   PREFS_PATH_UPDATE,
@@ -38,6 +45,23 @@ export const setPathPrefs = createAsyncThunk(
   }, thunkAPI) => {
     const response = await api.put(`/path/${pathId}`, {
       body: data,
+    })
+
+    thunkAPI.dispatch(receivePrefs(response))
+  },
+)
+
+export const setPathManager = createAsyncThunk(
+  PREFS_PATH_SET_MANAGER,
+  async ({
+    pathId,
+    userId,
+  }: {
+    pathId: number
+    userId: number | null
+  }, thunkAPI) => {
+    const response = await api.put(`/path/${pathId}/manager`, {
+      body: { userId },
     })
 
     thunkAPI.dispatch(receivePrefs(response))
@@ -92,6 +116,9 @@ interface PrefsState {
   }
   scannerPct: number
   scannerText: string
+  isEnhancing: boolean
+  enhancePct: number
+  enhanceText: string
 }
 
 const initialState: PrefsState = {
@@ -109,6 +136,9 @@ const initialState: PrefsState = {
   },
   scannerPct: 0,
   scannerText: '',
+  isEnhancing: false,
+  enhancePct: 0,
+  enhanceText: '',
 }
 
 const prefsReducer = createReducer(initialState, (builder) => {
@@ -130,6 +160,18 @@ const prefsReducer = createReducer(initialState, (builder) => {
       isScanning: payload.isScanning,
       scannerPct: payload.pct,
       scannerText: payload.text,
+    }))
+    .addCase(lrcEnhanceStatus, (state, { payload }) => ({
+      ...state,
+      isEnhancing: payload.isEnhancing,
+      enhancePct: payload.pct,
+      enhanceText: payload.text,
+    }))
+    .addCase(userPlayerPrefsPush, (state, { payload }) => ({
+      ...state,
+      lrcFontSize: payload.lrcFontSize,
+      lrcDefaultOffset: payload.lrcDefaultOffset,
+      isReplayGainEnabled: payload.isReplayGainEnabled,
     }))
 })
 

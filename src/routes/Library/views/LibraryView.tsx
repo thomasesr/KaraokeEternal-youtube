@@ -6,12 +6,13 @@ import SearchResults from '../components/SearchResults/SearchResults'
 import YoutubeSearchResults from '../components/YoutubeSearchResults/YoutubeSearchResults'
 import TextOverlay from 'components/TextOverlay/TextOverlay'
 import Spinner from 'components/Spinner/Spinner'
+import { getVisibleSongs } from '../selectors/getSearchResults'
 import styles from './LibraryView.css'
 
 const LibraryView = () => {
   const { isAdmin } = useAppSelector(state => state.user)
   const { isLoading, filterStr, filterStarred } = useAppSelector(state => state.library)
-  const songsResult = useAppSelector(state => state.songs.result)
+  const songsResult = useAppSelector(state => getVisibleSongs(state).result)
   const ui = useAppSelector(state => state.ui)
   const isYoutubeMode = useAppSelector(state => state.youtube.isModeActive)
 

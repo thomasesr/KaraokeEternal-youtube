@@ -37,11 +37,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip ffmpeg ca-certificates zip unzip curl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp and spleeter (TF 2.x CPU) via pip
+# Install yt-dlp and spleeter-thomasesr (CPU); TF version resolved by spleeter-thomasesr.
 # --break-system-packages: bypass PEP 668 restriction in Debian-managed Python
-RUN pip3 install --no-cache-dir --break-system-packages yt-dlp spleeter \
+RUN pip3 install --no-cache-dir --break-system-packages \
+    --timeout 300 --retries 5 \
+    yt-dlp "spleeter-thomasesr==3.0.0a1" \
   && yt-dlp --version \
   && python3 -c "import spleeter; print('spleeter ok')"
+
+# ctc-forced-aligner v1.x uses onnxruntime (no torch/torchaudio dependency).
+RUN pip3 install --no-cache-dir --break-system-packages \
+    --timeout 300 --retries 5 \
+    ctc-forced-aligner unidecode \
+  && python3 -c "import ctc_forced_aligner; print('ctc-forced-aligner ok')"
 
 # Install deno for yt-dlp EJS challenge solver (signature/n-param decryption).
 # Handles amd64 and arm64 builds.
@@ -62,7 +70,9 @@ RUN ARCH=$(uname -m) && \
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
     KES_PORT=3000 \
-    SPLEETER_DATA=/data/spleeter
+    SPLEETER_DATA=/data/spleeter \
+    CTC_USE_GPU=0 \
+    CTC_MODEL_PATH=/data/ctc
 
 WORKDIR /app
 

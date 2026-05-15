@@ -5,6 +5,7 @@ import {
   REQUEST_SCAN,
   REQUEST_SCAN_STOP,
   SCANNER_WORKER_STATUS,
+  LRC_ENHANCE_QUEUE,
 } from '../shared/actionTypes.js'
 
 const env = JSON.parse(process.env.KES_ENV_JSON)
@@ -69,7 +70,7 @@ function onIteration (stats) {
   return stats
 }
 
-function onDone () {
+function onDone (candidates: any[] = []) {
   IPC.send({
     type: SCANNER_WORKER_STATUS,
     payload: {
@@ -78,6 +79,10 @@ function onDone () {
       text: `Scan finished (${totals.new} new, ${totals.removed} removed)`,
     },
   })
+
+  if (candidates.length > 0) {
+    IPC.send({ type: LRC_ENHANCE_QUEUE, payload: { candidates } })
+  }
 
   process.exit(0) // eslint-disable-line n/no-process-exit
 }

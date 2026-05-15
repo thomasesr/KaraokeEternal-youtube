@@ -1,0 +1,8 @@
+# CPU-only requirements
+# Install: ./init.sh --install
+# or: pip3 install --break-system-packages -r requirements-cpu.txt
+
+yt-dlp
+spleeter-thomasesr==3.0.0a1
+ctc-forced-aligner
+unidecode

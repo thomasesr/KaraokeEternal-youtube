@@ -12,8 +12,11 @@ import Media from '../../Media/Media.js'
 import MetaParser from '../MetaParser/MetaParser.js'
 import Scanner from '../Scanner.js'
 import IPC from '../../lib/IPCBridge.js'
+import Prefs from '../../Prefs/Prefs.js'
 import fileTypes from '../../Media/fileTypes.js'
 import { processAudioOnly } from './AudioOnlyProcessor.js'
+import { isEnhancedLrc } from '../../Youtube/EnhancedLrc.js'
+import type { EnhanceCandidate } from '../../Youtube/EnhancedLrcQueue.js'
 import { LIBRARY_MATCH_SONG, MEDIA_ADD, MEDIA_REMOVE, MEDIA_UPDATE } from '../../../shared/actionTypes.js'
 const log = getLogger('FileScanner')
 
@@ -29,16 +32,19 @@ class FileScanner extends Scanner {
     this.paths = prefs.paths
   }
 
-  async scan (pathId) {
+  async scan (pathId): Promise<{ stats: { new: number; removed: number; existing: number }; candidates: EnhanceCandidate[] }> {
     const dir = this.paths.entities[pathId]?.path
     const validMediaIds = []
     const stats = { new: 0, removed: 0, existing: 0 }
+    const candidates: EnhanceCandidate[] = []
+    const ytPrefs = (Prefs.get() as any)?.youtube ?? {}
+    const enhancedLrcBackend = ytPrefs?.enhancedLrcBackend ?? 'none'
     let files // { file, stats }[]
     let prevDir
 
     if (!dir) {
       log.error('invalid pathId: %s', pathId)
-      return stats
+      return { stats, candidates: [] }
     }
 
     log.info('Searching: %s', dir)
@@ -53,7 +59,7 @@ class FileScanner extends Scanner {
       )
     } catch (err) {
       log.error(`  => ${err.message} (path offline)`)
-      return stats
+      return { stats, candidates: [] }
     }
 
     for (let i = 0; i < files.length; i++) {
@@ -77,13 +83,18 @@ class FileScanner extends Scanner {
 
         if (res.isNew) stats.new++
         else stats.existing++
+
+        if (enhancedLrcBackend === 'ctc' && getExt(files[i].file) === '.zip') {
+          const cand = await this.checkEnhanceCandidate(files[i].file, res.mediaId)
+          if (cand) candidates.push(cand)
+        }
       } catch (err) {
         log.warn(`  => ${err.message}`)
       }
 
       if (this.isCanceling) {
         this.emitStatus('Stopped', 100, false)
-        return stats
+        return { stats, candidates }
       }
     } // end for
 
@@ -94,7 +105,28 @@ class FileScanner extends Scanner {
     stats.removed = numRemoved
     log.info(`Removed ${numRemoved} invalid media entries`)
 
-    return stats
+    return { stats, candidates }
+  }
+
+  async checkEnhanceCandidate (file: string, mediaId: number): Promise<EnhanceCandidate | null> {
+    try {
+      const buf = await fsPromises.readFile(file)
+      const { entries } = await unzip(new Uint8Array(buf))
+      const lrcName = Object.keys(entries).find(f => !f.includes('/') && getExt(f) === '.lrc')
+      const hasVocals = Object.keys(entries).includes('vocals.mp3')
+      if (!lrcName || !hasVocals) return null
+      const lrcBuf = Buffer.from(await entries[lrcName].arrayBuffer())
+      if (isEnhancedLrc(lrcBuf.slice(0, 512).toString('utf8'))) return null
+      // parse artist/title from zip filename (built by buildFilenameBase)
+      const base = path.basename(file, '.zip')
+      const sep = ' - '
+      const idx = base.indexOf(sep)
+      const artist = idx >= 0 ? base.slice(0, idx) : ''
+      const title = idx >= 0 ? base.slice(idx + sep.length) : base
+      return { mediaId, zipPath: file, artist, title }
+    } catch {
+      return null
+    }
   }
 
   async process ({ file }, pathId) {

@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Accordion from 'components/Accordion/Accordion'
 import Icon from 'components/Icon/Icon'
 import Slider from 'components/Slider/Slider'
-import { setPref } from 'store/modules/prefs'
+import { setUserPlayerPref } from 'store/modules/prefs'
 import styles from './PlayerPrefs.css'
 
 const PlayerPrefs = () => {
@@ -13,15 +13,15 @@ const PlayerPrefs = () => {
   const dispatch = useAppDispatch()
 
   const toggleCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setPref({ key: e.currentTarget.name, data: e.currentTarget.checked }))
+    dispatch(setUserPlayerPref({ key: e.currentTarget.name, data: e.currentTarget.checked }))
   }
 
   const handleLrcDefaultOffset = (val: number) => {
-    dispatch(setPref({ key: 'lrcDefaultOffset', data: val }))
+    dispatch(setUserPlayerPref({ key: 'lrcDefaultOffset', data: val }))
   }
 
   const handleLrcFontSize = (val: number) => {
-    dispatch(setPref({ key: 'lrcFontSize', data: val }))
+    dispatch(setUserPlayerPref({ key: 'lrcFontSize', data: val }))
   }
 
   return (

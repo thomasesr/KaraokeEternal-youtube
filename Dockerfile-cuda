@@ -42,16 +42,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip ffmpeg ca-certificates zip unzip curl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp, spleeter, and tensorflow[and-cuda] (bundles CUDA 12.x libs).
-# Pin tensorflow to avoid slow pip resolver iterating NVIDIA package versions.
-# tensorflow[and-cuda] must be listed before spleeter so pip resolves the GPU
-# variant before satisfying spleeter's tensorflow>=2.3.0 dependency.
+# Install yt-dlp, spleeter-thomasesr, and tensorflow[and-cuda] (bundles CUDA libs).
+# tensorflow[and-cuda] listed before spleeter-thomasesr so pip selects the GPU
+# variant to satisfy spleeter-thomasesr's tensorflow dependency.
 # --break-system-packages: bypass PEP 668 restriction in Debian-managed Python
 RUN pip3 install --no-cache-dir --break-system-packages \
     --timeout 300 --retries 5 \
-    yt-dlp "tensorflow[and-cuda]==2.15.1" spleeter \
+    yt-dlp "tensorflow[and-cuda]" "spleeter-thomasesr==3.0.0a1" \
   && yt-dlp --version \
   && python3 -c "import spleeter; print('spleeter ok')"
+
+# ctc-forced-aligner v1.x uses onnxruntime (no torch/torchaudio dependency).
+RUN pip3 install --no-cache-dir --break-system-packages \
+    --timeout 300 --retries 5 \
+    ctc-forced-aligner unidecode \
+  && python3 -c "import ctc_forced_aligner; print('ctc-forced-aligner ok')"
 
 # Install deno for yt-dlp EJS challenge solver (signature/n-param decryption).
 # Handles amd64 and arm64 builds.
@@ -74,7 +79,9 @@ ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
     KES_PORT=3000 \
     SPLEETER_DATA=/data/spleeter \
-    TF_FORCE_GPU_ALLOW_GROWTH=true
+    TF_FORCE_GPU_ALLOW_GROWTH=true \
+    CTC_USE_GPU=1 \
+    CTC_MODEL_PATH=/data/ctc
 
 WORKDIR /app
 

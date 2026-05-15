@@ -10,6 +10,7 @@ export interface Song {
   songId: number
   title: string
   numMedia: number
+  managedByUserId?: number | null
 }
 
 export interface QueueItem {
@@ -70,6 +71,7 @@ export interface Path {
   pathId: number
   path: string
   priority: number
+  managedByUserId?: number | null
   prefs: {
     isAudioOnlyEnabled: boolean
     isVideoKeyingEnabled: boolean
@@ -131,6 +133,10 @@ export type YoutubeRole = 'admin' | 'room_manager' | 'standard' | 'guest'
 
 export const YOUTUBE_ROLES: YoutubeRole[] = ['admin', 'room_manager', 'standard', 'guest']
 
+export type YoutubeEnhancedLrcBackend = 'none' | 'ctc'
+
+export const YOUTUBE_ENHANCED_LRC_BACKENDS: YoutubeEnhancedLrcBackend[] = ['none', 'ctc']
+
 export interface IYoutubePrefs {
   isEnabled: boolean
   downloadPathId: number | null
@@ -138,6 +144,7 @@ export interface IYoutubePrefs {
   qualityPreset: YoutubeQualityPreset
   musicbrainzMinScore: number
   allowedRoles: YoutubeRole[]
+  enhancedLrcBackend: YoutubeEnhancedLrcBackend
   isApiKeyConfigured: boolean
   isApiKeyFromEnv: boolean
   isCookiesConfigured: boolean

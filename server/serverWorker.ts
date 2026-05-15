@@ -20,6 +20,7 @@ import libraryRouter from './Library/router.js'
 import mediaRouter from './Media/router.js'
 import prefsRouter from './Prefs/router.js'
 import roomsRouter from './Rooms/router.js'
+import uploadRouter from './Upload/router.js'
 import userRouter from './User/router.js'
 import youtubeRouter from './Youtube/router.js'
 import pushQueuesAndLibrary from './lib/pushQueuesAndLibrary.js'
@@ -28,6 +29,7 @@ import socketActions from './socket.js'
 import IPC from './lib/IPCBridge.js'
 import IPCLibraryActions from './Library/ipc.js'
 import IPCMediaActions from './Media/ipc.js'
+import IPCYoutubeActions from './Youtube/ipc.js'
 import { SCANNER_WORKER_EXITED, SERVER_WORKER_STATUS, SERVER_WORKER_ERROR } from '../shared/actionTypes.js'
 
 const log = getLogger('server')
@@ -69,6 +71,7 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
     // attach IPC action handlers
     IPC.use(IPCLibraryActions(io))
     IPC.use(IPCMediaActions(io))
+    IPC.use(IPCYoutubeActions(io))
 
     // success callback in 3rd arg
     server.listen(env.KES_PORT, () => {
@@ -185,6 +188,7 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
   baseRouter.use(mediaRouter.routes())
   baseRouter.use(prefsRouter.routes())
   baseRouter.use(roomsRouter.routes())
+  baseRouter.use(uploadRouter.routes())
   baseRouter.use(userRouter.routes())
   baseRouter.use(youtubeRouter.routes())
   app.use(baseRouter.routes())

@@ -56,6 +56,9 @@ const Header = React.forwardRef<HTMLDivElement>((_, ref) => {
   const isScanning = useAppSelector(state => state.prefs.isScanning)
   const scannerText = useAppSelector(state => state.prefs.scannerText)
   const scannerPct = useAppSelector(state => state.prefs.scannerPct)
+  const isEnhancing = useAppSelector(state => state.prefs.isEnhancing)
+  const enhanceText = useAppSelector(state => state.prefs.enhanceText)
+  const enhancePct = useAppSelector(state => state.prefs.enhancePct)
   const { isUpNext, isUpNow } = useAppSelector(getStatusProps)
   const wait = useAppSelector(getUserWait)
 
@@ -83,6 +86,16 @@ const Header = React.forwardRef<HTMLDivElement>((_, ref) => {
             onCancel={cancelScan}
             pct={scannerPct}
             text={scannerText}
+          />
+        )}
+
+      {isAdmin && !isPlayer
+        && (
+          <ProgressBar
+            isActive={isEnhancing}
+            onCancel={() => {}}
+            pct={enhancePct}
+            text={enhanceText}
           />
         )}
 

@@ -14,6 +14,111 @@ warn() { printf "${YELLOW}  [WARN]${RESET} %s\n"  "$*"; }
 info() { printf "${CYAN}  -->  ${RESET}%s\n"    "$*"; }
 hdr()  { printf "\n${BOLD}%s${RESET}\n" "$*"; }
 
+# ---------------------------------------------------------------------------
+# --install subcommand
+# ---------------------------------------------------------------------------
+INSTALL_MODE=false
+INSTALL_GPU=false
+for _arg in "$@"; do
+  case "$_arg" in
+    --install)     INSTALL_MODE=true ;;
+    --install-gpu) INSTALL_MODE=true; INSTALL_GPU=true ;;
+  esac
+done
+
+install_deps() {
+  hdr "=== KaraokeEternal installer ==="
+
+  # ---- System packages (apt) -----------------------------------------------
+  hdr "System packages (apt)"
+  if [ "$(id -u)" != "0" ]; then
+    warn "Not root — skipping apt. Re-run with sudo to install system packages."
+  else
+    apt-get update
+    apt-get install -y --no-install-recommends \
+      python3 python3-pip ffmpeg ca-certificates zip unzip curl git build-essential
+    rm -rf /var/lib/apt/lists/*
+    ok "apt packages installed"
+  fi
+
+  # ---- nvm + Node 24 --------------------------------------------------------
+  hdr "Node.js (nvm)"
+  NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    info "Installing nvm..."
+    # Temporarily relax errexit so nvm installer can set up shell hooks
+    set +e
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+    set -e
+    ok "nvm installed → $NVM_DIR"
+  else
+    ok "nvm already present → $NVM_DIR"
+  fi
+  # shellcheck source=/dev/null
+  \. "$NVM_DIR/nvm.sh"
+  nvm install 24
+  nvm use 24
+  nvm alias default 24
+  ok "Node $(node --version) / npm $(npm --version)"
+
+  # ---- Deno -----------------------------------------------------------------
+  hdr "Deno"
+  DENO_VERSION="${DENO_VERSION:-2.3.3}"
+  if command -v deno > /dev/null 2>&1; then
+    ok "deno already present — $(deno --version | head -1)"
+  else
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "aarch64" ]; then DARCH="aarch64-unknown-linux-gnu"
+    else DARCH="x86_64-unknown-linux-gnu"; fi
+    curl -fsSL \
+      "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${DARCH}.zip" \
+      -o /tmp/deno.zip
+    unzip /tmp/deno.zip -d /usr/local/bin/
+    chmod +x /usr/local/bin/deno
+    rm /tmp/deno.zip
+    ok "deno $(deno --version | head -1)"
+  fi
+
+  # ---- Python packages (pip3) -----------------------------------------------
+  hdr "Python packages (pip3)"
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # --install-gpu flag overrides CTC_USE_GPU env var
+  if [ "$INSTALL_GPU" = true ]; then GPU=1
+  else GPU="${CTC_USE_GPU:-0}"; fi
+  if [ "$GPU" = "1" ]; then
+    REQ_FILE="${SCRIPT_DIR}/requirements.txt"
+    info "CTC_USE_GPU=1 → GPU (CUDA) requirements"
+  else
+    REQ_FILE="${SCRIPT_DIR}/requirements-cpu.txt"
+    info "CTC_USE_GPU=0 → CPU requirements"
+  fi
+
+  if [ ! -f "$REQ_FILE" ]; then
+    fail "Requirements file not found: $REQ_FILE"
+  fi
+
+  # Step 1: yt-dlp + spleeter (TF resolved by spleeter-thomasesr)
+  info "Installing yt-dlp + spleeter..."
+  pip3 install --no-cache-dir --break-system-packages \
+    --timeout 300 --retries 5 \
+    yt-dlp "spleeter-thomasesr==3.0.0a1"
+  ok "yt-dlp + spleeter installed"
+
+  # Step 2: ctc-forced-aligner (onnxruntime-based; no torch dependency)
+  info "Installing ctc-forced-aligner..."
+  pip3 install --no-cache-dir --break-system-packages \
+    --timeout 300 --retries 5 \
+    ctc-forced-aligner unidecode
+  ok "ctc-forced-aligner installed"
+}
+
+if [ "$INSTALL_MODE" = true ]; then
+  install_deps
+  hdr "Done"
+  ok "Installation complete. Run './init.sh' to start KaraokeEternal."
+  exit 0
+fi
+
 hdr "=== KaraokeEternal startup check ==="
 
 # ---------------------------------------------------------------------------
@@ -46,10 +151,50 @@ check_dep "unzip"   "unzip"   "unzip -v 2>&1 | head -1"
 
 # spleeter is a Python package, not always on PATH as a binary
 if python3 -c "import spleeter" 2>/dev/null; then
-  ver=$(pip3 show spleeter 2>/dev/null | awk '/^Version:/ {print $2}')
+  ver=$(pip3 show spleeter-thomasesr 2>/dev/null | awk '/^Version:/ {print $2}')
   ok "spleeter (python module) — ${ver:-installed}"
 else
-  fail "spleeter — Python module not found (pip3 install spleeter)"
+  fail "spleeter — Python module not found (pip3 install spleeter-thomasesr)"
+fi
+
+# ---------------------------------------------------------------------------
+# ctc-forced-aligner (optional — required only when enhancedLrcBackend=ctc)
+# ---------------------------------------------------------------------------
+hdr "Enhanced LRC (ctc-forced-aligner)"
+
+export CTC_MODEL_PATH="${CTC_MODEL_PATH:-${KES_PATH_DATA:-/data}/ctc}"
+CTC_MODEL_FILE="${CTC_MODEL_PATH}/model.onnx"
+CTC_MODEL_URL="https://huggingface.co/deskpai/ctc_forced_aligner/resolve/main/04ac86b67129634da93aea76e0147ef3.onnx"
+
+if python3 -c "import ctc_forced_aligner" 2>/dev/null; then
+  ctc_ver=$(pip3 show ctc-forced-aligner 2>/dev/null | awk '/^Version:/ {print $2}')
+  ok "ctc-forced-aligner (python module) — ${ctc_ver:-installed}"
+
+  # Check onnxruntime (required by ctc-forced-aligner v1.x)
+  if python3 -c "import onnxruntime" 2>/dev/null; then
+    ort_ver=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null)
+    ok "onnxruntime — ${ort_ver:-installed}"
+  else
+    warn "onnxruntime not found — ctc-forced-aligner will fail at runtime (pip3 install onnxruntime)"
+  fi
+
+  # Download ONNX alignment model if not present
+  ok "CTC_MODEL_PATH = ${CTC_MODEL_PATH}"
+  if [ -f "${CTC_MODEL_FILE}" ]; then
+    ok "ONNX alignment model present — ${CTC_MODEL_FILE}"
+  else
+    info "Fetching ONNX alignment model → ${CTC_MODEL_FILE} ..."
+    mkdir -p "${CTC_MODEL_PATH}"
+    if curl -fsSL -o "${CTC_MODEL_FILE}" "${CTC_MODEL_URL}"; then
+      ok "ONNX alignment model downloaded — ${CTC_MODEL_FILE}"
+    else
+      rm -f "${CTC_MODEL_FILE}"
+      warn "Failed to download ONNX alignment model — Enhanced LRC will fail at runtime"
+    fi
+  fi
+else
+  warn "ctc-forced-aligner not found — Enhanced LRC feature will be unavailable"
+  warn "  Install: pip3 install ctc-forced-aligner"
 fi
 
 # ---------------------------------------------------------------------------
@@ -158,6 +303,8 @@ ok "KES_PATH_DATA  = ${KES_PATH_DATA:-<unset>}"
 ok "KES_PORT       = ${KES_PORT:-<unset>}"
 ok "SPLEETER_DATA  = ${SPLEETER_DATA}"
 ok "SPLEETER_MODEL = ${SPLEETER_MODEL}"
+ok "CTC_MODEL_PATH = ${CTC_MODEL_PATH}"
+ok "CTC_USE_GPU    = ${CTC_USE_GPU:-0} (0=cpu, 1=cuda)"
 
 if [ -n "${KES_YOUTUBE_API_KEY:-}" ]; then
   ok "KES_YOUTUBE_API_KEY = <set>"

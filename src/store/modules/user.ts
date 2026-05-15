@@ -166,6 +166,8 @@ interface UserState {
   isGuest: boolean
   role: string | null
   managedRoomIds: number[]
+  managedPathId: number | null
+  roomManagerIds: number[]
   dateCreated: number
   dateUpdated: number
 }
@@ -179,6 +181,8 @@ const initialState: UserState = {
   isGuest: false,
   role: null,
   managedRoomIds: [],
+  managedPathId: null,
+  roomManagerIds: [],
   dateCreated: 0,
   dateUpdated: 0,
 }

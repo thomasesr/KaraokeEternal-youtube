@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { scrollArtists, toggleArtistExpanded } from '../../modules/library'
 import getAlphaPickerMap from '../../selectors/getAlphaPickerMap'
 import getSongsStatus from '../../selectors/getSongsStatus'
+import { getVisibleArtists } from '../../selectors/getSearchResults'
 import PaddedList from 'components/PaddedList/PaddedList'
 import AlphaPicker from '../AlphaPicker/AlphaPicker'
 import ArtistItem from '../ArtistItem/ArtistItem'
@@ -62,7 +63,7 @@ const ArtistList = ({
   const { expandedArtists } = useAppSelector(state => state.library)
   const scrollRow = useAppSelector(state => state.library.scrollRow)
   const alphaPickerMap = useAppSelector(getAlphaPickerMap)
-  const artists = useAppSelector(state => state.artists)
+  const artists = useAppSelector(getVisibleArtists)
 
   const lastScrollRow = useRef(scrollRow)
   const list = useRef<ListImperativeAPI | null>(null)

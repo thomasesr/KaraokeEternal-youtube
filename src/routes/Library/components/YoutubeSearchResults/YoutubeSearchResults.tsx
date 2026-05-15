@@ -6,6 +6,7 @@ import {
   youtubeDownloadStart,
   youtubeDownloadStatus,
   youtubeIdentify,
+  youtubeProbe,
   youtubeSearchMore,
 } from 'store/modules/youtube'
 import styles from './YoutubeSearchResults.css'
@@ -49,9 +50,11 @@ function formatViewCount (n: number): string {
 function stageLabel (stage: string | null): string {
   switch (stage) {
     case 'downloading': return 'Downloading…'
+    case 'tagging': return 'Writing tags…'
     case 'separating': return 'Separating vocals…'
     case 'converting': return 'Converting…'
     case 'fetching-lrc': return 'Fetching lyrics…'
+    case 'enhancing-lrc': return 'Enhancing lyrics…'
     case 'zipping': return 'Packaging…'
     default: return 'Processing…'
   }
@@ -110,11 +113,12 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
       artist,
       title,
       duration,
-      ...(isKaraoke ? {} : { mode: 'spleeter' as const }),
+      ...(isKaraoke ? {} : { mode: 'audioonly' as const }),
     }))
   }
 
   const onDownload = async (videoId: string, videoTitle: string, duration: number, isKaraoke: boolean) => {
+    dispatch(youtubeProbe(videoId)) // warm probe cache in parallel with identify
     setIdentifyingId(videoId)
     try {
       const action = await dispatch(youtubeIdentify({ title: videoTitle }))
@@ -264,7 +268,9 @@ const YoutubeSearchResults = ({ paddingTop, paddingBottom, height }: Props) => {
               {(() => {
                 const job = downloads[item.videoId]
                 if (job?.status === 'downloading' || job?.status === 'queued') {
-                  const label = job.stage ? stageLabel(job.stage) : `Downloading ${Math.round(job.progress)}%`
+                  const label = (job.stage && job.stage !== 'downloading')
+                    ? stageLabel(job.stage)
+                    : `Downloading ${Math.round(job.progress)}%`
                   return (
                     <Button as='span' variant='primary' disabled>
                       {label}
