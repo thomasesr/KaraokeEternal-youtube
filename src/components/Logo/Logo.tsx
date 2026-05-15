@@ -28,11 +28,16 @@ const Logo = (props: LogoProps) => {
     }
   }, [])
 
+  const BASE_LEN = 7
+  const scale = subtitle.length > BASE_LEN ? BASE_LEN / subtitle.length : 1
+  const fontSize = `${Math.round(40 * scale)}%`
+  const letterSpacing = `${(0.9 * scale).toFixed(2)}em`
+
   return (
     <div className={clsx(styles.container, props.className)} role='img' aria-label={`Karaoke ${subtitle}`}>
       <span className={styles.title} aria-hidden='true'>
         Karaoke
-        <span className={clsx(styles.eternal, { [styles.eternalVisible]: isFontLoaded })}>
+        <span className={clsx(styles.eternal, { [styles.eternalVisible]: isFontLoaded })} style={{ fontSize, letterSpacing }}>
           {subtitle.length > 1
             ? <>{subtitle.slice(0, -1)}<span className={styles.lastChar}>{subtitle.slice(-1)}</span></>
             : <span className={styles.lastChar}>{subtitle}</span>}
