@@ -30,6 +30,12 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
 - **Room manager role** (this fork): delegate per-room queue control and
   media version preferences to a trusted user without granting full admin
   access.
+- **PWA / installable app** (this fork): install the app to your home
+  screen per room — each room gets its own name, icon, and launch URL so
+  singers can open directly into the right room.
+- **Push notifications** (this fork): singers receive a browser push
+  notification when it's their turn to sing, even if the tab is in the
+  background. Works on Android and desktop; iOS requires Safari 16.4+.
 
 ## YouTube integration
 
