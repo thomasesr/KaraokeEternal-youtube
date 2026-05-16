@@ -353,6 +353,12 @@ class Queue {
     return row?.songId === songId
   }
 
+  static getUserIdForQueueItem (queueId: number): number | null {
+    const query = sql`SELECT userId FROM queue WHERE queueId = ${queueId}`
+    const row = db.get<{ userId: number }>(String(query), query.parameters)
+    return row?.userId ?? null
+  }
+
   /**
    * Get media type from file extension
    */

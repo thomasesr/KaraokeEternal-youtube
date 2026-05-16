@@ -20,9 +20,7 @@ export function subscribePush (): AppThunk {
       }
 
       if ('Notification' in window) {
-        if (Notification.permission === 'denied') {
-          return
-        }
+        if (Notification.permission === 'denied') return
         if (Notification.permission === 'default') {
           const perm = await Notification.requestPermission()
           if (perm !== 'granted') return
@@ -33,25 +31,42 @@ export function subscribePush (): AppThunk {
       const registration = await navigator.serviceWorker.register(swUrl, {
         scope: new URL('.', document.baseURI).href,
       })
-
       await navigator.serviceWorker.ready
 
-      const existing = await registration.pushManager.getSubscription()
-      if (existing) {
-        dispatch(subscribeSuccess())
-        return
-      }
-
       const base = document.baseURI
+
+      // Fetch VAPID key first — needed to detect key rotation and for new subscriptions
       const keyRes = await fetch(`${base}api/push/vapid-public-key`, { credentials: 'include' })
       if (!keyRes.ok) throw new Error(`Failed to get VAPID public key: ${keyRes.status}`)
       const { publicKey } = await keyRes.json()
+      const currentKey = urlBase64ToUint8Array(publicKey)
 
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      })
+      let subscription = await registration.pushManager.getSubscription()
 
+      if (subscription) {
+        // If the server rotated its VAPID keys the existing browser subscription is
+        // incompatible — unsubscribe so we create a fresh one below.
+        const existingKey = subscription.options?.applicationServerKey
+        if (existingKey) {
+          const existingArr = new Uint8Array(existingKey as ArrayBuffer)
+          const keysMatch = existingArr.length === currentKey.length &&
+            existingArr.every((b, i) => b === currentKey[i])
+          if (!keysMatch) {
+            await subscription.unsubscribe()
+            subscription = null
+          }
+        }
+      }
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: currentKey,
+        })
+      }
+
+      // Always re-register with the server — handles DB wipes, server restarts,
+      // and re-logins where the server lost the subscription record.
       const res = await fetch(`${base}api/push/subscribe`, {
         method: 'POST',
         credentials: 'include',

@@ -1,5 +1,6 @@
 import KoaRouter from '@koa/router'
 import Rooms from '../Rooms/Rooms.js'
+import Queue from '../Queue/Queue.js'
 import getLogger from '../lib/Log.js'
 import { PLAYER_CMD_PLAY } from '../../shared/actionTypes.js'
 
@@ -20,18 +21,24 @@ router.post('/singer-play', (ctx) => {
   const isRoomManager = role === 'room_manager' && Rooms.isManager(roomId, userId)
 
   if (!isAdmin && !isRoomManager) {
-    // verify this user is the next singer
-    let nextUserId: number | null = null
+    // Find the player socket for this room and check who owns the waiting queue item
+    let waitingQueueId: number | null = null
 
     for (const s of ctx.io.of('/').sockets.values()) {
       const sock = s as any
-      if (sock.user?.roomId === roomId && sock._lastPlayerStatus) {
-        nextUserId = sock._lastPlayerStatus.nextUserId ?? null
+      if (sock.user?.roomId === roomId && sock._lastPlayerStatus?.isWaitingForSinger) {
+        waitingQueueId = sock._lastPlayerStatus.queueId ?? null
         break
       }
     }
 
-    if (nextUserId !== userId) {
+    if (waitingQueueId === null) {
+      ctx.throw(403, 'Player is not waiting for a singer')
+    }
+
+    const singerUserId = Queue.getUserIdForQueueItem(waitingQueueId)
+
+    if (singerUserId !== userId) {
       ctx.throw(403, 'Not your turn')
     }
   }

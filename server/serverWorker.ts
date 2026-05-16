@@ -8,7 +8,7 @@ import parseCookie from './lib/parseCookie.js'
 import jsonWebToken from 'jsonwebtoken'
 import Koa from 'koa'
 import koaRouter from '@koa/router'
-import { koaBody } from 'koa-body'
+import { koaBody, HttpMethodEnum } from 'koa-body'
 import koaFavicon from 'koa-favicon'
 import koaLogger from 'koa-logger'
 import koaMount from 'koa-mount'
@@ -144,7 +144,7 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
 
   app.use(koaFavicon(path.join(env.KES_PATH_ASSETS, 'favicon.ico')))
   app.use(koaRange)
-  app.use(koaBody({ multipart: true }))
+  app.use(koaBody({ multipart: true, parsedMethods: [HttpMethodEnum.POST, HttpMethodEnum.PUT, HttpMethodEnum.PATCH, HttpMethodEnum.DELETE] }))
 
   // all http requests
   app.use(async (ctx, next) => {

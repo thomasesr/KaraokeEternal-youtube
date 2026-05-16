@@ -47,9 +47,9 @@ const PlayerController = (props: PlayerControllerProps) => {
   const defaultFontSizeApplied = useRef(false)
   const leadWarnFired = useRef(false)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // kept in sync so setTimeout callbacks can read current state without stale closure
   const isWaitingRef = useRef(player.isWaitingForSinger)
-  const nextUserIdRef = useRef(player.nextUserId)
+  // userId of the singer whose turn it is — for the 15-second reminder callback
+  const pendingWaitingUserRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!defaultOffsetApplied.current && typeof prefs.lrcDefaultOffset === 'number') {
@@ -65,9 +65,8 @@ const PlayerController = (props: PlayerControllerProps) => {
     }
   }, [prefs.lrcFontSize, dispatch])
 
-  // keep refs current for use inside setTimeout callbacks
+  // keep ref current for use inside setTimeout callbacks
   useEffect(() => { isWaitingRef.current = player.isWaitingForSinger }, [player.isWaitingForSinger])
-  useEffect(() => { nextUserIdRef.current = player.nextUserId }, [player.nextUserId])
 
   // reset lead warn flag when song changes
   useEffect(() => {
@@ -118,6 +117,8 @@ const PlayerController = (props: PlayerControllerProps) => {
 
     // queue exhausted?
     if (!nextQueueItem) {
+      if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
+      pendingWaitingUserRef.current = null
       handleStatus({
         historyJSON: JSON.stringify(history),
         isAtQueueEnd: true,
@@ -125,9 +126,31 @@ const PlayerController = (props: PlayerControllerProps) => {
         mediaType: null,
         _isPlayingNext: false,
       })
-
       return
     }
+
+    // notify the next singer immediately — before Redux state propagates through socket
+    const singerUserId = nextQueueItem.userId
+    sendPushNotification(
+      singerUserId,
+      "It's your turn to sing!",
+      'Step up and press Play when ready.',
+      [{ action: 'play-now', title: 'Play Now' }],
+    )
+
+    pendingWaitingUserRef.current = singerUserId
+    if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
+    waitingTimerRef.current = setTimeout(() => {
+      waitingTimerRef.current = null
+      if (isWaitingRef.current && pendingWaitingUserRef.current !== null) {
+        sendPushNotification(
+          pendingWaitingUserRef.current,
+          'Your fans are waiting!',
+          'The room is ready — press Play to start.',
+          [{ action: 'play-now', title: 'Play Now' }],
+        )
+      }
+    }, 15_000)
 
     // advance queue but pause — wait for next singer to press play
     handleStatus({
@@ -156,7 +179,7 @@ const PlayerController = (props: PlayerControllerProps) => {
     }
   }, [handleStatus, nextQueueItem, player.nextUserId, queue, queueItem])
 
-  // lead warn: fire once when time remaining drops to threshold
+  // notification 1: fire once when time remaining drops to lead threshold
   useEffect(() => {
     if (
       !leadWarnFired.current
@@ -170,44 +193,23 @@ const PlayerController = (props: PlayerControllerProps) => {
 
       if (timeRemaining > 0 && timeRemaining <= leadSeconds) {
         leadWarnFired.current = true
+        const secsDisplay = Math.round(timeRemaining)
         sendPushNotification(
           player.nextUserId,
-          'You\'re up next!',
-          'Get ready — your song is starting soon.',
+          'Your song is about to start!',
+          `Get ready — it starts in about ${secsDisplay} seconds.`,
         )
       }
     }
   }, [player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyLeadSeconds])
 
-  // waiting notification: fire when player pauses waiting for next singer
+  // clear reminder timer and ref when singer presses Play (waiting ends)
   useEffect(() => {
-    if (player.isWaitingForSinger && player.nextUserId !== null) {
-      sendPushNotification(
-        player.nextUserId,
-        'It\'s your turn to sing!',
-        'Step up and press Play when ready.',
-        [{ action: 'play-now', title: 'Play Now' }],
-      )
-
-      if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
-      waitingTimerRef.current = setTimeout(() => {
-        waitingTimerRef.current = null
-        if (isWaitingRef.current && nextUserIdRef.current !== null) {
-          sendPushNotification(
-            nextUserIdRef.current,
-            'Still waiting for you!',
-            'The room is ready. Press Play to start.',
-            [{ action: 'play-now', title: 'Play Now' }],
-          )
-        }
-      }, 10_000)
-    } else {
-      if (waitingTimerRef.current) {
-        clearTimeout(waitingTimerRef.current)
-        waitingTimerRef.current = null
-      }
+    if (!player.isWaitingForSinger) {
+      if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
+      pendingWaitingUserRef.current = null
     }
-  }, [player.isWaitingForSinger, player.nextUserId])
+  }, [player.isWaitingForSinger])
 
   // always emit status when any of these change
   useEffect(() => handleStatus({ isVideoKeyingEnabled: queueItem?.isVideoKeyingEnabled }), [
