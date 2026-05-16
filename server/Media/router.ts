@@ -90,7 +90,13 @@ router.get('/:mediaId', async (ctx) => {
   if (!ctx.type) ctx.throw(404, `Unknown MIME type: ${file}`)
 
   log.verbose('streaming %s (%sMB): %s', ctx.type, (ctx.length / 1000000).toFixed(2), file)
-  ctx.body = buffer ? Readable.from(buffer) : fs.createReadStream(file)
+  if (buffer) {
+    ctx.body = Readable.from(buffer)
+  } else {
+    const stream = fs.createReadStream(file)
+    ctx.res.on('close', () => stream.destroy())
+    ctx.body = stream
+  }
 })
 
 /**

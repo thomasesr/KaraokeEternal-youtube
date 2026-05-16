@@ -95,6 +95,13 @@ const QRPrefs = ({ onChange, prefs = {}, roomPassword, roomPasswordDirty }: QRPr
             aria-labelledby='label-qr-opacity'
           />
         </div>
+        <div className={styles.field}>
+          <InputCheckbox
+            label={t('rooms.qrSimple')}
+            checked={prefs?.qr?.simpleQr ?? false}
+            onChange={event => handleSetPref({ qr: { ...prefs.qr, simpleQr: event.currentTarget.checked } })}
+          />
+        </div>
       </div>
     </Accordion>
   )

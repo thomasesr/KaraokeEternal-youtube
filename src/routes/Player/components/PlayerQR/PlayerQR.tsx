@@ -82,8 +82,8 @@ const PlayerQR = ({ height, prefs, queueItem }: PlayerQRProps) => {
     url.searchParams.append('password', btoa(prefs.password))
   }
 
-  const size = Math.round(height * (0.05 + (prefs.size ?? 0.5) / 5)) // min: 5vh, max: 25vh
-  const quietZoneSize = 5 + (10 * (prefs.size ?? 0.5)) // min: 5px, max: 15px
+  const size = Math.round(height * (0.1 + (prefs.size ?? 0.5) / 4)) // min: 10vh, max: 35vh
+  const quietZoneSize = 8 + (12 * (prefs.size ?? 0.5)) // min: 8px, max: 20px
 
   return (
     <CSSTransition
@@ -111,18 +111,33 @@ const PlayerQR = ({ height, prefs, queueItem }: PlayerQRProps) => {
         className={clsx(styles.container, alternate && styles.alternate)}
         ref={ref}
       >
-        <QRCode
-          value={url.href}
-          ecLevel='L'
-          size={size}
-          quietZone={quietZoneSize}
-          style={{ opacity: prefs.opacity ?? 0.625 }}
-          logoImage={`${document.baseURI}assets/app.png`}
-          logoWidth={size * 0.5}
-          logoHeight={size * 0.5}
-          logoOpacity={0.5}
-          qrStyle='dots'
-        />
+        {prefs.simpleQr
+          ? (
+              <QRCode
+                value={url.href}
+                ecLevel='H'
+                size={size}
+                quietZone={quietZoneSize}
+                style={{ opacity: prefs.opacity ?? 0.625 }}
+                bgColor='#ffffff'
+                fgColor='#000000'
+                qrStyle='squares'
+              />
+            )
+          : (
+              <QRCode
+                value={url.href}
+                ecLevel='H'
+                size={size}
+                quietZone={quietZoneSize}
+                style={{ opacity: prefs.opacity ?? 0.625 }}
+                bgColor='#ffffff'
+                fgColor='#1a1a2e'
+                eyeColor='#e040fb'
+                eyeRadius={6}
+                qrStyle='squares'
+              />
+            )}
       </div>
     </CSSTransition>
   )

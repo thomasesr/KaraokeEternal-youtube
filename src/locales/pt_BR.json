@@ -110,6 +110,7 @@
     "reenterRoomPassword": "redigitar senha da sala",
     "qrSize": "Tamanho",
     "qrOpacity": "Opacidade",
+    "qrSimple": "QR simples (alto contraste)",
     "allowStandardUsers": "Permitir novos usuários",
     "allowGuests": "Permitir convidados",
     "roomManagers": "Gerentes de Sala",

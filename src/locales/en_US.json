@@ -110,6 +110,7 @@
     "reenterRoomPassword": "re-enter room password",
     "qrSize": "Size",
     "qrOpacity": "Opacity",
+    "qrSimple": "Simple QR (high contrast)",
     "allowStandardUsers": "Allow new standard users",
     "allowGuests": "Allow new guests",
     "roomManagers": "Room Managers",
