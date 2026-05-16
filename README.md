@@ -36,6 +36,12 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
 - **Push notifications** (this fork): singers receive a browser push
   notification when it's their turn to sing, even if the tab is in the
   background. Works on Android and desktop; iOS requires Safari 16.4+.
+- **Color themes** (this fork): choose from four built-in themes (Dark
+  Blue, Dark Green, Dark Red, Light) in Account → Preferences. Preference
+  is saved per user.
+- **Translations / i18n** (this fork): UI strings are fully
+  internationalized. English (en_US) and Brazilian Portuguese (pt_BR)
+  are included; additional locales can be added under `src/locales/`.
 
 ## YouTube integration
 
