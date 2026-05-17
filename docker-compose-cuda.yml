@@ -53,13 +53,21 @@ services:
   ctc:
     build:
       context: services/ctc
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.cuda
     volumes:
       - data:/data
       - shared-tmp:/shared-tmp
     environment:
       - CTC_MODEL_PATH=/data/ctc
+      - CTC_USE_GPU=1
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 30s
@@ -69,7 +77,7 @@ services:
   whisperx:
     build:
       context: services/whisperx
-      dockerfile: Dockerfile.cuda
+      dockerfile: Dockerfile
     volumes:
       - data:/data
       - shared-tmp:/shared-tmp
@@ -91,7 +99,7 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
       interval: 30s
       timeout: 5s
-      start_period: 30s
+      start_period: 60s
 
 volumes:
   data:

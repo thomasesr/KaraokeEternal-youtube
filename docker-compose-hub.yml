@@ -77,7 +77,7 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
       interval: 30s
       timeout: 5s
-      start_period: 30s
+      start_period: 60s
 
 volumes:
   data:
