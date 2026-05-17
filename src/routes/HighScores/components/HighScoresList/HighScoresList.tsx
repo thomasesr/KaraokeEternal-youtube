@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import Icon from 'components/Icon/Icon'
+import ColorCycle from 'routes/Player/components/PlayerTextOverlay/ColorCycle/ColorCycle'
 import styles from './HighScoresList.css'
 
 interface SongRow {
@@ -51,7 +52,9 @@ const HighScoresList = ({ title, rows, type, noScoresText }: HighScoresListProps
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.sectionTitle}>{title}</h2>
+      <h2 className={styles.sectionTitle}>
+        <ColorCycle text={title} className={styles.sectionTitleText} />
+      </h2>
       {rows.length === 0 ? (
         <p className={styles.empty}>{noScoresText}</p>
       ) : (

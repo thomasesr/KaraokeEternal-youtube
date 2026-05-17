@@ -3,7 +3,6 @@
 }
 
 .sectionTitle {
-  font-size: var(--font-size-l);
   font-weight: 700;
   padding: var(--space-m) var(--container-padding);
   border-bottom: 1px solid var(--chrome-border-color, rgba(255, 255, 255, 0.1));
@@ -11,6 +10,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-s);
+}
+
+.sectionTitleText {
+  font-size: var(--font-size-l);
+  text-shadow: none;
 }
 
 .empty {
