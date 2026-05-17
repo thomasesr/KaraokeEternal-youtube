@@ -26,8 +26,9 @@ router.get(['/', '/:roomId'], (ctx) => {
   const res = Rooms.get(roomId, { status })
 
   // Managers see open rooms plus any closed rooms they manage
+  const managedIds = isManager ? new Set(Rooms.getManagedRoomIds(ctx.user.userId)) : new Set<number>()
+
   if (!ctx.user.isAdmin && isManager) {
-    const managedIds = new Set(Rooms.getManagedRoomIds(ctx.user.userId))
     const filteredResult: number[] = []
     const filteredEntities: Record<number, any> = {}
 
@@ -48,9 +49,10 @@ router.get(['/', '/:roomId'], (ctx) => {
       const room = ctx.io.sockets.adapter.rooms.get(Rooms.prefix(roomId))
       res.entities[roomId].numUsers = room ? room.size : 0
     } else {
-      // only pass the 'roles' prefs key
-      res.entities[roomId].prefs = res.entities[roomId].prefs?.roles ? { roles: res.entities[roomId].prefs.roles } : {}
-
+      if (!managedIds.has(roomId)) {
+        // non-managed rooms: only pass the 'roles' prefs key
+        res.entities[roomId].prefs = res.entities[roomId].prefs?.roles ? { roles: res.entities[roomId].prefs.roles } : {}
+      }
       // hide manager list from non-admins (managers don't need to know co-managers)
       delete res.entities[roomId].managers
     }

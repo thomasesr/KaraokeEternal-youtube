@@ -207,6 +207,15 @@
     "aligningLyrics": "Alinhando…",
     "lyricsSubmitFailed": "Falha ao enviar a letra"
   },
+  "mediaUpload": {
+    "hint": "Envie arquivos de mídia karaokê (mp3+cdg, mp3+lrc, mp4, mp3 somente áudio) ou arquivos ZIP. Os arquivos serão adicionados à sua pasta gerenciada.",
+    "uploadBtn": "Enviar",
+    "uploadFailed": "Falha no envio",
+    "success_one": "{{count}} arquivo enviado — varredura iniciada",
+    "success_other": "{{count}} arquivos enviados — varredura iniciada",
+    "successZip_one": "ZIP ({{types}}): {{count}} arquivo extraído — varredura iniciada",
+    "successZip_other": "ZIP ({{types}}): {{count}} arquivos extraídos — varredura iniciada"
+  },
   "common": {
     "loading": "Carregando...",
     "songInfo": "Info da Música",

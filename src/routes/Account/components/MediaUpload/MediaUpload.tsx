@@ -38,13 +38,13 @@ const MediaUpload = () => {
         extractedCount: number
       }
       const detail = res.zipTypes
-        ? `ZIP (${res.zipTypes.join(', ')}): ${res.extractedCount} files extracted`
-        : `${files.length} file${files.length > 1 ? 's' : ''} uploaded`
-      setMessage(detail + ' — scan started')
+        ? t('mediaUpload.successZip', { types: res.zipTypes.join(', '), count: res.extractedCount })
+        : t('mediaUpload.success', { count: files.length })
+      setMessage(detail)
       setStatus('done')
       if (fileRef.current) fileRef.current.value = ''
     } catch (err: any) {
-      setMessage(err.message ?? 'Upload failed')
+      setMessage(err.message ?? t('mediaUpload.uploadFailed'))
       setStatus('error')
     }
   }
@@ -52,10 +52,7 @@ const MediaUpload = () => {
   return (
     <Panel title={t('common.uploadMedia')}>
       <form onSubmit={handleSubmit} className={styles.form}>
-        <p className={styles.hint}>
-          Upload karaoke media files (mp3+cdg, mp3+lrc, mp4, audio-only mp3) or ZIP archives.
-          Files will be added to your managed folder.
-        </p>
+        <p className={styles.hint}>{t('mediaUpload.hint')}</p>
         <input
           ref={fileRef}
           type='file'
@@ -63,11 +60,11 @@ const MediaUpload = () => {
           multiple
           className={styles.input}
         />
-        {status === 'uploading' && <div className={styles.status}>Uploading…</div>}
+        {status === 'uploading' && <div className={styles.status}>{t('prefs.commercialUploading')}</div>}
         {status === 'done' && <div className={styles.statusOk}>{message}</div>}
         {status === 'error' && <div className={styles.statusErr}>{message}</div>}
         <Button type='submit' variant='primary' disabled={status === 'uploading'}>
-          Upload
+          {t('mediaUpload.uploadBtn')}
         </Button>
       </form>
     </Panel>

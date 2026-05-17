@@ -226,6 +226,15 @@
     "aligningLyrics": "Aligning…",
     "lyricsSubmitFailed": "Failed to submit lyrics"
   },
+  "mediaUpload": {
+    "hint": "Upload karaoke media files (mp3+cdg, mp3+lrc, mp4, audio-only mp3) or ZIP archives. Files will be added to your managed folder.",
+    "uploadBtn": "Upload",
+    "uploadFailed": "Upload failed",
+    "success_one": "{{count}} file uploaded — scan started",
+    "success_other": "{{count}} files uploaded — scan started",
+    "successZip_one": "ZIP ({{types}}): {{count}} file extracted — scan started",
+    "successZip_other": "ZIP ({{types}}): {{count}} files extracted — scan started"
+  },
   "common": {
     "loading": "Loading...",
     "songInfo": "Song Info",
