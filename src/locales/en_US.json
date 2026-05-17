@@ -92,7 +92,15 @@
     "ytEnhancedLrcNote3": " env var to use CUDA.",
     "notifTitle": "Notifications",
     "notifEnable": "Notify me when it's my turn to sing",
-    "notifNote": "You'll get a push notification before your song starts and again when the player is waiting for you."
+    "notifNote": "You'll get a push notification before your song starts and again when the player is waiting for you.",
+    "commercial": "Commercial Video",
+    "commercialNote": "MP4 video shown on the player screen after 30 seconds with no songs in the queue.",
+    "commercialUploaded": "Video uploaded",
+    "commercialNone": "No video uploaded",
+    "commercialUpload": "Upload MP4",
+    "commercialUploading": "Uploading…",
+    "commercialDelete": "Remove video",
+    "commercialDeleteConfirm": "Remove the global commercial video?"
   },
   "rooms": {
     "myRooms": "My Rooms",
@@ -134,7 +142,18 @@
     "scoringEnabledLabel": "Enable song scoring",
     "scoringEnabledNote": "Ask players to rate each song after it ends.",
     "scoringDurationLabel": "Voting window: {{seconds}}s",
-    "scoringDurationNote": "How many seconds players have to vote after a song ends."
+    "scoringDurationNote": "How many seconds players have to vote after a song ends.",
+    "commercialTitle": "Commercial Video",
+    "commercialEnabledLabel": "Show commercial video when queue is empty",
+    "commercialEnabledNote": "If disabled, the player shows the empty queue message instead of playing the commercial.",
+    "commercialGlobal": "Global video:",
+    "commercialOverride": "Room override:",
+    "commercialAvailable": "uploaded",
+    "commercialNotUploaded": "none",
+    "commercialUploadOverride": "Upload room override",
+    "commercialDeleteOverride": "Remove room override",
+    "commercialDeleteOverrideConfirm": "Remove this room's commercial video override?",
+    "commercialOverrideNote": "Upload a room-specific video to override the global one for this room only."
   },
   "users": {
     "users": "Users",
