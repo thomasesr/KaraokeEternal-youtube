@@ -13,6 +13,7 @@ import { showSongInfo } from 'store/modules/songInfo'
 import { toggleSongStarred } from 'store/modules/userStars'
 import { showErrorMessage } from 'store/modules/ui'
 import { queueSong, removeItem } from '../../modules/queue'
+import ScoringWidget from '../ScoringWidget/ScoringWidget'
 import styles from './QueueItem.css'
 
 const LONG_PRESS_THRESHOLD_MS = 700
@@ -41,6 +42,13 @@ interface QueueItemProps {
   userDisplayName: string
   userId: number
   wait?: string
+  // scoring
+  isScoringActive?: boolean
+  scoringEndsAt?: number | null
+  scoringSingerUserId?: number | null
+  currentUserId?: number
+  myVote?: number | null
+  onVote?: (score: number) => void
   // actions
   onMoveClick(queueId: number): void
   onRemoveUpcoming: (userId: number) => void
@@ -61,6 +69,12 @@ const QueueItem = ({
   isSkippable,
   isStarred,
   isUpcoming,
+  isScoringActive,
+  scoringEndsAt,
+  scoringSingerUserId,
+  currentUserId,
+  myVote,
+  onVote,
   onMoveClick,
   onRemoveUpcoming,
   pctPlayed,
@@ -131,6 +145,8 @@ const QueueItem = ({
     }
   }, { threshold: LONG_PRESS_THRESHOLD_MS, cancelOnMovement: true })
 
+  const handleScoringDismiss = () => { /* controlled by parent via isScoringActive */ }
+
   return (
     <div
       {...swipeHandlers}
@@ -141,6 +157,16 @@ const QueueItem = ({
       )}
       style={{ '--progress': (isCurrent && pctPlayed < 2 ? 2 : pctPlayed) + '%' } as React.CSSProperties}
     >
+      {isCurrent && isScoringActive && scoringEndsAt && scoringSingerUserId != null && currentUserId != null && onVote && (
+        <ScoringWidget
+          endsAt={scoringEndsAt}
+          singerUserId={scoringSingerUserId}
+          currentUserId={currentUserId}
+          myVote={myVote ?? null}
+          onVote={onVote}
+          onDismiss={handleScoringDismiss}
+        />
+      )}
       <div className={styles.content}>
         <div className={clsx(styles.imageContainer, isPlayed && styles.greyed)}>
           <UserImage userId={userId} dateUpdated={userDateUpdated} />

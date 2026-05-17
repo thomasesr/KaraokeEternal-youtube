@@ -1,0 +1,36 @@
+.heading {
+  button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    padding: var(--space-s);
+    font-size: var(--font-size-m);
+  }
+
+  svg {
+    height: var(--icon-size-l);
+  }
+}
+
+.title {
+  flex: 1;
+}
+
+.content {
+  padding: var(--container-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.note {
+  font-size: var(--font-size-s);
+  opacity: 0.75;
+  overflow-wrap: break-word;
+}

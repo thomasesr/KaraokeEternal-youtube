@@ -11,6 +11,7 @@ import Rooms from './Rooms/Rooms.js'
 import RoomsSocket from './Rooms/socket.js'
 import Queue from './Queue/Queue.js'
 import QueueSocket from './Queue/socket.js'
+import ScoringSocket from './Scoring/socket.js'
 
 import {
   LIBRARY_PUSH,
@@ -32,6 +33,7 @@ const handlers = {
   ...PlayerSocket,
   ...PrefsSocket,
   ...RoomsSocket,
+  ...ScoringSocket,
 }
 
 const { verify: jwtVerify } = jsonWebToken

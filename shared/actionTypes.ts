@@ -70,6 +70,19 @@ export const ROOM_FILTER_STATUS = 'rooms/TOGGLE_SHOW_ALL'
 export const ROOM_PREFS_PUSH = 'rooms/ROOM_PREFS_PUSH'
 export const ROOM_PREFS_PUSH_REQUEST = 'server/ROOM_PREFS_PUSH_REQUEST'
 
+// Scoring
+export const SCORING_START_REQUEST  = 'server/SCORING_START_REQUEST'
+export const SCORING_VOTE_REQUEST   = 'server/SCORING_VOTE_REQUEST'
+export const SCORING_CANCEL_REQUEST = 'server/SCORING_CANCEL_REQUEST'
+export const SCORING_PUSH_REQUEST   = 'server/SCORING_PUSH_REQUEST'
+export const SCORING_START  = 'scoring/START'
+export const SCORING_RESULT = 'scoring/RESULT'
+export const SCORING_CANCEL = 'scoring/CANCEL'
+
+// High Scores
+export const HIGH_SCORES_REQUEST = 'server/HIGH_SCORES_REQUEST'
+export const HIGH_SCORES_PUSH    = 'highScores/PUSH'
+
 // Stars
 export const STAR_SONG = 'server/STAR_SONG'
 export const UNSTAR_SONG = 'server/UNSTAR_SONG'

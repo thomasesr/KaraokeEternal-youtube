@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router'
 import { useAppSelector } from 'store/hooks'
 
 import AccountView from 'routes/Account/views/AccountView'
+import HighScoresView from 'routes/HighScores/views/HighScoresView'
 import LibraryView from 'routes/Library/views/LibraryView'
 import QueueView from 'routes/Queue/views/QueueView'
 
@@ -24,6 +25,14 @@ const AppRoutes = () => (
       element={(
         <RequireAuth path='/queue' redirectTo='/account'>
           <QueueView />
+        </RequireAuth>
+      )}
+    />
+    <Route
+      path='/highscores'
+      element={(
+        <RequireAuth path='/highscores' redirectTo='/account'>
+          <HighScoresView />
         </RequireAuth>
       )}
     />

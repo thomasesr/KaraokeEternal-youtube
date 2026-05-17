@@ -1,0 +1,69 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-m) var(--space-l);
+  background-color: var(--chrome-bg-color);
+  border-top: 1px solid var(--chrome-border-color, rgba(255, 255, 255, 0.1));
+  width: 100%;
+}
+
+.prompt {
+  font-size: var(--font-size-s);
+  font-weight: 600;
+  color: var(--text-secondary-color, rgba(255, 255, 255, 0.7));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.submitted {
+  font-size: var(--font-size-s);
+  color: var(--color-success, #4caf50);
+  font-weight: 600;
+}
+
+.stars {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-xs, 4px);
+  cursor: pointer;
+}
+
+.starWrap {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.starSvg {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.starFilled {
+  fill: gold;
+}
+
+.starEmpty {
+  fill: rgba(255, 255, 255, 0.25);
+}
+
+.halfLeft,
+.halfRight {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  z-index: 1;
+}
+
+.halfLeft {
+  left: 0;
+}
+
+.halfRight {
+  right: 0;
+}

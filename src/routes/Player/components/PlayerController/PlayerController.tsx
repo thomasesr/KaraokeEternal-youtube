@@ -4,9 +4,15 @@ import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Player from '../Player/Player'
 import PlayerTextOverlay from '../PlayerTextOverlay/PlayerTextOverlay'
 import PlayerQR from '../PlayerQR/PlayerQR'
+import ScoringPhase from './ScoringPhase/ScoringPhase'
 import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
 import { playerLeave, playerError, playerLoad, playerPlay, playerStatus, playerUpdate, type PlayerState } from '../../modules/player'
 import getRoomPrefs from '../../selectors/getRoomPrefs'
+import { clearScoringResult } from 'store/modules/scoring'
+import {
+  SCORING_START_REQUEST,
+  SCORING_CANCEL_REQUEST,
+} from 'shared/actionTypes'
 import type { QueueItem } from 'shared/types'
 
 const DEFAULT_NOTIFY_LEAD_SECONDS = 20
@@ -25,6 +31,14 @@ function sendPushNotification (
   }).catch(err => console.error('[push] send error:', err))
 }
 
+interface PendingAdvance {
+  history: number[]
+  nextQueueItem: QueueItem | null  // null = queue exhausted after last song
+  isAutoplay: boolean
+  isNotifyEnabled: boolean
+  singerUserId: number
+}
+
 interface PlayerControllerProps {
   width: number
   height: number
@@ -36,6 +50,7 @@ const PlayerController = (props: PlayerControllerProps) => {
   const playerVisualizer = useAppSelector(state => state.playerVisualizer)
   const prefs = useAppSelector(state => state.prefs)
   const roomPrefs = useAppSelector(getRoomPrefs)
+  const scoring = useAppSelector(state => state.scoring)
   const songs = useAppSelector(state => state.songs.entities)
   const artists = useAppSelector(state => state.artists.entities)
   const queueItem = queue.entities[player.queueId]
@@ -50,8 +65,10 @@ const PlayerController = (props: PlayerControllerProps) => {
   const leadWarnFired = useRef(false)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isWaitingRef = useRef(player.isWaitingForSinger)
-  // userId of the singer whose turn it is — for the 15-second reminder callback
   const pendingWaitingUserRef = useRef<number | null>(null)
+  const pendingSongAdvanceRef = useRef<PendingAdvance | null>(null)
+  // set to true when a skip fires during scoring so handleLoadNext bypasses scoring branch
+  const skipScoringRef = useRef(false)
 
   useEffect(() => {
     if (!defaultOffsetApplied.current && typeof prefs.lrcDefaultOffset === 'number') {
@@ -90,7 +107,6 @@ const PlayerController = (props: PlayerControllerProps) => {
     const history = JSON.parse(player.historyJSON)
 
     if (queueId !== player.queueId) {
-      // reset history up to and including the replaying queueId
       const idx = history.lastIndexOf(queueId)
       if (idx !== -1) history.splice(idx)
     }
@@ -109,33 +125,10 @@ const PlayerController = (props: PlayerControllerProps) => {
     })
   }, [handleStatus, player.historyJSON, player.queueId, queue.entities])
 
-  const handleLoadNext = useCallback(() => {
-    const history = JSON.parse(player.historyJSON)
+  // shared logic for advancing to the next song (used by normal and scoring-deferred paths)
+  const advanceToNext = useCallback((pending: PendingAdvance) => {
+    const { history, nextQueueItem: next, isAutoplay, isNotifyEnabled, singerUserId } = pending
 
-    // add current item to history (once)
-    if (queueItem && history.lastIndexOf(queueItem.queueId) === -1) {
-      history.push(queueItem.queueId)
-    }
-
-    // queue exhausted?
-    if (!nextQueueItem) {
-      if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
-      pendingWaitingUserRef.current = null
-      handleStatus({
-        historyJSON: JSON.stringify(history),
-        isAtQueueEnd: true,
-        isWaitingForSinger: false,
-        mediaType: null,
-        _isPlayingNext: false,
-      })
-      return
-    }
-
-    const isAutoplay = roomPrefs?.autoplay?.isEnabled ?? false
-    const isNotifyEnabled = roomPrefs?.notifyEnabled !== false
-
-    // notify the next singer immediately — before Redux state propagates through socket
-    const singerUserId = nextQueueItem.userId
     if (isNotifyEnabled) {
       sendPushNotification(
         singerUserId,
@@ -169,14 +162,89 @@ const PlayerController = (props: PlayerControllerProps) => {
       isAtQueueEnd: false,
       isPlaying: isAutoplay,
       isWaitingForSinger: !isAutoplay,
-      isVideoKeyingEnabled: nextQueueItem.isVideoKeyingEnabled,
-      mediaType: nextQueueItem.mediaType,
+      isVideoKeyingEnabled: next.isVideoKeyingEnabled,
+      mediaType: next.mediaType,
       position: 0,
-      queueId: nextQueueItem.queueId,
+      queueId: next.queueId,
       nextUserId: null,
       _isPlayingNext: false,
     })
-  }, [handleStatus, nextQueueItem, player.historyJSON, queueItem, roomPrefs?.autoplay?.isEnabled, roomPrefs?.notifyEnabled])
+  }, [handleStatus, t])
+
+  const handleLoadNext = useCallback(() => {
+    const history = JSON.parse(player.historyJSON)
+
+    if (queueItem && history.lastIndexOf(queueItem.queueId) === -1) {
+      history.push(queueItem.queueId)
+    }
+
+    const isAutoplay = roomPrefs?.autoplay?.isEnabled ?? false
+    const isNotifyEnabled = roomPrefs?.notifyEnabled !== false
+
+    // scoring branch: score current song before advancing (or ending queue)
+    // queueItem must be non-null (a real song finished); skip on initial load (queueId === -1)
+    const isScoringEnabled = (roomPrefs?.scoring?.isEnabled ?? false) && !skipScoringRef.current && queueItem != null
+    if (skipScoringRef.current) skipScoringRef.current = false
+
+    if (isScoringEnabled) {
+      pendingSongAdvanceRef.current = {
+        history,
+        nextQueueItem: nextQueueItem ?? null,
+        isAutoplay,
+        isNotifyEnabled,
+        singerUserId: nextQueueItem?.userId ?? 0,
+      }
+      dispatch({
+        type: SCORING_START_REQUEST,
+        payload: {
+          queueId: queueItem.queueId,
+          songId: queueItem.songId,
+          singerUserId: queueItem.userId,
+          duration: roomPrefs?.scoring?.duration ?? 15,
+        },
+      })
+      return
+    }
+
+    // queue exhausted?
+    if (!nextQueueItem) {
+      if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
+      pendingWaitingUserRef.current = null
+      handleStatus({
+        historyJSON: JSON.stringify(history),
+        isAtQueueEnd: true,
+        isWaitingForSinger: false,
+        mediaType: null,
+        _isPlayingNext: false,
+      })
+      return
+    }
+
+    advanceToNext({ history, nextQueueItem, isAutoplay, isNotifyEnabled, singerUserId: nextQueueItem.userId })
+  }, [advanceToNext, dispatch, handleStatus, nextQueueItem, player.historyJSON, queueItem, roomPrefs?.autoplay?.isEnabled, roomPrefs?.notifyEnabled, roomPrefs?.scoring?.isEnabled, roomPrefs?.scoring?.duration])
+
+  // called by ScoringPhase when animation completes (or immediately if skipped/no-votes case)
+  const handleScoringAnimationComplete = useCallback(() => {
+    dispatch(clearScoringResult())
+    if (pendingSongAdvanceRef.current) {
+      const pending = pendingSongAdvanceRef.current
+      pendingSongAdvanceRef.current = null
+      if (pending.nextQueueItem == null) {
+        // last song scored — set queue exhausted state
+        if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
+        pendingWaitingUserRef.current = null
+        handleStatus({
+          historyJSON: JSON.stringify(pending.history),
+          isAtQueueEnd: true,
+          isWaitingForSinger: false,
+          mediaType: null,
+          _isPlayingNext: false,
+        })
+      } else {
+        advanceToNext(pending as PendingAdvance & { nextQueueItem: QueueItem })
+      }
+    }
+  }, [dispatch, advanceToNext, handleStatus])
 
   // "lock in" the next user that isn't the currently up user, if possible
   useEffect(() => {
@@ -190,7 +258,7 @@ const PlayerController = (props: PlayerControllerProps) => {
     }
   }, [handleStatus, nextQueueItem, player.nextUserId, queue, queueItem])
 
-  // notification 1: fire once when time remaining drops to lead threshold
+  // notification: fire once when time remaining drops to lead threshold
   useEffect(() => {
     if (
       roomPrefs?.notifyEnabled !== false
@@ -242,11 +310,17 @@ const PlayerController = (props: PlayerControllerProps) => {
   }, [dispatch])
 
   // playing for first time or playing next?
+  // skip detection: if _isPlayingNext fires while scoring is held, cancel scoring
   useEffect(() => {
     if ((player.isPlaying && player.queueId === -1) || player._isPlayingNext) {
+      if (player._isPlayingNext && pendingSongAdvanceRef.current !== null) {
+        dispatch({ type: SCORING_CANCEL_REQUEST })
+        pendingSongAdvanceRef.current = null
+        skipScoringRef.current = true
+      }
       handleLoadNext()
     }
-  }, [handleLoadNext, player.isPlaying, player.queueId, player._isPlayingNext])
+  }, [dispatch, handleLoadNext, player.isPlaying, player.queueId, player._isPlayingNext])
 
   // replaying?
   useEffect(() => {
@@ -273,6 +347,8 @@ const PlayerController = (props: PlayerControllerProps) => {
     ? (queueItem as QueueItem).userDisplayName
     : null
 
+  const isScoringVisible = scoring.isActive || scoring.result !== null
+
   return (
     <>
       <Player
@@ -282,7 +358,7 @@ const PlayerController = (props: PlayerControllerProps) => {
         lrcOffset={player.lrcOffset}
         lrcSmoothScroll={player.lrcSmoothScroll}
         isPlaying={player.isPlaying}
-        isVisible={!!queueItem && !player.isErrored && !player.isAtQueueEnd && !player.isWaitingForSinger}
+        isVisible={!!queueItem && !player.isErrored && !player.isAtQueueEnd && !player.isWaitingForSinger && !isScoringVisible}
         isReplayGainEnabled={prefs.isReplayGainEnabled}
         isVideoKeyingEnabled={!!queueItem?.isVideoKeyingEnabled}
         isWebGLSupported={player.isWebGLSupported}
@@ -305,17 +381,30 @@ const PlayerController = (props: PlayerControllerProps) => {
         width={props.width}
         height={props.height}
       />
-      <PlayerTextOverlay
-        queueItem={queueItem as QueueItem}
-        nextQueueItem={nextQueueItem as QueueItem}
-        isAtQueueEnd={player.isAtQueueEnd}
-        isQueueEmpty={!queue.result.length}
-        isErrored={player.isErrored}
-        isWaitingForSinger={player.isWaitingForSinger}
-        waitingForUser={waitingUser}
-        width={props.width}
-        height={props.height}
-      />
+      {!isScoringVisible && (
+        <PlayerTextOverlay
+          queueItem={queueItem as QueueItem}
+          nextQueueItem={nextQueueItem as QueueItem}
+          isAtQueueEnd={player.isAtQueueEnd}
+          isQueueEmpty={!queue.result.length}
+          isErrored={player.isErrored}
+          isWaitingForSinger={player.isWaitingForSinger}
+          waitingForUser={waitingUser}
+          width={props.width}
+          height={props.height}
+        />
+      )}
+      {isScoringVisible && (
+        <ScoringPhase
+          isActive={scoring.isActive}
+          endsAt={scoring.endsAt}
+          result={scoring.result}
+          wasSkipped={scoring.wasSkipped}
+          width={props.width}
+          height={props.height}
+          onAnimationComplete={handleScoringAnimationComplete}
+        />
+      )}
       {roomPrefs?.qr?.isEnabled && (
         <PlayerQR
           height={props.height}

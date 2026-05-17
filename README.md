@@ -42,6 +42,13 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
 - **Translations / i18n** (this fork): UI strings are fully
   internationalized. English (en_US) and Brazilian Portuguese (pt_BR)
   are included; additional locales can be added under `src/locales/`.
+- **Song scoring** (this fork): after each song ends, players vote
+  1–5 stars (half-star resolution) from the queue page or a pop-up
+  widget on any other page. The median score animates on the player
+  screen as popping stars. Admins and room managers configure scoring
+  per room (toggle + voting window 5–30 s). A dedicated **High Scores**
+  page shows today's top songs (with singer name), today's top singers,
+  and all-time top singers.
 
 ## YouTube integration
 
@@ -184,6 +191,49 @@ this priority (highest wins):
 3. **Global default** — the admin-flagged `isPreferred` file
 4. **Path priority** — lowest-priority path, first file (automatic
    fallback)
+
+## Song scoring
+
+After each song finishes playing, every user in the room can rate it
+1–5 stars with half-star resolution.
+
+### How it works
+
+- **Voting UI** — the vote widget appears inline on the Queue page for
+  the current song, and as a floating pop-up on all other pages.
+- **Widget lifetime** — the widget auto-dismisses after
+  `5 + votingWindow` seconds. Votes not cast in time are not counted.
+- **Singer excluded** — the singer cannot vote on their own song.
+- **Result** — after the voting window closes, the server computes the
+  median score and broadcasts it to the room. The player animates the
+  result as stars popping one by one, then holds the display for 4
+  seconds before advancing to the next song.
+- **Skipped songs** — receive 0 stars and are not persisted.
+- **Unvoted songs** (played to end with 0 votes) — automatically
+  receive 5 stars but are excluded from all high-score rankings.
+
+### Room configuration
+
+Admins and room managers configure scoring under **Account → Rooms →
+(room) → Song Scoring**:
+
+| Setting | Default | Description |
+|---|---|---|
+| Enable song scoring | off | Master toggle for the room |
+| Voting window | 15 s | Seconds players have to vote (5–30) |
+
+### High Scores page
+
+Accessible from the navigation bar (star icon). Three ranked sections:
+
+| Section | Scope | Ranked by |
+|---|---|---|
+| Today's Top Songs | Current room, today | Avg score ↓, total votes ↓ (tie-break) |
+| Today's Top Singers | Current room, today | Sum of median scores ↓ |
+| All-Time Top Singers | All rooms, all time | Sum of median scores ↓ |
+
+Songs and singers with only auto-5-star rows (0 real votes) are
+excluded from all rankings.
 
 Microphones are *not* required since the player itself only outputs music - this allows your audio setup to be as simple or complex as you like. See the [F.A.Q.](https://www.karaoke-eternal.com/faq/#recommended-audio-microphone-setup) for more information.
 

@@ -353,6 +353,13 @@ class Rooms {
   static hasUserBeenInRoom (roomId: number, userId: number): boolean {
     return roomUsers.get(roomId)?.has(userId) ?? false
   }
+
+  /**
+   * Get all userIds seen in a room since server start
+   */
+  static getRoomUsers (roomId: number): number[] {
+    return Array.from(roomUsers.get(roomId) ?? [])
+  }
 }
 
 export default Rooms

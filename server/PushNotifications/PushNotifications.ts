@@ -87,6 +87,10 @@ class PushNotifications {
     log.verbose('push subscription removed for userId %s', userId)
   }
 
+  static async sendToRoomUsers (userIds: number[], title: string, body: string, actions?: NotificationAction[]): Promise<void> {
+    await Promise.all(userIds.map(uid => this.sendToUser(uid, title, body, actions)))
+  }
+
   static async sendToUser (userId: number, title: string, body: string, actions?: NotificationAction[]): Promise<void> {
     this.init()
 
