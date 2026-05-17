@@ -129,7 +129,12 @@
     "notifyLeadNote": "Quantos segundos antes do fim da música atual para notificar o próximo cantor.",
     "autoplayTitle": "Reprodução Automática",
     "autoplayLabel": "Avançar automaticamente para o próximo cantor",
-    "autoplayNote": "Quando ativado, a próxima música começa automaticamente sem esperar o cantor pressionar Play."
+    "autoplayNote": "Quando ativado, a próxima música começa automaticamente sem esperar o cantor pressionar Play.",
+    "scoringTitle": "Avaliação de Músicas",
+    "scoringEnabledLabel": "Ativar avaliação de músicas",
+    "scoringEnabledNote": "Peça aos jogadores para avaliar cada música após terminar.",
+    "scoringDurationLabel": "Tempo de votação: {{seconds}}s",
+    "scoringDurationNote": "Quantos segundos os jogadores têm para votar após a música terminar."
   },
   "users": {
     "users": "Usuários",
@@ -262,6 +267,30 @@
     "notifWaitingTitle": "Seus fãs estão esperando!",
     "notifWaitingBody": "A sala está pronta — pressione Play para começar.",
     "notifLeadTitle": "Sua música está prestes a começar!",
-    "notifLeadBody": "Prepare-se — começa em cerca de {{seconds}} segundos."
+    "notifLeadBody": "Prepare-se — começa em cerca de {{seconds}} segundos.",
+    "notifScoringTitle": "Avalie essa música!",
+    "notifScoringBody": "Abra a fila para dar uma avaliação com estrelas.",
+    "scoringTallying": "CALCULANDO PONTUAÇÃO..."
+  },
+  "scoring": {
+    "votePrompt": "Avalie esta música",
+    "voteSubmitted": "Voto enviado!",
+    "ownSongNote": "Você não pode avaliar sua própria música",
+    "stars_one": "{{count}} estrela",
+    "stars_other": "{{count}} estrelas"
+  },
+  "highScores": {
+    "title": "Recordes",
+    "todaySongs": "Melhores Músicas de Hoje",
+    "todayUsers": "Melhores Cantores de Hoje",
+    "allTimeUsers": "Melhores Cantores de Todos os Tempos",
+    "rank": "#",
+    "avgScore": "Pontuação",
+    "totalScore": "Pontos",
+    "timesPlayed_one": "{{count}} execução",
+    "timesPlayed_other": "{{count}} execuções",
+    "songCount_one": "{{count}} música",
+    "songCount_other": "{{count}} músicas",
+    "noScores": "Sem recordes ainda — toque algumas músicas!"
   }
 }

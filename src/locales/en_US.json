@@ -129,7 +129,12 @@
     "notifyLeadNote": "How many seconds before the current song ends to notify the next singer.",
     "autoplayTitle": "Autoplay",
     "autoplayLabel": "Auto-advance to next singer",
-    "autoplayNote": "When enabled, the next song starts automatically without waiting for the singer to press Play."
+    "autoplayNote": "When enabled, the next song starts automatically without waiting for the singer to press Play.",
+    "scoringTitle": "Song Scoring",
+    "scoringEnabledLabel": "Enable song scoring",
+    "scoringEnabledNote": "Ask players to rate each song after it ends.",
+    "scoringDurationLabel": "Voting window: {{seconds}}s",
+    "scoringDurationNote": "How many seconds players have to vote after a song ends."
   },
   "users": {
     "users": "Users",
@@ -262,6 +267,30 @@
     "notifWaitingTitle": "Your fans are waiting!",
     "notifWaitingBody": "The room is ready — press Play to start.",
     "notifLeadTitle": "Your song is about to start!",
-    "notifLeadBody": "Get ready — it starts in about {{seconds}} seconds."
+    "notifLeadBody": "Get ready — it starts in about {{seconds}} seconds.",
+    "notifScoringTitle": "Rate that song!",
+    "notifScoringBody": "Open the queue to give it a star rating.",
+    "scoringTallying": "TALLYING SCORE..."
+  },
+  "scoring": {
+    "votePrompt": "Rate this song",
+    "voteSubmitted": "Vote submitted!",
+    "ownSongNote": "You can't rate your own song",
+    "stars_one": "{{count}} star",
+    "stars_other": "{{count}} stars"
+  },
+  "highScores": {
+    "title": "High Scores",
+    "todaySongs": "Today's Top Songs",
+    "todayUsers": "Today's Top Singers",
+    "allTimeUsers": "All-Time Top Singers",
+    "rank": "#",
+    "avgScore": "Score",
+    "totalScore": "Points",
+    "timesPlayed_one": "{{count}} play",
+    "timesPlayed_other": "{{count}} plays",
+    "songCount_one": "{{count}} song",
+    "songCount_other": "{{count}} songs",
+    "noScores": "No scores yet — play some songs!"
   }
 }
