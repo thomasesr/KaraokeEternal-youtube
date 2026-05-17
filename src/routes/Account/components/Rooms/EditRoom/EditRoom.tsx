@@ -15,6 +15,7 @@ import UserPrefs from './UserPrefs/UserPrefs'
 import QRPrefs from './QRPrefs/QRPrefs'
 import NotifyPrefs from './NotifyPrefs/NotifyPrefs'
 import AutoplayPrefs from './AutoplayPrefs/AutoplayPrefs'
+import CommercialVideoPrefs from './CommercialVideoPrefs/CommercialVideoPrefs'
 import ScoringPrefs from './ScoringPrefs/ScoringPrefs'
 import ManagersPicker from './ManagersPicker/ManagersPicker'
 import type { Room, IRoomPrefs } from 'shared/types'
@@ -141,6 +142,9 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
           <NotifyPrefs prefs={prefs} onChange={handlePrefsChange} />
           <AutoplayPrefs prefs={prefs} onChange={handlePrefsChange} />
           <ScoringPrefs prefs={prefs} onChange={handlePrefsChange} />
+          {room && (
+            <CommercialVideoPrefs roomId={room.roomId} prefs={prefs} onChange={handlePrefsChange} />
+          )}
           {canEditManagers && (
             <ManagersPicker selected={managers} onChange={setManagers} />
           )}
