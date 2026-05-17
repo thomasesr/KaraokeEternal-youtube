@@ -55,6 +55,10 @@ export interface IRoomPrefs {
   autoplay?: {
     isEnabled?: boolean
   }
+  scoring?: {
+    isEnabled?: boolean
+    duration?: number
+  }
 }
 
 export interface Room {
