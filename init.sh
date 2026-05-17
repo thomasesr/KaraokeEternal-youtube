@@ -19,10 +19,12 @@ hdr()  { printf "\n${BOLD}%s${RESET}\n" "$*"; }
 # ---------------------------------------------------------------------------
 INSTALL_MODE=false
 INSTALL_GPU=false
+BUILD_MODE=false
 for _arg in "$@"; do
   case "$_arg" in
     --install)     INSTALL_MODE=true ;;
     --install-gpu) INSTALL_MODE=true; INSTALL_GPU=true ;;
+    --build)       BUILD_MODE=true ;;
   esac
 done
 
@@ -112,6 +114,25 @@ if [ "$INSTALL_MODE" = true ]; then
   install_deps
   hdr "Done"
   ok "Installation complete. Run './init.sh' to start KaraokeEternal."
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# --build subcommand
+# ---------------------------------------------------------------------------
+if [ "$BUILD_MODE" = true ]; then
+  hdr "=== KaraokeEternal build ==="
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  cd "$SCRIPT_DIR"
+  if [ ! -f package.json ]; then
+    fail "package.json not found in ${SCRIPT_DIR} — run from repo root"
+  fi
+  info "npm install..."
+  npm install
+  ok "npm install complete"
+  info "npm run build..."
+  npm run build
+  ok "Build complete → ${SCRIPT_DIR}/build"
   exit 0
 fi
 

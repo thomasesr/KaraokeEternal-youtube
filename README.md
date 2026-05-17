@@ -249,6 +249,68 @@ Microphones are *not* required since the player itself only outputs music - this
 
 There are several [installation methods](https://www.karaoke-eternal.com/docs/karaoke-eternal-server/#installation) available for Karaoke Eternal Server.
 
+## init.sh
+
+`init.sh` serves two purposes: **dependency installer** (invoked once at setup time) and **startup checker** (the Docker `ENTRYPOINT`).
+
+### Dependency installer
+
+Run once on a fresh host to install all required tools. Detects what is already present and skips it.
+
+```bash
+# CPU / bare-metal (installs nvm + Node 24, Deno, yt-dlp, spleeter, ctc-forced-aligner)
+./init.sh --install
+
+# GPU / CUDA (same, but installs tensorflow[and-cuda] instead of the CPU-only variant)
+./init.sh --install-gpu
+```
+
+What each flag installs:
+
+| Step | `--install` | `--install-gpu` |
+|---|---|---|
+| System packages (apt) | `python3 python3-pip ffmpeg ca-certificates zip unzip curl git build-essential` | same |
+| Node 24 | via **nvm** (skipped if `node` already on `PATH`) | same |
+| Deno | latest `DENO_VERSION` binary (skipped if already present) | same |
+| Python packages | `requirements-cpu.txt` (yt-dlp, spleeter, ctc-forced-aligner) | `requirements.txt` (adds `tensorflow[and-cuda]`) |
+
+The Dockerfiles use these flags during the image build step so the same script drives both local and containerised installs.
+
+### Build
+
+```bash
+./init.sh --build
+```
+
+Runs `npm install` then `npm run build` from the repo root and exits. Equivalent to running those commands manually but convenient as a single entry point after `--install`. Output lands in `build/`.
+
+### Combined install + build
+
+```bash
+./init.sh --install && ./init.sh --build
+```
+
+### Startup checker (runtime mode)
+
+Running `init.sh` without flags (the Docker `ENTRYPOINT`) verifies all dependencies, downloads missing models, then starts the server:
+
+1. **Dependency check** — confirms `node`, `python3`, `ffmpeg`, `yt-dlp`, `deno`, `spleeter`, and `ctc-forced-aligner` are present and prints versions.
+2. **CTC alignment model** — downloads the ONNX model to `CTC_MODEL_PATH` if missing.
+3. **Spleeter model** — downloads and verifies the `SPLEETER_MODEL` tarball to `SPLEETER_DATA` if missing or corrupt.
+4. **Server start** — `exec node build/server/main.js` with any `LOG_LEVEL`-derived flags.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `NVM_DIR` | `$HOME/.nvm` | Where nvm is installed (install mode) |
+| `DENO_VERSION` | `2.3.3` | Deno version to install |
+| `CTC_USE_GPU` | `0` | Set to `1` to select GPU requirements file in `--install` mode |
+| `CTC_MODEL_PATH` | `/data/ctc` | Where the ONNX alignment model is stored |
+| `SPLEETER_MODEL` | `2stems` | Spleeter model name (`2stems` or `2stems-finetune`) |
+| `SPLEETER_DATA` | `/data/spleeter` | Where Spleeter stores pretrained models |
+| `LOG_LEVEL` | _(unset)_ | `off` / `error` / `warn` / `info` / `verbose` / `debug` or `0`–`5` |
+
 ## Discord & Support
 
 Join the [Karaoke Eternal Discord Server](https://discord.gg/PgqVtFq) for general support and development chat, or just to say hi!
