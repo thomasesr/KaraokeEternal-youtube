@@ -124,8 +124,12 @@
     "removeRoomConfirm": "Remove room \"{{name}}\" and its queue?",
     "clearQueueConfirm": "Clear all songs from \"{{name}}\"'s queue?",
     "notifyTitle": "Singer Notifications",
+    "notifyEnabledLabel": "Enable singer notifications",
     "notifyLeadLabel": "Advance notice: {{seconds}}s before song ends",
-    "notifyLeadNote": "How many seconds before the current song ends to notify the next singer."
+    "notifyLeadNote": "How many seconds before the current song ends to notify the next singer.",
+    "autoplayTitle": "Autoplay",
+    "autoplayLabel": "Auto-advance to next singer",
+    "autoplayNote": "When enabled, the next song starts automatically without waiting for the singer to press Play."
   },
   "users": {
     "users": "Users",

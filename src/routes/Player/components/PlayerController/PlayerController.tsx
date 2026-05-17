@@ -129,35 +129,44 @@ const PlayerController = (props: PlayerControllerProps) => {
       return
     }
 
+    const isAutoplay = roomPrefs?.autoplay?.isEnabled ?? false
+    const isNotifyEnabled = roomPrefs?.notifyEnabled !== false
+
     // notify the next singer immediately — before Redux state propagates through socket
     const singerUserId = nextQueueItem.userId
-    sendPushNotification(
-      singerUserId,
-      "It's your turn to sing!",
-      'Step up and press Play when ready.',
-      [{ action: 'play-now', title: 'Play Now' }],
-    )
+    if (isNotifyEnabled) {
+      sendPushNotification(
+        singerUserId,
+        "It's your turn to sing!",
+        isAutoplay ? 'Your song is starting now!' : 'Step up and press Play when ready.',
+        isAutoplay ? undefined : [{ action: 'play-now', title: 'Play Now' }],
+      )
+    }
 
-    pendingWaitingUserRef.current = singerUserId
-    if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
-    waitingTimerRef.current = setTimeout(() => {
-      waitingTimerRef.current = null
-      if (isWaitingRef.current && pendingWaitingUserRef.current !== null) {
-        sendPushNotification(
-          pendingWaitingUserRef.current,
-          'Your fans are waiting!',
-          'The room is ready — press Play to start.',
-          [{ action: 'play-now', title: 'Play Now' }],
-        )
-      }
-    }, 15_000)
+    if (!isAutoplay && isNotifyEnabled) {
+      pendingWaitingUserRef.current = singerUserId
+      if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
+      waitingTimerRef.current = setTimeout(() => {
+        waitingTimerRef.current = null
+        if (isWaitingRef.current && pendingWaitingUserRef.current !== null) {
+          sendPushNotification(
+            pendingWaitingUserRef.current,
+            'Your fans are waiting!',
+            'The room is ready — press Play to start.',
+            [{ action: 'play-now', title: 'Play Now' }],
+          )
+        }
+      }, 15_000)
+    } else {
+      if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
+      pendingWaitingUserRef.current = null
+    }
 
-    // advance queue but pause — wait for next singer to press play
     handleStatus({
       historyJSON: JSON.stringify(history),
       isAtQueueEnd: false,
-      isPlaying: false,
-      isWaitingForSinger: true,
+      isPlaying: isAutoplay,
+      isWaitingForSinger: !isAutoplay,
       isVideoKeyingEnabled: nextQueueItem.isVideoKeyingEnabled,
       mediaType: nextQueueItem.mediaType,
       position: 0,
@@ -165,7 +174,7 @@ const PlayerController = (props: PlayerControllerProps) => {
       nextUserId: null,
       _isPlayingNext: false,
     })
-  }, [handleStatus, nextQueueItem, player.historyJSON, queueItem])
+  }, [handleStatus, nextQueueItem, player.historyJSON, queueItem, roomPrefs?.autoplay?.isEnabled, roomPrefs?.notifyEnabled])
 
   // "lock in" the next user that isn't the currently up user, if possible
   useEffect(() => {
@@ -182,7 +191,8 @@ const PlayerController = (props: PlayerControllerProps) => {
   // notification 1: fire once when time remaining drops to lead threshold
   useEffect(() => {
     if (
-      !leadWarnFired.current
+      roomPrefs?.notifyEnabled !== false
+      && !leadWarnFired.current
       && player.nextUserId !== null
       && player.duration > 0
       && player.isPlaying
@@ -201,7 +211,7 @@ const PlayerController = (props: PlayerControllerProps) => {
         )
       }
     }
-  }, [player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyLeadSeconds])
+  }, [player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyEnabled, roomPrefs?.notifyLeadSeconds])
 
   // clear reminder timer and ref when singer presses Play (waiting ends)
   useEffect(() => {

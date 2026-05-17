@@ -124,8 +124,12 @@
     "removeRoomConfirm": "Remover a sala \"{{name}}\" e sua fila?",
     "clearQueueConfirm": "Limpar todas as músicas da fila de \"{{name}}\"?",
     "notifyTitle": "Notificações do Cantor",
+    "notifyEnabledLabel": "Ativar notificações para cantores",
     "notifyLeadLabel": "Aviso antecipado: {{seconds}}s antes da música acabar",
-    "notifyLeadNote": "Quantos segundos antes do fim da música atual para notificar o próximo cantor."
+    "notifyLeadNote": "Quantos segundos antes do fim da música atual para notificar o próximo cantor.",
+    "autoplayTitle": "Reprodução Automática",
+    "autoplayLabel": "Avançar automaticamente para o próximo cantor",
+    "autoplayNote": "Quando ativado, a próxima música começa automaticamente sem esperar o cantor pressionar Play."
   },
   "users": {
     "users": "Usuários",

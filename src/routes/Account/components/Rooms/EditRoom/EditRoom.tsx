@@ -14,6 +14,7 @@ import Modal from 'components/Modal/Modal'
 import UserPrefs from './UserPrefs/UserPrefs'
 import QRPrefs from './QRPrefs/QRPrefs'
 import NotifyPrefs from './NotifyPrefs/NotifyPrefs'
+import AutoplayPrefs from './AutoplayPrefs/AutoplayPrefs'
 import ManagersPicker from './ManagersPicker/ManagersPicker'
 import type { Room, IRoomPrefs } from 'shared/types'
 import styles from './EditRoom.css'
@@ -137,6 +138,7 @@ const EditRoom = ({ onClose, room }: EditRoomProps) => {
           <UserPrefs prefs={prefs} onChange={handlePrefsChange} />
           <QRPrefs prefs={prefs} onChange={handlePrefsChange} roomPassword={roomPassword} roomPasswordDirty={isPasswordDirty} />
           <NotifyPrefs prefs={prefs} onChange={handlePrefsChange} />
+          <AutoplayPrefs prefs={prefs} onChange={handlePrefsChange} />
           {canEditManagers && (
             <ManagersPicker selected={managers} onChange={setManagers} />
           )}

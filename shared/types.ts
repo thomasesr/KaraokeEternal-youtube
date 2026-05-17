@@ -50,7 +50,11 @@ export interface IRoomPrefs {
   roles?: Record<number, {
     allowNew: boolean
   }>
+  notifyEnabled?: boolean
   notifyLeadSeconds?: number
+  autoplay?: {
+    isEnabled?: boolean
+  }
 }
 
 export interface Room {

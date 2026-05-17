@@ -1,5 +1,5 @@
 .modal {
-  min-width: 360px;
+  width: min(420px, 90vw);
 }
 
 .fieldContainer,
@@ -17,6 +17,11 @@
   &:last-child {
     margin-bottom: 0;
   }
+}
+
+.prefsContainer {
+  max-height: min(350px, 40vh);
+  overflow-y: auto;
 }
 
 .fieldContainer select {

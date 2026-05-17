@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import Accordion from 'components/Accordion/Accordion'
+import InputCheckbox from 'components/InputCheckbox/InputCheckbox'
 import Icon from 'components/Icon/Icon'
 import type { IRoomPrefs } from 'shared/types'
 import styles from './NotifyPrefs.css'
@@ -14,6 +15,7 @@ interface NotifyPrefsProps {
 
 const NotifyPrefs = ({ prefs, onChange }: NotifyPrefsProps) => {
   const { t } = useTranslation()
+  const isEnabled = prefs?.notifyEnabled !== false
   const leadSeconds = prefs?.notifyLeadSeconds ?? DEFAULT_LEAD_SECONDS
 
   const handleSetPref = useCallback((update: Partial<IRoomPrefs>) => {
@@ -37,20 +39,29 @@ const NotifyPrefs = ({ prefs, onChange }: NotifyPrefsProps) => {
     >
       <div className={styles.content}>
         <div className={styles.field}>
-          <label htmlFor='notify-lead-seconds'>
-            {t('rooms.notifyLeadLabel', { seconds: leadSeconds })}
-          </label>
-          <input
-            id='notify-lead-seconds'
-            type='range'
-            min={5}
-            max={120}
-            step={5}
-            value={leadSeconds}
-            onChange={handleLeadChange}
+          <InputCheckbox
+            label={t('rooms.notifyEnabledLabel')}
+            checked={isEnabled}
+            onChange={event => handleSetPref({ notifyEnabled: event.currentTarget.checked })}
           />
-          <div className={styles.note}>{t('rooms.notifyLeadNote')}</div>
         </div>
+        {isEnabled && (
+          <div className={styles.field}>
+            <label htmlFor='notify-lead-seconds'>
+              {t('rooms.notifyLeadLabel', { seconds: leadSeconds })}
+            </label>
+            <input
+              id='notify-lead-seconds'
+              type='range'
+              min={5}
+              max={120}
+              step={5}
+              value={leadSeconds}
+              onChange={handleLeadChange}
+            />
+            <div className={styles.note}>{t('rooms.notifyLeadNote')}</div>
+          </div>
+        )}
       </div>
     </Accordion>
   )
