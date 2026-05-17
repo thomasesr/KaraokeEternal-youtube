@@ -42,8 +42,7 @@ RUN apk add --no-cache ca-certificates zip unzip curl && \
     rm -rf /tmp/ffbuild && \
     curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
       -o /usr/local/bin/yt-dlp && \
-    chmod +x /usr/local/bin/yt-dlp && \
-    apk del xz
+    chmod +x /usr/local/bin/yt-dlp
 
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
