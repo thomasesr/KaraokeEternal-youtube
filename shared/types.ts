@@ -59,6 +59,9 @@ export interface IRoomPrefs {
     isEnabled?: boolean
     duration?: number
   }
+  commercialVideo?: {
+    isEnabled?: boolean
+  }
 }
 
 export interface Room {
