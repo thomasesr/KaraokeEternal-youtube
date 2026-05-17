@@ -1,3 +1,4 @@
+import https from 'https'
 import webpush from 'web-push'
 import sql from 'sqlate'
 import { db } from '../lib/Database.js'
@@ -5,6 +6,10 @@ import Prefs from '../Prefs/Prefs.js'
 import getLogger from '../lib/Log.js'
 
 const log = getLogger('PushNotifications')
+
+// Reuse TCP+TLS connections to push service endpoints — avoids a full
+// handshake (~50-200 ms) on every notification.
+const keepAliveAgent = new https.Agent({ keepAlive: true, keepAliveMsecs: 30_000, maxSockets: 10 })
 
 export interface NotificationAction {
   action: string
@@ -112,6 +117,7 @@ class PushNotifications {
             keys: { auth: row.auth, p256dh: row.p256dh },
           },
           payload,
+          { agent: keepAliveAgent },
         )
         log.info('push sent OK statusCode=%s', result.statusCode)
       } catch (err) {
