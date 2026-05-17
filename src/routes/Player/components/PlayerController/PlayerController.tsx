@@ -35,7 +35,7 @@ function sendPushNotification (
 
 interface PendingAdvance {
   history: number[]
-  nextQueueItem: QueueItem
+  nextQueueItem: QueueItem | null  // null = queue exhausted after last song
   isAutoplay: boolean
   isNotifyEnabled: boolean
   singerUserId: number
@@ -182,6 +182,34 @@ const PlayerController = (props: PlayerControllerProps) => {
       history.push(queueItem.queueId)
     }
 
+    const isAutoplay = roomPrefs?.autoplay?.isEnabled ?? false
+    const isNotifyEnabled = roomPrefs?.notifyEnabled !== false
+
+    // scoring branch: score current song before advancing (or ending queue)
+    // queueItem must be non-null (a real song finished); skip on initial load (queueId === -1)
+    const isScoringEnabled = (roomPrefs?.scoring?.isEnabled ?? false) && !skipScoringRef.current && queueItem != null
+    if (skipScoringRef.current) skipScoringRef.current = false
+
+    if (isScoringEnabled) {
+      pendingSongAdvanceRef.current = {
+        history,
+        nextQueueItem: nextQueueItem ?? null,
+        isAutoplay,
+        isNotifyEnabled,
+        singerUserId: nextQueueItem?.userId ?? 0,
+      }
+      dispatch({
+        type: SCORING_START_REQUEST,
+        payload: {
+          queueId: queueItem.queueId,
+          songId: queueItem.songId,
+          singerUserId: queueItem.userId,
+          duration: roomPrefs?.scoring?.duration ?? 15,
+        },
+      })
+      return
+    }
+
     // queue exhausted?
     if (!nextQueueItem) {
       if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
@@ -196,36 +224,7 @@ const PlayerController = (props: PlayerControllerProps) => {
       return
     }
 
-    const isAutoplay = roomPrefs?.autoplay?.isEnabled ?? false
-    const isNotifyEnabled = roomPrefs?.notifyEnabled !== false
-    const singerUserId = nextQueueItem.userId
-
-    // scoring branch: hold advance until scoring animation completes
-    // queueItem must be non-null (a song actually finished); skip on initial load (queueId === -1)
-    const isScoringEnabled = (roomPrefs?.scoring?.isEnabled ?? false) && !skipScoringRef.current && queueItem != null
-    if (skipScoringRef.current) skipScoringRef.current = false
-
-    if (isScoringEnabled) {
-      pendingSongAdvanceRef.current = {
-        history,
-        nextQueueItem: nextQueueItem as QueueItem,
-        isAutoplay,
-        isNotifyEnabled,
-        singerUserId,
-      }
-      dispatch({
-        type: SCORING_START_REQUEST,
-        payload: {
-          queueId: queueItem?.queueId ?? -1,
-          songId: queueItem?.songId ?? -1,
-          singerUserId: queueItem?.userId ?? -1,
-          duration: roomPrefs?.scoring?.duration ?? 15,
-        },
-      })
-      return
-    }
-
-    advanceToNext({ history, nextQueueItem: nextQueueItem as QueueItem, isAutoplay, isNotifyEnabled, singerUserId })
+    advanceToNext({ history, nextQueueItem, isAutoplay, isNotifyEnabled, singerUserId: nextQueueItem.userId })
   }, [advanceToNext, dispatch, handleStatus, nextQueueItem, player.historyJSON, queueItem, roomPrefs?.autoplay?.isEnabled, roomPrefs?.notifyEnabled, roomPrefs?.scoring?.isEnabled, roomPrefs?.scoring?.duration])
 
   // called by ScoringPhase when animation completes (or immediately if skipped/no-votes case)
@@ -234,9 +233,22 @@ const PlayerController = (props: PlayerControllerProps) => {
     if (pendingSongAdvanceRef.current) {
       const pending = pendingSongAdvanceRef.current
       pendingSongAdvanceRef.current = null
-      advanceToNext(pending)
+      if (pending.nextQueueItem == null) {
+        // last song scored — set queue exhausted state
+        if (waitingTimerRef.current) { clearTimeout(waitingTimerRef.current); waitingTimerRef.current = null }
+        pendingWaitingUserRef.current = null
+        handleStatus({
+          historyJSON: JSON.stringify(pending.history),
+          isAtQueueEnd: true,
+          isWaitingForSinger: false,
+          mediaType: null,
+          _isPlayingNext: false,
+        })
+      } else {
+        advanceToNext(pending as PendingAdvance & { nextQueueItem: QueueItem })
+      }
     }
-  }, [dispatch, advanceToNext])
+  }, [dispatch, advanceToNext, handleStatus])
 
   // "lock in" the next user that isn't the currently up user, if possible
   useEffect(() => {
