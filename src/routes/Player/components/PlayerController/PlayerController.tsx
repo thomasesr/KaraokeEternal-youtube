@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Player from '../Player/Player'
 import PlayerTextOverlay from '../PlayerTextOverlay/PlayerTextOverlay'
@@ -43,6 +44,7 @@ const PlayerController = (props: PlayerControllerProps) => {
   const currentArtist = currentSong ? artists[currentSong.artistId] : null
 
   const dispatch = useAppDispatch()
+  const { t } = useTranslation()
   const defaultOffsetApplied = useRef(false)
   const defaultFontSizeApplied = useRef(false)
   const leadWarnFired = useRef(false)
@@ -137,9 +139,9 @@ const PlayerController = (props: PlayerControllerProps) => {
     if (isNotifyEnabled) {
       sendPushNotification(
         singerUserId,
-        "It's your turn to sing!",
-        isAutoplay ? 'Your song is starting now!' : 'Step up and press Play when ready.',
-        isAutoplay ? undefined : [{ action: 'play-now', title: 'Play Now' }],
+        t('player.notifYourTurnTitle'),
+        isAutoplay ? t('player.notifAutoplayBody') : t('player.notifYourTurnBody'),
+        isAutoplay ? undefined : [{ action: 'play-now', title: t('player.notifPlayNow') }],
       )
     }
 
@@ -151,9 +153,9 @@ const PlayerController = (props: PlayerControllerProps) => {
         if (isWaitingRef.current && pendingWaitingUserRef.current !== null) {
           sendPushNotification(
             pendingWaitingUserRef.current,
-            'Your fans are waiting!',
-            'The room is ready — press Play to start.',
-            [{ action: 'play-now', title: 'Play Now' }],
+            t('player.notifWaitingTitle'),
+            t('player.notifWaitingBody'),
+            [{ action: 'play-now', title: t('player.notifPlayNow') }],
           )
         }
       }, 15_000)
@@ -206,8 +208,8 @@ const PlayerController = (props: PlayerControllerProps) => {
         const secsDisplay = Math.round(timeRemaining)
         sendPushNotification(
           player.nextUserId,
-          'Your song is about to start!',
-          `Get ready — it starts in about ${secsDisplay} seconds.`,
+          t('player.notifLeadTitle'),
+          t('player.notifLeadBody', { seconds: secsDisplay }),
         )
       }
     }

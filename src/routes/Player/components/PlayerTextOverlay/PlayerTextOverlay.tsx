@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from 'store/hooks'
 import { requestPlay } from 'store/modules/status'
 import ColorCycle from './ColorCycle/ColorCycle'
@@ -31,6 +32,7 @@ const PlayerTextOverlay = ({
   height,
 }: PlayerTextOverlayProps) => {
   const dispatch = useAppDispatch()
+  const { t } = useTranslation()
   const handlePlay = () => dispatch(requestPlay())
   const [errorOffset] = useState(() => Math.random() * -300)
 
@@ -49,16 +51,16 @@ const PlayerTextOverlay = ({
         </svg>
         <div className={styles.waitingContainer}>
           {waitingForUser && (
-            <ColorCycle text={`${waitingForUser.toUpperCase()}'S TURN`} className={styles.backdrop} />
+            <ColorCycle text={t('player.waitingTurn', { name: waitingForUser.toUpperCase() })} className={styles.backdrop} />
           )}
-          <button className={styles.playButton} onClick={handlePlay} aria-label='Play'>
+          <button className={styles.playButton} onClick={handlePlay} aria-label={t('player.playAriaLabel')}>
             <Icon icon='PLAY' />
           </button>
         </div>
       </>
     )
   } else if (isQueueEmpty || (isAtQueueEnd && !nextQueueItem)) {
-    Component = <ColorCycle text='NO MORE SONGS IN QUEUE! :(' className={styles.backdrop} />
+    Component = <ColorCycle text={t('player.queueEmpty')} className={styles.backdrop} />
   } else if (!queueItem || (isAtQueueEnd && nextQueueItem)) {
     Component = (
       <>
@@ -70,7 +72,7 @@ const PlayerTextOverlay = ({
             </linearGradient>
           </defs>
         </svg>
-        <button className={styles.playButton} onClick={handlePlay} aria-label='Play'>
+        <button className={styles.playButton} onClick={handlePlay} aria-label={t('player.playAriaLabel')}>
           <Icon icon='PLAY' />
         </button>
       </>
@@ -78,8 +80,8 @@ const PlayerTextOverlay = ({
   } else if (isErrored) {
     Component = (
       <>
-        <ColorCycle text='OOPS...' offset={errorOffset} className={styles.backdrop} />
-        <ColorCycle text='SEE QUEUE FOR DETAILS' offset={errorOffset} className={styles.backdrop} />
+        <ColorCycle text={t('player.errorTitle')} offset={errorOffset} className={styles.backdrop} />
+        <ColorCycle text={t('player.errorDetail')} offset={errorOffset} className={styles.backdrop} />
       </>
     )
   } else {

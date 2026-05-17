@@ -248,5 +248,20 @@
     "removeUpcomingFor": "Remover todas as músicas na fila de \"{{name}}\"?",
     "skipRemoveMyUpcoming": "Pular e remover todas as suas músicas na fila?",
     "skipRemoveUpcomingFor": "Pular e remover todas as músicas na fila de \"{{name}}\"?"
+  },
+  "player": {
+    "waitingTurn": "VEZ DE {{name}}",
+    "queueEmpty": "SEM MAIS MÚSICAS NA FILA! :(",
+    "errorTitle": "OPA...",
+    "errorDetail": "VEJA A FILA PARA DETALHES",
+    "playAriaLabel": "Reproduzir",
+    "notifYourTurnTitle": "É a sua vez de cantar!",
+    "notifYourTurnBody": "Prepare-se e pressione Play quando estiver pronto.",
+    "notifAutoplayBody": "Sua música está começando agora!",
+    "notifPlayNow": "Tocar Agora",
+    "notifWaitingTitle": "Seus fãs estão esperando!",
+    "notifWaitingBody": "A sala está pronta — pressione Play para começar.",
+    "notifLeadTitle": "Sua música está prestes a começar!",
+    "notifLeadBody": "Prepare-se — começa em cerca de {{seconds}} segundos."
   }
 }

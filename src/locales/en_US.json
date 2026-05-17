@@ -248,5 +248,20 @@
     "removeUpcomingFor": "Remove all upcoming songs for \"{{name}}\"?",
     "skipRemoveMyUpcoming": "Skip and remove all your upcoming songs?",
     "skipRemoveUpcomingFor": "Skip and remove all upcoming songs for \"{{name}}\"?"
+  },
+  "player": {
+    "waitingTurn": "{{name}}'S TURN",
+    "queueEmpty": "NO MORE SONGS IN QUEUE! :(",
+    "errorTitle": "OOPS...",
+    "errorDetail": "SEE QUEUE FOR DETAILS",
+    "playAriaLabel": "Play",
+    "notifYourTurnTitle": "It's your turn to sing!",
+    "notifYourTurnBody": "Step up and press Play when ready.",
+    "notifAutoplayBody": "Your song is starting now!",
+    "notifPlayNow": "Play Now",
+    "notifWaitingTitle": "Your fans are waiting!",
+    "notifWaitingBody": "The room is ready — press Play to start.",
+    "notifLeadTitle": "Your song is about to start!",
+    "notifLeadBody": "Get ready — it starts in about {{seconds}} seconds."
   }
 }
