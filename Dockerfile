@@ -28,13 +28,15 @@ RUN npm ci --omit=dev
 # Main app container — no ML Python deps (spleeter/ctc/whisperx run as separate services)
 FROM node:24-alpine
 
-RUN apk add --no-cache ca-certificates zip unzip curl xz && \
+RUN apk add --no-cache ca-certificates zip unzip curl && \
+    mkdir /tmp/ffbuild && \
     curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
-      | tar -xJ --strip-components=2 -C /usr/local/bin --wildcards '*/bin/ff*' && \
+      | tar -xJ -C /tmp/ffbuild && \
+    mv /tmp/ffbuild/*/bin/ff* /usr/local/bin/ && \
+    rm -rf /tmp/ffbuild && \
     curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
       -o /usr/local/bin/yt-dlp && \
-    chmod +x /usr/local/bin/yt-dlp && \
-    apk del xz
+    chmod +x /usr/local/bin/yt-dlp
 
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
