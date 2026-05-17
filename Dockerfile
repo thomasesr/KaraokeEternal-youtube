@@ -29,8 +29,9 @@ RUN npm ci --omit=dev
 FROM node:24-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip ffmpeg ca-certificates zip unzip curl && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp && \
+    ffmpeg ca-certificates zip unzip curl && \
+    curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    chmod +x /usr/local/bin/yt-dlp && \
     rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \

@@ -10,8 +10,12 @@
 FROM nvidia/cuda:12.3.2-runtime-ubuntu22.04 AS deps
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip ffmpeg ca-certificates zip unzip curl git build-essential \
+    ca-certificates zip unzip curl git xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# ffmpeg with CUDA/NVENC/NVDEC support (BtbN static GPL build)
+RUN curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
+    | tar -xJ --strip-components=2 -C /usr/local/bin --wildcards '*/bin/ff*'
 
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
@@ -20,8 +24,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 RUN groupadd --gid 1000 node \
     && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
 
-# Install only yt-dlp (ML services live in separate containers)
-RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+# yt-dlp standalone binary (no Python needed)
+RUN curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp && chmod +x /usr/local/bin/yt-dlp
 
 # Install Deno
 ARG DENO_VERSION=2.3.3
