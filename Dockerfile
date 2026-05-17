@@ -37,8 +37,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip ffmpeg ca-certificates zip unzip curl
 
 COPY --from=builder --chown=node:node /src/requirements-cpu.txt ./requirements-cpu.txt
+COPY --from=builder --chown=node:node /src/requirements-whisperx-cpu.txt ./requirements-whisperx-cpu.txt
 COPY --from=builder --chown=node:node /src/init.sh ./init.sh
-RUN bash ./init.sh --install  && rm -rf /var/lib/apt/lists/*
+RUN bash ./init.sh --install-all  && rm -rf /var/lib/apt/lists/*
 
 # Spleeter downloads the 2-stems model on first use into SPLEETER_DATA.
 # Pointing it at /data/spleeter keeps the model in the existing data volume
@@ -56,6 +57,7 @@ COPY --from=installer --chown=node:node /prod-deps/node_modules ./node_modules
 COPY --from=builder --chown=node:node /src/package.json ./package.json
 COPY --from=builder --chown=node:node /src/init.sh ./init.sh
 COPY --from=builder --chown=node:node /src/requirements-cpu.txt ./requirements-cpu.txt
+COPY --from=builder --chown=node:node /src/requirements-whisperx-cpu.txt ./requirements-whisperx-cpu.txt
 RUN chmod +x /app/init.sh
 
 RUN mkdir -p /data && chown node:node /data

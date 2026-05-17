@@ -34,10 +34,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 RUN groupadd --gid 1000 node \
     && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
 
-# Python deps (tensorflow[and-cuda], spleeter, yt-dlp, ctc-forced-aligner) + Deno.
-# Cached as long as requirements.txt and init.sh are unchanged — even across code commits.
-COPY requirements.txt init.sh /tmp/
-RUN bash /tmp/init.sh --install-gpu
+# Python deps (tensorflow[and-cuda], spleeter, yt-dlp, ctc-forced-aligner, whisperx) + Deno.
+# Cached as long as requirements files and init.sh are unchanged — even across code commits.
+COPY requirements.txt requirements-whisperx-gpu.txt init.sh /tmp/
+RUN bash /tmp/init.sh --install-all-gpu
 
 # ---- builder ----
 # Node 24 on Alpine for npm ci + build (node-gyp only needs any python3)
@@ -74,7 +74,9 @@ ENV NODE_ENV=production \
     KES_PORT=3000 \
     SPLEETER_DATA=/data/spleeter \
     TF_FORCE_GPU_ALLOW_GROWTH=true \
+    SPLEETER_USE_GPU=1 \
     CTC_USE_GPU=1 \
+    WHISPERX_USE_GPU=1 \
     CTC_MODEL_PATH=/data/ctc
 
 WORKDIR /app
@@ -85,6 +87,7 @@ COPY --from=installer --chown=node:node /prod-deps/node_modules ./node_modules
 COPY --from=builder --chown=node:node /src/package.json ./package.json
 COPY --from=builder --chown=node:node /src/init.sh ./init.sh
 COPY --from=builder --chown=node:node /src/requirements.txt ./requirements.txt
+COPY --from=builder --chown=node:node /src/requirements-whisperx-gpu.txt ./requirements-whisperx-gpu.txt
 RUN chmod +x /app/init.sh
 
 RUN mkdir -p /data && chown node:node /data

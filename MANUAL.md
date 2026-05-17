@@ -76,11 +76,14 @@ When the scanner finds an audio file (`.mp3`, `.flac`, `.wav`, `.ogg`, `.opus`, 
 
 ## Enhanced LRC
 
-This fork can upgrade standard line-timed `.lrc` files to **word-level timestamps** using [ctc-forced-aligner](https://github.com/MahmoudAshraf97/ctc-forced-aligner). Word-level timing enables syllable-highlighted karaoke display instead of line-by-line highlighting.
+This fork can upgrade standard line-timed `.lrc` files to **word-level timestamps**, enabling syllable-highlighted karaoke display. Two alignment backends are supported:
+
+- **`ctc-forced-aligner`** — lightweight ONNX-based forced aligner. Faster, lower memory footprint. Requires a one-time ~50 MB model download.
+- **`whisperx`** — wav2vec2 phoneme-level forced aligner. Generally more accurate, especially on noisy or separated vocals. Downloads a language-specific model (~300 MB) on first use per language.
 
 ### How it works
 
-`ctc-forced-aligner` force-aligns the lyrics text against the vocal audio to produce per-word start/end times. The enhanced LRC is serialized with inline word tags and a `[re:ctc-forced-aligner]` header so the scanner can skip re-processing on future rescans.
+The selected backend force-aligns the lyrics text against the separated vocal audio to produce per-word start/end times. The enhanced LRC is serialized with inline word tags and a `[re:<backend>]` header so the scanner skips re-processing on future rescans.
 
 Enhanced LRC is applied in two workflows:
 
@@ -91,25 +94,39 @@ Language is detected automatically from the lyrics text (English, Japanese, Kore
 
 ### Configuration
 
-Enable in **Account → YouTube → Enhanced LRC (word-level timestamps)**:
+Enable in **Account → YouTube → Enhanced LRC (word-level timestamps)**. Only backends installed on the server appear in the dropdown.
 
 | Value | Behaviour |
 |---|---|
-| `none` (default) | Standard line-timed LRC; no ctc-forced-aligner invoked |
-| `ctc` | Word-level timestamps added after every vocal separation |
+| `none` (default) | Standard line-timed LRC; no aligner invoked |
+| `ctc` | Word-level timestamps via ctc-forced-aligner |
+| `whisperx` | Word-level timestamps via whisperx (wav2vec2) |
 
 ### Server requirements
 
-- **`ctc-forced-aligner`** — Python package. Installed by `./init.sh --install` / `--install-gpu` or manually via `pip install ctc-forced-aligner`.
-- **ONNX alignment model** — downloaded automatically to `CTC_MODEL_PATH` on first startup.
-- **`python3`** — used to invoke the alignment script.
+| Backend | Python package | Additional download |
+|---|---|---|
+| `ctc` | `ctc-forced-aligner`, `onnxruntime` | ONNX alignment model (~50 MB), auto-downloaded to `CTC_MODEL_PATH` on first startup |
+| `whisperx` | `whisperx`, `torch` | wav2vec2 model per language (~300 MB), auto-downloaded to HuggingFace cache on first use |
+
+Install via `init.sh` (see [init.sh](#initsh)):
+
+```bash
+./init.sh --install-all      # both backends, CPU-only torch
+./init.sh --install-all-gpu  # both backends, CUDA
+./init.sh --install          # ctc only, CPU (default)
+./init.sh --install-gpu      # ctc only, CUDA
+KES_LRC_BACKEND=whisperx ./init.sh --install      # whisperx only, CPU
+KES_LRC_BACKEND=whisperx ./init.sh --install-gpu  # whisperx only, CUDA
+```
 
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `CTC_MODEL_PATH` | `/data/ctc` | Directory where the ONNX alignment model is cached |
-| `CTC_USE_GPU` | `0` | Set to `1` to run ctc-forced-aligner on CUDA instead of CPU |
+| `CTC_USE_GPU` | `0` | Set to `1` to run ctc-forced-aligner on CUDA |
+| `WHISPERX_USE_GPU` | `0` | Set to `1` to run whisperx on CUDA |
 
 ---
 
@@ -227,21 +244,28 @@ commercials/
 Run once on a fresh host to install all required tools. Detects what is already present and skips it.
 
 ```bash
-# CPU / bare-metal (installs nvm + Node 24, Deno, yt-dlp, spleeter, ctc-forced-aligner)
-./init.sh --install
+./init.sh --install          # ctc only, CPU (default)
+./init.sh --install-gpu      # ctc only, CUDA
+./init.sh --install-all      # ctc + whisperx, CPU-only torch
+./init.sh --install-all-gpu  # ctc + whisperx, CUDA
+```
 
-# GPU / CUDA (same, but installs tensorflow[and-cuda] instead of the CPU-only variant)
-./init.sh --install-gpu
+`KES_LRC_BACKEND=whisperx` selects whisperx instead of ctc for the single-backend flags:
+
+```bash
+KES_LRC_BACKEND=whisperx ./init.sh --install      # whisperx only, CPU
+KES_LRC_BACKEND=whisperx ./init.sh --install-gpu  # whisperx only, CUDA
 ```
 
 What each flag installs:
 
-| Step | `--install` | `--install-gpu` |
-|---|---|---|
-| System packages (apt) | `python3 python3-pip ffmpeg ca-certificates zip unzip curl git build-essential` | same |
-| Node 24 | via **nvm** (skipped if `node` already on `PATH`) | same |
-| Deno | latest `DENO_VERSION` binary (skipped if already present) | same |
-| Python packages | `requirements-cpu.txt` (yt-dlp, spleeter, ctc-forced-aligner) | `requirements.txt` (adds `tensorflow[and-cuda]`) |
+| Step | `--install` | `--install-gpu` | `--install-all` | `--install-all-gpu` |
+|---|---|---|---|---|
+| System packages | `python3 python3-pip ffmpeg …` | same | same | same |
+| Node 24 | via nvm (skipped if on PATH) | same | same | same |
+| Deno | `DENO_VERSION` binary | same | same | same |
+| ctc-forced-aligner | `requirements-cpu.txt` | `requirements.txt` (+`tensorflow[and-cuda]`) | `requirements-cpu.txt` | `requirements.txt` |
+| whisperx | — | — | CPU torch + `requirements-whisperx-cpu.txt` | `requirements-whisperx-gpu.txt` |
 
 The Dockerfiles use these flags during the image build step so the same script drives both local and containerised installs.
 
@@ -263,8 +287,8 @@ Runs `npm install` then `npm run build` from the repo root and exits. Equivalent
 
 Running `init.sh` without flags (the Docker `ENTRYPOINT`) verifies all dependencies, downloads missing models, then starts the server:
 
-1. **Dependency check** — confirms `node`, `python3`, `ffmpeg`, `yt-dlp`, `deno`, `spleeter`, and `ctc-forced-aligner` are present and prints versions.
-2. **CTC alignment model** — downloads the ONNX model to `CTC_MODEL_PATH` if missing.
+1. **Dependency check** — confirms `node`, `python3`, `ffmpeg`, `yt-dlp`, `deno`, and `spleeter` are present and prints versions.
+2. **Enhanced LRC backends** — reports installed/missing status for both `ctc-forced-aligner` and `whisperx`; downloads the ONNX model to `CTC_MODEL_PATH` if ctc is installed and the model is missing. whisperx downloads language models on first use automatically.
 3. **Spleeter model** — downloads and verifies the `SPLEETER_MODEL` tarball to `SPLEETER_DATA` if missing or corrupt.
 4. **Server start** — `exec node build/server/main.js` with any `LOG_LEVEL`-derived flags.
 
@@ -274,7 +298,10 @@ Running `init.sh` without flags (the Docker `ENTRYPOINT`) verifies all dependenc
 |---|---|---|
 | `NVM_DIR` | `$HOME/.nvm` | Where nvm is installed (install mode) |
 | `DENO_VERSION` | `2.3.3` | Deno version to install |
-| `CTC_USE_GPU` | `0` | Set to `1` to select GPU requirements file in `--install` mode |
+| `KES_LRC_BACKEND` | `ctc` | Selects backend for single-backend install flags (`ctc` or `whisperx`) |
+| `CTC_USE_GPU` | `0` | Set to `1` to install/use CUDA for ctc-forced-aligner |
+| `WHISPERX_USE_GPU` | `0` | Set to `1` to install/use CUDA for whisperx |
+| `SPLEETER_USE_GPU` | `0` | Set to `1` to enable GPU acceleration for spleeter (TensorFlow) |
 | `CTC_MODEL_PATH` | `/data/ctc` | Where the ONNX alignment model is stored |
 | `SPLEETER_MODEL` | `2stems` | Spleeter model name (`2stems` or `2stems-finetune`) |
 | `SPLEETER_DATA` | `/data/spleeter` | Where Spleeter stores pretrained models |
