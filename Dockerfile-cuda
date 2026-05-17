@@ -1,50 +1,42 @@
 # syntax=docker/dockerfile:1.6
 #
-# GPU variant — requires NVIDIA Container Toolkit on the host and --gpus all at runtime.
+# GPU variant for the main app container.
+# ML services (spleeter, ctc, whisperx) run as separate containers — see docker-compose-cuda.yml.
 #
-# Layer caching strategy:
-#   deps  — nvidia/cuda base + apt + Node (NodeSource) + pip + Deno.
-#           Rebuilds only when requirements.txt or init.sh changes.
-#           Code commits never touch this layer.
-#   builder/installer — npm build + prod node_modules (rebuilt per commit).
-#   runtime — FROM deps; just copies app artifacts on top.
-#
-# Build:
-#   docker build -f Dockerfile-cuda .
-#   docker build -f Dockerfile-cuda github.com/thomasesr/KaraokeEternal-youtube#merge
-# Run:
-#   docker run --gpus all ...
+# Build:  docker build -f Dockerfile-cuda .
+# Run:    docker compose -f docker-compose-cuda.yml up
 
 # ---- deps ----
-# Heavy, stable layer: CUDA base + system packages + Node + Python deps + Deno.
-# init.sh --install-gpu detects Node already on PATH (NodeSource) and skips nvm.
 FROM nvidia/cuda:12.3.2-runtime-ubuntu22.04 AS deps
 
-# System packages (apt)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip ffmpeg ca-certificates zip unzip curl git build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Node 24 via NodeSource — system-wide, no nvm needed
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# node user — matches UID/GID 1000 used by official node images
 RUN groupadd --gid 1000 node \
     && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
 
-# Python deps (tensorflow[and-cuda], spleeter, yt-dlp, ctc-forced-aligner, whisperx) + Deno.
-# Cached as long as requirements files and init.sh are unchanged — even across code commits.
-COPY requirements.txt requirements-whisperx-gpu.txt init.sh /tmp/
-RUN bash /tmp/init.sh --install-all-gpu
+# Install only yt-dlp (ML services live in separate containers)
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp
+
+# Install Deno
+ARG DENO_VERSION=2.3.3
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ]; then DARCH="aarch64-unknown-linux-gnu"; else DARCH="x86_64-unknown-linux-gnu"; fi && \
+    curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${DARCH}.zip" -o /tmp/deno.zip && \
+    unzip /tmp/deno.zip -d /usr/local/bin/ && \
+    chmod +x /usr/local/bin/deno && \
+    rm /tmp/deno.zip
 
 # ---- builder ----
-# Node 24 on Alpine for npm ci + build (node-gyp only needs any python3)
 FROM node:24-alpine AS builder
 
 ARG REPO_SLUG=thomasesr/KaraokeEternal-youtube
-ARG REPO_BRANCH=merge
+ARG REPO_BRANCH=Compose
 
 RUN apk add --no-cache git python3 make g++ pkgconfig
 
@@ -57,7 +49,6 @@ RUN npm ci
 RUN npm run build
 
 # ---- installer ----
-# Fresh npm ci --omit=dev is faster than npm prune on large trees
 FROM node:24-alpine AS installer
 RUN apk add --no-cache python3 make g++ pkgconfig
 WORKDIR /prod-deps
@@ -65,19 +56,11 @@ COPY --from=builder /src/package.json /src/package-lock.json ./
 RUN npm ci --omit=dev
 
 # ---- runtime ----
-# Inherits nvidia/cuda base + all Python/Node/Deno deps from deps stage.
 FROM deps
 
-# TF_FORCE_GPU_ALLOW_GROWTH: prevent TensorFlow from pre-allocating all VRAM.
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
-    KES_PORT=3000 \
-    SPLEETER_DATA=/data/spleeter \
-    TF_FORCE_GPU_ALLOW_GROWTH=true \
-    SPLEETER_USE_GPU=1 \
-    CTC_USE_GPU=1 \
-    WHISPERX_USE_GPU=1 \
-    CTC_MODEL_PATH=/data/ctc
+    KES_PORT=3000
 
 WORKDIR /app
 
@@ -86,8 +69,6 @@ COPY --from=builder --chown=node:node /src/assets ./assets
 COPY --from=installer --chown=node:node /prod-deps/node_modules ./node_modules
 COPY --from=builder --chown=node:node /src/package.json ./package.json
 COPY --from=builder --chown=node:node /src/init.sh ./init.sh
-COPY --from=builder --chown=node:node /src/requirements.txt ./requirements.txt
-COPY --from=builder --chown=node:node /src/requirements-whisperx-gpu.txt ./requirements-whisperx-gpu.txt
 RUN chmod +x /app/init.sh
 
 RUN mkdir -p /data && chown node:node /data

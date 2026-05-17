@@ -1,6 +1,6 @@
 import { createAction, createAsyncThunk, createReducer } from '@reduxjs/toolkit'
 import HttpApi from 'lib/HttpApi'
-import type { IYoutubeAccess, IYoutubePrefs, YoutubeQualityPreset, YoutubeRole, YoutubeEnhancedLrcBackend } from 'shared/types'
+import type { IYoutubeAccess, IYoutubePrefs, YoutubeQualityPreset, YoutubeRole } from 'shared/types'
 import {
   YOUTUBE_CONFIG_REQUEST,
   YOUTUBE_CONFIG_SAVE,
@@ -36,7 +36,6 @@ export interface YoutubeConfigPatch {
   qualityPreset?: YoutubeQualityPreset
   musicbrainzMinScore?: number
   allowedRoles?: YoutubeRole[]
-  enhancedLrcBackend?: YoutubeEnhancedLrcBackend
   apiKey?: string | null
   cookies?: string | null
 }

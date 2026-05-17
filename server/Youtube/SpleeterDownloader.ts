@@ -6,10 +6,9 @@ import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
 import { ingestDownloaded } from './ingestDownloaded.js'
-import { enhanceLrc, isEnhancedLrc } from './EnhancedLrc.js'
+import { enhanceLrc, getAlignBackend, isEnhancedLrc } from './EnhancedLrc.js'
 import type { Job } from './Downloader.js'
 import { DownloaderError } from './Downloader.js'
-import type { IYoutubePrefs } from '../../shared/types.js'
 
 const log = getLogger('Youtube')
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/
@@ -129,7 +128,8 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
 
   log.verbose('spleeter pipeline start: %s artist=%s title=%s dest=%s', videoId, opts.artist, opts.title, opts.destDir)
 
-  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), `kes-spl-${videoId}-`))
+  const tmpBase = process.env.KES_TMP_DIR || os.tmpdir()
+  const tmpDir = await fsp.mkdtemp(path.join(tmpBase, `kes-spl-${videoId}-`))
   const stemsDir = path.join(tmpDir, 'stems')
   log.debug('spleeter tmpDir=%s stemsDir=%s', tmpDir, stemsDir)
 
@@ -199,36 +199,30 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
     const dlMp3Resolved = path.join(tmpDir, `${base}-dl.mp3`)
     log.debug('spleeter resolved audio file: %s', dlMp3Resolved)
 
-    // --- spleeter separate ---
+    // --- spleeter separate (via service) ---
     job.stage = 'separating'
     job.progress = 40
     log.verbose('spleeter stage=separating: %s', videoId)
 
-    const spleeterModel = process.env.SPLEETER_MODEL ?? '2stems'
-    const spleeterData = process.env.SPLEETER_DATA ?? '/data/spleeter'
-    const configPath = path.join(spleeterData, 'pretrained_models', spleeterModel, `${spleeterModel}.json`)
-    const useGpu = process.env.SPLEETER_USE_GPU === '1'
-    log.debug('spleeter model=%s configPath=%s useGpu=%s', spleeterModel, configPath, useGpu)
-    await spawnAsync('spleeter', [
-      'separate',
-      '-p', configPath,
-      '-c', 'mp3',
-      '-o', stemsDir,
-      dlMp3Resolved,
-    ], {
-      label: 'spleeter:separate',
-      env: useGpu
-        ? { TF_FORCE_GPU_ALLOW_GROWTH: '1' }
-        : { CUDA_VISIBLE_DEVICES: '', TF_CPP_MIN_LOG_LEVEL: '2' },
+    const spleeterUrl = process.env.SPLEETER_SERVICE_URL
+    if (!spleeterUrl) throw new Error('SPLEETER_SERVICE_URL not configured')
+    log.debug('spleeter service url=%s audio=%s stemsDir=%s', spleeterUrl, dlMp3Resolved, stemsDir)
+
+    const seplRes = await fetch(`${spleeterUrl}/separate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_path: dlMp3Resolved, output_dir: stemsDir }),
     })
+    if (!seplRes.ok) {
+      const detail = await seplRes.text().catch(() => '')
+      throw new Error(`spleeter service: ${seplRes.status} ${detail.slice(-2000)}`)
+    }
+    const stems = await seplRes.json() as { accompaniment: string, vocals: string }
+    const accompanimentMp3 = stems.accompaniment
+    const vocalsMp3 = stems.vocals
+    log.debug('spleeter stems: accompaniment=%s vocals=%s', accompanimentMp3, vocalsMp3)
 
     job.progress = 85
-
-    // spleeter outputs {stemsDir}/{inputBasenameWithoutExt}/accompaniment.mp3 with -c mp3
-    const stemSubdir = path.join(stemsDir, `${base}-dl`)
-    const accompanimentMp3 = path.join(stemSubdir, 'accompaniment.mp3')
-    const vocalsMp3 = path.join(stemSubdir, 'vocals.mp3')
-    log.debug('spleeter stems: accompaniment=%s vocals=%s', accompanimentMp3, vocalsMp3)
 
     // --- fetch LRC ---
     job.stage = 'fetching-lrc'
@@ -238,14 +232,12 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
     log.debug('spleeter lrc fetched: %d chars', lrcContent.length)
 
     // --- optionally enhance LRC ---
-    const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
-    const enhancedLrcBackend = ytPrefs?.enhancedLrcBackend ?? 'none'
-    const lrcBackend = (enhancedLrcBackend === 'whisperx' ? 'whisperx' : 'ctc') as 'ctc' | 'whisperx'
-    if (enhancedLrcBackend !== 'none' && !isEnhancedLrc(lrcContent)) {
+    const lrcBackend = getAlignBackend()
+    if (lrcBackend !== 'none' && !isEnhancedLrc(lrcContent)) {
       job.stage = 'enhancing-lrc'
       log.verbose('spleeter stage=enhancing-lrc: %s backend=%s', videoId, lrcBackend)
       try {
-        lrcContent = await enhanceLrc(vocalsMp3, lrcContent, tmpDir, { artist: opts.artist, title: opts.title }, lrcBackend)
+        lrcContent = await enhanceLrc(vocalsMp3, lrcContent, tmpDir, { artist: opts.artist, title: opts.title })
         log.debug('spleeter lrc enhanced: %d chars', lrcContent.length)
       } catch (e) {
         log.warn('spleeter lrc enhancement failed, using plain lrc: %s', (e as Error).message)

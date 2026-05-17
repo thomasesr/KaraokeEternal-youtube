@@ -7,8 +7,7 @@ import Prefs from '../Prefs/Prefs.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
 import { ingestDownloaded } from './ingestDownloaded.js'
 import { processAudioOnly } from '../Scanner/FileScanner/AudioOnlyProcessor.js'
-import { alignPlainText } from './EnhancedLrc.js'
-import type { IYoutubePrefs } from '../../shared/types.js'
+import { alignPlainText, getAlignBackend } from './EnhancedLrc.js'
 import type { Job } from './Downloader.js'
 import { DownloaderError } from './Downloader.js'
 
@@ -215,13 +214,11 @@ async function runPipeline (videoId: string, job: Job, opts: AudioOnlyStartOptio
 
         job.status = 'downloading'
         job.stage = 'enhancing-lrc'
-        const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
-        const lrcBackend = (ytPrefs?.enhancedLrcBackend === 'whisperx' ? 'whisperx' : 'ctc') as 'ctc' | 'whisperx'
-        log.verbose('audioonly aligning user-provided lyrics: %s backend=%s', videoId, lrcBackend)
+        log.verbose('audioonly aligning user-provided lyrics: %s backend=%s', videoId, getAlignBackend())
 
-        const alignTmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'kes-align-'))
+        const alignTmpDir = await fsp.mkdtemp(path.join(process.env.KES_TMP_DIR || os.tmpdir(), 'kes-align-'))
         try {
-          return await alignPlainText(vocalsMp3, plainText, alignTmpDir, { artist: opts.artist, title: opts.title }, lrcBackend)
+          return await alignPlainText(vocalsMp3, plainText, alignTmpDir, { artist: opts.artist, title: opts.title })
         } finally {
           fsp.rm(alignTmpDir, { recursive: true, force: true }).catch(() => {})
         }

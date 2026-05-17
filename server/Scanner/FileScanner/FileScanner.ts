@@ -37,8 +37,7 @@ class FileScanner extends Scanner {
     const validMediaIds = []
     const stats = { new: 0, removed: 0, existing: 0 }
     const candidates: EnhanceCandidate[] = []
-    const ytPrefs = (Prefs.get() as any)?.youtube ?? {}
-    const enhancedLrcBackend = ytPrefs?.enhancedLrcBackend ?? 'none'
+    const lrcEnhanceEnabled = !!(process.env.CTC_SERVICE_URL || process.env.WHISPERX_SERVICE_URL)
     let files // { file, stats }[]
     let prevDir
 
@@ -84,7 +83,7 @@ class FileScanner extends Scanner {
         if (res.isNew) stats.new++
         else stats.existing++
 
-        if (enhancedLrcBackend !== 'none' && getExt(files[i].file) === '.zip') {
+        if (lrcEnhanceEnabled && getExt(files[i].file) === '.zip') {
           const cand = await this.checkEnhanceCandidate(files[i].file, res.mediaId)
           if (cand) candidates.push(cand)
         }

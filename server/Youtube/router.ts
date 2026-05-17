@@ -1,5 +1,4 @@
 import KoaRouter from '@koa/router'
-import { execSync } from 'child_process'
 import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
 import { YoutubeService, YoutubeApiError } from './YoutubeService.js'
@@ -13,9 +12,8 @@ import type {
   Prefs as PrefsType,
   YoutubeQualityPreset,
   YoutubeRole,
-  YoutubeEnhancedLrcBackend,
 } from '../../shared/types.js'
-import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ROLES, YOUTUBE_ENHANCED_LRC_BACKENDS } from '../../shared/types.js'
+import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ROLES } from '../../shared/types.js'
 
 interface RequestWithBody {
   body: Record<string, unknown>
@@ -24,21 +22,11 @@ interface RequestWithBody {
 const log = getLogger('Youtube')
 const router = new KoaRouter({ prefix: '/api/youtube' })
 
-let _availableBackends: string[] | null = null
-
-function detectAvailableBackends (): string[] {
-  if (_availableBackends) return _availableBackends
-  const candidates: Array<[string, string]> = [
-    ['ctc', 'ctc_forced_aligner'],
-    ['whisperx', 'whisperx'],
-  ]
-  _availableBackends = candidates
-    .filter(([, mod]) => {
-      try { execSync(`python3 -c "import ${mod}"`, { stdio: 'ignore', timeout: 10000 }); return true } catch { return false }
-    })
-    .map(([name]) => name)
-  log.info('available enhanced LRC backends: %s', _availableBackends.join(', ') || 'none')
-  return _availableBackends
+function getAvailableBackends (): string[] {
+  const backends: string[] = []
+  if (process.env.CTC_SERVICE_URL) backends.push('ctc')
+  if (process.env.WHISPERX_SERVICE_URL) backends.push('whisperx')
+  return backends
 }
 
 const DEFAULT_CONFIG: Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEnv' | 'isCookiesConfigured' | 'availableEnhancedLrcBackends'> = {
@@ -48,7 +36,6 @@ const DEFAULT_CONFIG: Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEn
   qualityPreset: 'best',
   musicbrainzMinScore: 80,
   allowedRoles: ['admin'],
-  enhancedLrcBackend: 'none',
 }
 
 function normalizeAllowedRoles (input: unknown): YoutubeRole[] {
@@ -95,16 +82,13 @@ function getStoredConfig (): Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKe
     allowedRoles: stored.allowedRoles === undefined
       ? [...DEFAULT_CONFIG.allowedRoles]
       : normalizeAllowedRoles(stored.allowedRoles),
-    enhancedLrcBackend: YOUTUBE_ENHANCED_LRC_BACKENDS.includes(stored.enhancedLrcBackend as YoutubeEnhancedLrcBackend)
-      ? stored.enhancedLrcBackend as YoutubeEnhancedLrcBackend
-      : DEFAULT_CONFIG.enhancedLrcBackend,
   }
 }
 
 function getFullConfig (): IYoutubePrefs {
   return {
     ...getStoredConfig(),
-    availableEnhancedLrcBackends: detectAvailableBackends(),
+    availableEnhancedLrcBackends: getAvailableBackends(),
     isApiKeyConfigured: !!Prefs.getYoutubeApiKey(),
     isApiKeyFromEnv: Prefs.isYoutubeApiKeyFromEnv(),
     isCookiesConfigured: !!Prefs.getYoutubeCookies(),
@@ -168,14 +152,6 @@ router.put('/config', (ctx) => {
       }
     }
     next.allowedRoles = normalizeAllowedRoles(v)
-  }
-
-  if ('enhancedLrcBackend' in body) {
-    const v = body.enhancedLrcBackend
-    if (!YOUTUBE_ENHANCED_LRC_BACKENDS.includes(v as YoutubeEnhancedLrcBackend)) {
-      ctx.throw(422, `enhancedLrcBackend must be one of: ${YOUTUBE_ENHANCED_LRC_BACKENDS.join(', ')}`)
-    }
-    next.enhancedLrcBackend = v as YoutubeEnhancedLrcBackend
   }
 
   if ('downloadPathId' in body) {
@@ -324,6 +300,7 @@ router.post('/download', async (ctx) => {
   if (!title) ctx.throw(422, 'Missing title')
   if (artist.length > ARTIST_MAX_LEN) ctx.throw(422, `artist too long (max ${ARTIST_MAX_LEN})`)
   if (title.length > TITLE_MAX_LEN) ctx.throw(422, `title too long (max ${TITLE_MAX_LEN})`)
+  if (mode === 'spleeter' && !process.env.SPLEETER_SERVICE_URL) ctx.throw(503, 'Spleeter service not configured (set SPLEETER_SERVICE_URL)')
 
   try {
     const commonOpts = {

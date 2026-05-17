@@ -64,54 +64,21 @@ function parseFilename (basename: string): { artist: string, title: string } | n
 }
 
 async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accompaniment: string, vocals: string }> {
-  const spleeterModel = process.env.SPLEETER_MODEL ?? '2stems'
-  const spleeterData = process.env.SPLEETER_DATA ?? '/data/spleeter'
-  const useGpu = process.env.SPLEETER_USE_GPU === '1'
+  const spleeterUrl = process.env.SPLEETER_SERVICE_URL
+  if (!spleeterUrl) throw new Error('SPLEETER_SERVICE_URL not configured')
 
-  let effectiveModel = spleeterModel
-  let configPath = path.join(spleeterData, 'pretrained_models', spleeterModel, `${spleeterModel}.json`)
-
-  try {
-    await fsp.stat(configPath)
-  } catch {
-    if (spleeterModel !== '2stems') {
-      log.warn('spleeter model config not found for %s — falling back to 2stems', spleeterModel)
-      effectiveModel = '2stems'
-      configPath = path.join(spleeterData, 'pretrained_models', '2stems', '2stems.json')
-    } else {
-      throw new Error(`spleeter model config not found: ${configPath}`)
-    }
+  log.verbose('calling spleeter service for %s', path.basename(mp3Path))
+  const res = await fetch(`${spleeterUrl}/separate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audio_path: mp3Path, output_dir: stemsDir }),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`spleeter service: ${res.status} ${detail.slice(-2000)}`)
   }
-
-  log.verbose('running spleeter on %s (model=%s)', path.basename(mp3Path), effectiveModel)
-  await spawnCmd('spleeter', [
-    'separate',
-    '-p', configPath,
-    '-c', 'mp3',
-    '-o', stemsDir,
-    mp3Path,
-  ], useGpu
-    ? { TF_FORCE_GPU_ALLOW_GROWTH: '1' }
-    : { CUDA_VISIBLE_DEVICES: '', TF_CPP_MIN_LOG_LEVEL: '2' },
-  )
-
-  const stemSubdir = path.join(stemsDir, path.basename(mp3Path, '.mp3'))
-  const accompaniment = path.join(stemSubdir, 'accompaniment.mp3')
-  const vocals = path.join(stemSubdir, 'vocals.mp3')
-
-  try {
-    await fsp.stat(accompaniment)
-  } catch {
-    const topDirs = await fsp.readdir(stemsDir).catch(() => ['(stemsDir unreadable)'])
-    const subEntries = topDirs.length
-      ? await fsp.readdir(path.join(stemsDir, topDirs[0])).catch(() => ['(unreadable)'])
-      : []
-    throw new Error(
-      `spleeter did not produce accompaniment.mp3 — stemsDir: ${JSON.stringify(topDirs)}, subdir: ${JSON.stringify(subEntries)}`,
-    )
-  }
-
-  return { accompaniment, vocals }
+  const stems = await res.json() as { accompaniment: string, vocals: string }
+  return { accompaniment: stems.accompaniment, vocals: stems.vocals }
 }
 
 export type AudioOnlyProgressCallback = (stage: string, pct: number) => void
@@ -125,7 +92,7 @@ export async function processAudioOnly (
   const ext = path.extname(file).toLowerCase()
   const dir = path.dirname(file)
   const basename = path.basename(file, ext)
-  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'kes-ao-'))
+  const tmpDir = await fsp.mkdtemp(path.join(process.env.KES_TMP_DIR || os.tmpdir(), 'kes-ao-'))
 
   try {
     // Step 1: ensure mp3

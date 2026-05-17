@@ -1,28 +1,18 @@
-import { spawn } from 'child_process'
 import { promises as fsp } from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import getLogger from '../lib/Log.js'
-
-const _dir = path.dirname(fileURLToPath(import.meta.url))
-const CTC_ALIGN_PY = path.join(_dir, 'ctc_align.py')
-const WHISPERX_ALIGN_PY = path.join(_dir, 'whisperx_align.py')
-
-const BACKEND_SCRIPT: Record<'ctc' | 'whisperx', string> = {
-  ctc: CTC_ALIGN_PY,
-  whisperx: WHISPERX_ALIGN_PY,
-}
-const BACKEND_RE_TAG: Record<'ctc' | 'whisperx', string> = {
-  ctc: 'ctc-forced-aligner',
-  whisperx: 'whisperx',
-}
 
 const log = getLogger('EnhancedLrc')
 
 const LRC_LINE_RE = /^\[(\d{1,2}):(\d{2})\.(\d{2,3})\](.*)/
 
+const BACKEND_RE_TAG: Record<'ctc' | 'whisperx', string> = {
+  ctc: 'ctc-forced-aligner',
+  whisperx: 'whisperx',
+}
+
 export interface LrcLine {
-  time: number // seconds
+  time: number
   text: string
   words: string[]
 }
@@ -33,21 +23,31 @@ export interface WordSegment {
   end: number
 }
 
-function spawnAsync (cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: env ? { ...process.env, ...env } : undefined,
-    })
-    let stderr = ''
-    proc.stderr.on('data', (b: Buffer) => { stderr = (stderr + b.toString()).slice(-4000) })
-    proc.stdout.on('data', () => {})
-    proc.on('error', reject)
-    proc.on('close', (code) => {
-      if (code === 0) return resolve()
-      reject(new Error(stderr.trim().split('\n').pop() || `${cmd} exited ${code}`))
-    })
+export function getAlignBackend (): 'ctc' | 'whisperx' | 'none' {
+  if (process.env.WHISPERX_SERVICE_URL) return 'whisperx'
+  if (process.env.CTC_SERVICE_URL) return 'ctc'
+  return 'none'
+}
+
+async function callAlignService (
+  backend: 'ctc' | 'whisperx',
+  audioPath: string,
+  textPath: string,
+  language: string,
+  outputDir: string,
+): Promise<void> {
+  const baseUrl = backend === 'whisperx'
+    ? process.env.WHISPERX_SERVICE_URL!
+    : process.env.CTC_SERVICE_URL!
+  const res = await fetch(`${baseUrl}/align`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audio_path: audioPath, text_path: textPath, language, output_dir: outputDir }),
   })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`${backend} service: ${res.status} ${text.slice(-2000)}`)
+  }
 }
 
 export function isEnhancedLrc (lrcContent: string): boolean {
@@ -74,13 +74,11 @@ export function parseLrcLines (lrcContent: string): LrcLine[] {
 export function detectLanguage (text: string): string {
   const clean = text.replace(/\[.*?\]/g, '').trim()
   if (!clean) return 'eng'
-
   const total = clean.replace(/\s/g, '').length || 1
   const cjk = (clean.match(/[぀-鿿가-힯]/g) || []).length
   const cyrillic = (clean.match(/[Ѐ-ӿ]/g) || []).length
   const arabic = (clean.match(/[؀-ۿ]/g) || []).length
   const hebrew = (clean.match(/[֐-׿]/g) || []).length
-
   if (cjk / total > 0.3) {
     if (/[぀-ゟ゠-ヿ]/.test(clean)) return 'jpn'
     if (/[가-힯]/.test(clean)) return 'kor'
@@ -128,13 +126,22 @@ export function serializeEnhancedLrc (
   return header + body + '\n'
 }
 
+function parseWordSegments (parsed: unknown): WordSegment[] {
+  const arr = Array.isArray(parsed) ? parsed : (parsed as any)?.word_segments ?? []
+  return (arr as any[])
+    .map((w: any) => ({ word: String(w.word ?? w.label ?? ''), start: Number(w.start), end: Number(w.end) }))
+    .filter((w: WordSegment) => w.word)
+}
+
 export async function alignPlainText (
   audioPath: string,
   plainText: string,
   tmpDir: string,
   meta: { artist: string, title: string },
-  backend: 'ctc' | 'whisperx' = 'ctc',
 ): Promise<string> {
+  const backend = getAlignBackend()
+  if (backend === 'none') throw new Error('no alignment service configured (set CTC_SERVICE_URL or WHISPERX_SERVICE_URL)')
+
   const rawLines = plainText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
   if (rawLines.length === 0) throw new Error('no lyrics lines provided')
 
@@ -153,35 +160,17 @@ export async function alignPlainText (
   await fsp.writeFile(textFile, rawLines.join('\n'), 'utf8')
   await fsp.mkdir(outDir, { recursive: true })
 
-  const gpuEnv = backend === 'whisperx' ? 'WHISPERX_USE_GPU' : 'CTC_USE_GPU'
-  const device = process.env[gpuEnv] === '1' ? 'cuda' : 'cpu'
-
-  log.verbose('alignPlainText: audio=%s lang=%s device=%s backend=%s', path.basename(audioPath), lang, device, backend)
-
-  await spawnAsync('python3', [
-    BACKEND_SCRIPT[backend],
-    '--audio_path', audioPath,
-    '--text_path', textFile,
-    '--language', lang,
-    '--output_dir', outDir,
-    '--device', device,
-  ])
+  await callAlignService(backend, audioPath, textFile, lang, outDir)
 
   const audioBase = path.basename(audioPath, path.extname(audioPath))
-  const jsonPath = path.join(outDir, `${audioBase}.json`)
-  const raw = await fsp.readFile(jsonPath, 'utf8')
-  const parsed = JSON.parse(raw)
-
-  const allWords: WordSegment[] = (Array.isArray(parsed) ? parsed : parsed.word_segments ?? [])
-    .map((w: any) => ({ word: String(w.word ?? w.label ?? ''), start: Number(w.start), end: Number(w.end) }))
-    .filter((w: WordSegment) => w.word)
+  const raw = await fsp.readFile(path.join(outDir, `${audioBase}.json`), 'utf8')
+  const allWords = parseWordSegments(JSON.parse(raw))
 
   const wordGroups: WordSegment[][] = []
   let offset = 0
   for (const line of lines) {
-    const count = line.words.length
-    wordGroups.push(allWords.slice(offset, offset + count))
-    offset += count
+    wordGroups.push(allWords.slice(offset, offset + line.words.length))
+    offset += line.words.length
   }
 
   return serializeEnhancedLrc(lines, wordGroups, meta, backend)
@@ -192,50 +181,33 @@ export async function enhanceLrc (
   lrcContent: string,
   tmpDir: string,
   meta: { artist: string, title: string },
-  backend: 'ctc' | 'whisperx' = 'ctc',
 ): Promise<string> {
+  const backend = getAlignBackend()
+  if (backend === 'none') throw new Error('no alignment service configured (set CTC_SERVICE_URL or WHISPERX_SERVICE_URL)')
+
   const lines = parseLrcLines(lrcContent)
   if (lines.length === 0) throw new Error('no LRC lines to enhance')
 
   const lang = detectLanguage(lines.map(l => l.text).join(' '))
   log.verbose('enhanceLrc: %d lines, lang=%s backend=%s', lines.length, lang, backend)
 
-  const plainText = lines.map(l => l.text).join('\n')
   const textFile = path.join(tmpDir, 'lyrics.txt')
   const outDir = path.join(tmpDir, 'align-out')
 
-  await fsp.writeFile(textFile, plainText, 'utf8')
+  await fsp.writeFile(textFile, lines.map(l => l.text).join('\n'), 'utf8')
   await fsp.mkdir(outDir, { recursive: true })
 
-  const gpuEnv = backend === 'whisperx' ? 'WHISPERX_USE_GPU' : 'CTC_USE_GPU'
-  const device = process.env[gpuEnv] === '1' ? 'cuda' : 'cpu'
-
-  log.verbose('enhanceLrc: audio=%s lang=%s device=%s backend=%s', path.basename(audioPath), lang, device, backend)
-
-  await spawnAsync('python3', [
-    BACKEND_SCRIPT[backend],
-    '--audio_path', audioPath,
-    '--text_path', textFile,
-    '--language', lang,
-    '--output_dir', outDir,
-    '--device', device,
-  ])
+  await callAlignService(backend, audioPath, textFile, lang, outDir)
 
   const audioBase = path.basename(audioPath, path.extname(audioPath))
-  const jsonPath = path.join(outDir, `${audioBase}.json`)
-  const raw = await fsp.readFile(jsonPath, 'utf8')
-  const parsed = JSON.parse(raw)
-
-  const allWords: WordSegment[] = (Array.isArray(parsed) ? parsed : parsed.word_segments ?? [])
-    .map((w: any) => ({ word: String(w.word ?? w.label ?? ''), start: Number(w.start), end: Number(w.end) }))
-    .filter((w: WordSegment) => w.word)
+  const raw = await fsp.readFile(path.join(outDir, `${audioBase}.json`), 'utf8')
+  const allWords = parseWordSegments(JSON.parse(raw))
 
   const wordGroups: WordSegment[][] = []
   let offset = 0
   for (const line of lines) {
-    const count = line.words.length
-    wordGroups.push(allWords.slice(offset, offset + count))
-    offset += count
+    wordGroups.push(allWords.slice(offset, offset + line.words.length))
+    offset += line.words.length
   }
 
   return serializeEnhancedLrc(lines, wordGroups, meta, backend)

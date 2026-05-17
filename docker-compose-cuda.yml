@@ -1,0 +1,96 @@
+# GPU variant — requires NVIDIA Container Toolkit on the host.
+# Usage: docker compose -f docker-compose-cuda.yml up
+# For whisperx GPU: docker compose -f docker-compose-cuda.yml --profile whisperx up
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile-cuda
+    ports:
+      - "${KES_PORT:-3000}:3000"
+    volumes:
+      - data:/data
+      - shared-tmp:/shared-tmp
+    environment:
+      - NODE_ENV=production
+      - KES_PATH_DATA=/data
+      - KES_PORT=3000
+      - KES_TMP_DIR=/shared-tmp
+      - KES_YOUTUBE_API_KEY=${KES_YOUTUBE_API_KEY:-}
+      - SPLEETER_SERVICE_URL=http://spleeter:5000
+      - CTC_SERVICE_URL=http://ctc:5001
+      - WHISPERX_SERVICE_URL=${WHISPERX_SERVICE_URL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-}
+    restart: unless-stopped
+
+  spleeter:
+    build:
+      context: services/spleeter
+      dockerfile: Dockerfile.cuda
+    volumes:
+      - data:/data
+      - shared-tmp:/shared-tmp
+    environment:
+      - SPLEETER_DATA=/data/spleeter
+      - SPLEETER_MODEL=${SPLEETER_MODEL:-2stems}
+      - SPLEETER_USE_GPU=1
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 180s
+
+  ctc:
+    build:
+      context: services/ctc
+      dockerfile: Dockerfile
+    volumes:
+      - data:/data
+      - shared-tmp:/shared-tmp
+    environment:
+      - CTC_MODEL_PATH=/data/ctc
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+
+  whisperx:
+    build:
+      context: services/whisperx
+      dockerfile: Dockerfile.cuda
+    volumes:
+      - data:/data
+      - shared-tmp:/shared-tmp
+    environment:
+      - WHISPERX_USE_GPU=1
+    profiles:
+      - whisperx
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+
+volumes:
+  data:
+  shared-tmp:

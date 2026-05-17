@@ -191,163 +191,30 @@ check_dep() {
 
 check_dep "node"    "node"    "node --version"
 check_dep "npm"     "npm"     "npm --version"
-check_dep "python3" "python3" "python3 --version"
 check_dep "ffmpeg"  "ffmpeg"  "ffmpeg -version 2>&1 | head -1"
 check_dep "yt-dlp"  "yt-dlp"  "yt-dlp --version"
-check_dep "deno"    "deno"    "deno --version | head -1"
 check_dep "curl"    "curl"    "curl --version | head -1"
 check_dep "zip"     "zip"     "zip --version 2>&1 | grep -i 'zip [0-9]' | head -1"
 check_dep "unzip"   "unzip"   "unzip -v 2>&1 | head -1"
 
-# spleeter is a Python package, not always on PATH as a binary
-if python3 -c "import spleeter" 2>/dev/null; then
-  ver=$(pip3 show spleeter-thomasesr 2>/dev/null | awk '/^Version:/ {print $2}')
-  ok "spleeter (python module) — ${ver:-installed}"
-else
-  fail "spleeter — Python module not found (pip3 install spleeter-thomasesr)"
-fi
-
 # ---------------------------------------------------------------------------
-# Enhanced LRC backends (ctc-forced-aligner and/or whisperx)
+# Service URLs (spleeter/ctc/whisperx run as separate containers in Compose mode)
 # ---------------------------------------------------------------------------
-hdr "Enhanced LRC backends"
+hdr "ML service URLs"
 
-# --- ctc-forced-aligner ---
-export CTC_MODEL_PATH="${CTC_MODEL_PATH:-${KES_PATH_DATA:-/data}/ctc}"
-CTC_MODEL_FILE="${CTC_MODEL_PATH}/model.onnx"
-CTC_MODEL_URL="https://huggingface.co/deskpai/ctc_forced_aligner/resolve/main/04ac86b67129634da93aea76e0147ef3.onnx"
-
-if python3 -c "import ctc_forced_aligner" 2>/dev/null; then
-  ctc_ver=$(pip3 show ctc-forced-aligner 2>/dev/null | awk '/^Version:/ {print $2}')
-  ok "ctc-forced-aligner — ${ctc_ver:-installed}"
-
-  if python3 -c "import onnxruntime" 2>/dev/null; then
-    ort_ver=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null)
-    ok "onnxruntime — ${ort_ver:-installed}"
-  else
-    warn "onnxruntime not found — ctc-forced-aligner will fail at runtime (pip3 install onnxruntime)"
-  fi
-
-  ok "CTC_MODEL_PATH = ${CTC_MODEL_PATH}"
-  if [ -f "${CTC_MODEL_FILE}" ]; then
-    ok "ONNX alignment model present — ${CTC_MODEL_FILE}"
-  else
-    info "Fetching ONNX alignment model → ${CTC_MODEL_FILE} ..."
-    mkdir -p "${CTC_MODEL_PATH}"
-    if curl -fsSL -o "${CTC_MODEL_FILE}" "${CTC_MODEL_URL}"; then
-      ok "ONNX alignment model downloaded — ${CTC_MODEL_FILE}"
-    else
-      rm -f "${CTC_MODEL_FILE}"
-      warn "Failed to download ONNX alignment model — ctc-forced-aligner will fail at runtime"
-    fi
-  fi
+if [ -n "${SPLEETER_SERVICE_URL:-}" ]; then
+  ok "SPLEETER_SERVICE_URL = ${SPLEETER_SERVICE_URL}"
 else
-  warn "ctc-forced-aligner not installed (use --install or --install-all to install)"
+  warn "SPLEETER_SERVICE_URL = <unset> (spleeter download mode unavailable)"
 fi
 
-# --- whisperx ---
-if python3 -c "import whisperx" 2>/dev/null; then
-  wx_ver=$(pip3 show whisperx 2>/dev/null | awk '/^Version:/ {print $2}')
-  ok "whisperx — ${wx_ver:-installed} (wav2vec2 models downloaded on first use per language)"
+if [ -n "${WHISPERX_SERVICE_URL:-}" ]; then
+  ok "WHISPERX_SERVICE_URL = ${WHISPERX_SERVICE_URL} (whisperx wins over ctc for LRC enhancement)"
+elif [ -n "${CTC_SERVICE_URL:-}" ]; then
+  ok "CTC_SERVICE_URL      = ${CTC_SERVICE_URL}"
 else
-  warn "whisperx not installed (use KES_LRC_BACKEND=whisperx --install or --install-all to install)"
+  warn "CTC_SERVICE_URL / WHISPERX_SERVICE_URL = <unset> (LRC enhancement disabled)"
 fi
-
-# ---------------------------------------------------------------------------
-# Spleeter 2-stems model
-# ---------------------------------------------------------------------------
-hdr "Spleeter model"
-
-export SPLEETER_DATA="${SPLEETER_DATA:-${KES_PATH_DATA:-/data}/spleeter}"
-export SPLEETER_MODEL="${SPLEETER_MODEL:-2stems}"
-
-case "${SPLEETER_MODEL}" in
-  2stems|2stems-finetune) ;;
-  *) fail "SPLEETER_MODEL '${SPLEETER_MODEL}' invalid — use: 2stems or 2stems-finetune" ;;
-esac
-
-MODEL_DIR="${SPLEETER_DATA}/pretrained_models/${SPLEETER_MODEL}"
-CACHE_DIR="${SPLEETER_CACHE:-/tmp/spleeter-cache}"
-TARBALL="${CACHE_DIR}/${SPLEETER_MODEL}.tar.gz"
-TARBALL_SHA="${CACHE_DIR}/${SPLEETER_MODEL}.tar.gz.sha256"
-MODEL_URL="https://github.com/deezer/spleeter/releases/download/v1.4.0/${SPLEETER_MODEL}.tar.gz"
-
-ok "SPLEETER_MODEL = ${SPLEETER_MODEL}"
-
-needs_download=false
-needs_extract=false
-
-# Verify cached tarball
-if [ -f "${TARBALL}" ] && [ -f "${TARBALL_SHA}" ]; then
-  expected=$(cat "${TARBALL_SHA}")
-  actual=$(sha256sum "${TARBALL}" | awk '{print $1}')
-  if [ "${expected}" = "${actual}" ]; then
-    ok "${SPLEETER_MODEL} tarball checksum OK — ${TARBALL}"
-  else
-    warn "${SPLEETER_MODEL} tarball checksum mismatch (expected ${expected}, got ${actual}) — re-downloading"
-    needs_download=true
-  fi
-else
-  needs_download=true
-fi
-
-# Download tarball if missing or corrupt
-if [ "${needs_download}" = true ]; then
-  info "Fetching ${MODEL_URL} ..."
-  mkdir -p "${CACHE_DIR}"
-  if curl -fsSL -o "${TARBALL}" "${MODEL_URL}"; then
-    sha256sum "${TARBALL}" | awk '{print $1}' > "${TARBALL_SHA}"
-    ok "${SPLEETER_MODEL} tarball downloaded — $(cat "${TARBALL_SHA}")"
-    needs_extract=true
-  else
-    rm -f "${TARBALL}" "${TARBALL_SHA}"
-    fail "Failed to download ${SPLEETER_MODEL} model from ${MODEL_URL}"
-  fi
-fi
-
-# Check model files; extract if missing or tarball was just (re-)downloaded
-if ls "${MODEL_DIR}"/*.meta > /dev/null 2>&1; then
-  ok "${SPLEETER_MODEL} model files present — ${MODEL_DIR}"
-else
-  needs_extract=true
-fi
-
-if [ "${needs_extract}" = true ]; then
-  info "Extracting ${TARBALL} → ${MODEL_DIR} ..."
-  mkdir -p "${MODEL_DIR}"
-  if tar -xz -C "${MODEL_DIR}" -f "${TARBALL}"; then
-    if ls "${MODEL_DIR}"/*.meta > /dev/null 2>&1; then
-      ok "${SPLEETER_MODEL} model extracted successfully"
-    else
-      fail "Extraction succeeded but no .meta files found at ${MODEL_DIR}"
-    fi
-  else
-    fail "Failed to extract ${TARBALL}"
-  fi
-fi
-
-# Copy model config JSON into MODEL_DIR so spleeter can be invoked with -p {MODEL_DIR}/{model}.json
-# Both 2stems and 2stems-finetune use the same architecture config (2stems.json).
-SPLEETER_RESOURCES=$(python3 -c "import spleeter, os; print(os.path.join(os.path.dirname(spleeter.__file__), 'resources'))" 2>/dev/null) || true
-if [ -z "${SPLEETER_RESOURCES}" ] || [ ! -d "${SPLEETER_RESOURCES}" ]; then
-  fail "could not locate spleeter resources dir — is spleeter installed?"
-fi
-if [ ! -f "${SPLEETER_RESOURCES}/2stems.json" ]; then
-  fail "2stems.json not found in ${SPLEETER_RESOURCES}"
-fi
-# Write config JSON with model_dir set to absolute MODEL_DIR path.
-# The stock 2stems.json uses a relative path which causes PermissionError when spleeter
-# is invoked with -p /absolute/path.json (spleeter only overrides model_dir when using
-# the spleeter: prefix, not when given a file path).
-python3 - <<PYEOF
-import json
-with open("${SPLEETER_RESOURCES}/2stems.json") as f:
-    cfg = json.load(f)
-cfg["model_dir"] = "${MODEL_DIR}"
-with open("${MODEL_DIR}/${SPLEETER_MODEL}.json", "w") as f:
-    json.dump(cfg, f, indent=2)
-PYEOF
-ok "wrote ${SPLEETER_MODEL}.json (model_dir=${MODEL_DIR}) → ${MODEL_DIR}/${SPLEETER_MODEL}.json"
 
 # ---------------------------------------------------------------------------
 # Environment variables
@@ -357,13 +224,7 @@ hdr "Environment"
 ok "NODE_ENV       = ${NODE_ENV:-<unset>}"
 ok "KES_PATH_DATA  = ${KES_PATH_DATA:-<unset>}"
 ok "KES_PORT       = ${KES_PORT:-<unset>}"
-ok "SPLEETER_DATA  = ${SPLEETER_DATA}"
-ok "SPLEETER_MODEL = ${SPLEETER_MODEL}"
-ok "KES_LRC_BACKEND    = ${KES_LRC_BACKEND:-ctc} (ctc | whisperx)"
-ok "CTC_MODEL_PATH     = ${CTC_MODEL_PATH}"
-ok "CTC_USE_GPU        = ${CTC_USE_GPU:-0} (0=cpu, 1=cuda — ctc-forced-aligner)"
-ok "WHISPERX_USE_GPU   = ${WHISPERX_USE_GPU:-0} (0=cpu, 1=cuda — whisperx)"
-ok "SPLEETER_USE_GPU   = ${SPLEETER_USE_GPU:-0} (0=cpu, 1=cuda — spleeter/tensorflow)"
+ok "KES_TMP_DIR    = ${KES_TMP_DIR:-<unset, using os.tmpdir()>}"
 
 if [ -n "${KES_YOUTUBE_API_KEY:-}" ]; then
   ok "KES_YOUTUBE_API_KEY = <set>"

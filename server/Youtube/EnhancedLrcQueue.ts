@@ -5,9 +5,7 @@ import { unzip } from 'unzipit'
 import { spawn } from 'child_process'
 import getLogger from '../lib/Log.js'
 import Media from '../Media/Media.js'
-import Prefs from '../Prefs/Prefs.js'
-import { enhanceLrc, isEnhancedLrc } from './EnhancedLrc.js'
-import type { IYoutubePrefs } from '../../shared/types.js'
+import { enhanceLrc, getAlignBackend, isEnhancedLrc } from './EnhancedLrc.js'
 import { LRC_ENHANCE_STATUS } from '../../shared/actionTypes.js'
 
 const log = getLogger('EnhancedLrcQueue')
@@ -62,7 +60,7 @@ export async function runEnhancedLrcQueue (
     const label = `${c.artist} - ${c.title}`
     emitStatus(true, (i / candidates.length) * 100, `Enhancing lyrics (${i + 1} of ${candidates.length}): ${label}`)
 
-    const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'kes-lrce-'))
+    const tmpDir = await fsp.mkdtemp(path.join(process.env.KES_TMP_DIR || os.tmpdir(), 'kes-lrce-'))
     try {
       // read zip
       const buf = await fsp.readFile(c.zipPath)
@@ -99,10 +97,13 @@ export async function runEnhancedLrcQueue (
       await fsp.writeFile(audioTmpPath, audioBuf)
 
       // enhance
-      const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
-      const backend = (ytPrefs?.enhancedLrcBackend === 'whisperx' ? 'whisperx' : 'ctc') as 'ctc' | 'whisperx'
+      const backend = getAlignBackend()
+      if (backend === 'none') {
+        log.debug('skip %s: no alignment service configured', path.basename(c.zipPath))
+        continue
+      }
       log.verbose('enhancing lrc for %s (audio=%s backend=%s)', label, sourceAudioName, backend)
-      const enhanced = await enhanceLrc(audioTmpPath, lrcContent, tmpDir, { artist: c.artist, title: c.title }, backend)
+      const enhanced = await enhanceLrc(audioTmpPath, lrcContent, tmpDir, { artist: c.artist, title: c.title })
 
       // repack zip: extract all entries except lrc, add enhanced lrc
       const newLrcPath = path.join(tmpDir, lrcName)

@@ -5,8 +5,8 @@ import Accordion from 'components/Accordion/Accordion'
 import Icon from 'components/Icon/Icon'
 import Button from 'components/Button/Button'
 import { fetchYoutubeConfig, saveYoutubeConfig } from 'store/modules/youtube'
-import { YOUTUBE_QUALITY_PRESETS, YOUTUBE_ENHANCED_LRC_BACKENDS } from 'shared/types'
-import type { YoutubeQualityPreset, YoutubeRole, YoutubeEnhancedLrcBackend } from 'shared/types'
+import { YOUTUBE_QUALITY_PRESETS } from 'shared/types'
+import type { YoutubeQualityPreset, YoutubeRole } from 'shared/types'
 
 import styles from './YoutubePrefs.css'
 
@@ -28,11 +28,6 @@ const YoutubePrefs = () => {
     '360p': '360p (low)',
   }
 
-  const ENHANCED_LRC_LABEL: Record<YoutubeEnhancedLrcBackend, string> = {
-    none: t('prefs.ytQualityDisabled'),
-    ctc: 'ctc-forced-aligner',
-    whisperx: 'whisperx',
-  }
   const config = useAppSelector(state => state.youtube.config)
   const isConfigLoaded = useAppSelector(state => state.youtube.isConfigLoaded)
   const isSaving = useAppSelector(state => state.youtube.isSaving)
@@ -85,10 +80,6 @@ const YoutubePrefs = () => {
 
   const handleQualityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     dispatch(saveYoutubeConfig({ qualityPreset: e.currentTarget.value as YoutubeQualityPreset }))
-  }
-
-  const handleEnhancedLrcChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    dispatch(saveYoutubeConfig({ enhancedLrcBackend: e.currentTarget.value as YoutubeEnhancedLrcBackend }))
   }
 
   const handleScoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,24 +193,13 @@ const YoutubePrefs = () => {
         </div>
 
         <div className={styles.row}>
-          <label htmlFor='yt-enhancedLrc'>{t('prefs.ytEnhancedLrc')}</label>
-          <select
-            id='yt-enhancedLrc'
-            value={config.enhancedLrcBackend ?? 'none'}
-            onChange={handleEnhancedLrcChange}
-            disabled={isSaving}
-          >
-            {YOUTUBE_ENHANCED_LRC_BACKENDS
-              .filter(b => b === 'none' || (config.availableEnhancedLrcBackends ?? []).includes(b))
-              .map(b => (
-                <option key={b} value={b}>{ENHANCED_LRC_LABEL[b]}</option>
-              ))}
-          </select>
+          <label>{t('prefs.ytEnhancedLrc')}</label>
           <div className={styles.note}>
-            {t('prefs.ytEnhancedLrcNote')}
-            <code>CTC_USE_GPU=1</code>
-            {t('prefs.ytEnhancedLrcNoteGpu')}
+            {(config.availableEnhancedLrcBackends ?? []).length > 0
+              ? (config.availableEnhancedLrcBackends ?? []).join(', ')
+              : t('prefs.ytQualityDisabled')}
           </div>
+          <div className={styles.note}>{t('prefs.ytEnhancedLrcNote')}</div>
         </div>
 
         <div className={styles.row}>
