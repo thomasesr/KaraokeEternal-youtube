@@ -1,0 +1,10 @@
+# WhisperX CPU-only requirements
+# Install: KES_LRC_BACKEND=whisperx ./init.sh --install
+# Note: torch is installed separately by init.sh before this file
+#       to force the CPU-only wheel (pip would otherwise pull CUDA torch)
+
+yt-dlp
+spleeter-thomasesr==3.0.0a1
+click<8.2.0
+whisperx
+unidecode

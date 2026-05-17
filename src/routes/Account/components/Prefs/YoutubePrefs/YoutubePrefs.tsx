@@ -30,7 +30,8 @@ const YoutubePrefs = () => {
 
   const ENHANCED_LRC_LABEL: Record<YoutubeEnhancedLrcBackend, string> = {
     none: t('prefs.ytQualityDisabled'),
-    ctc: 'ctc-forced-aligner (word-level timestamps)',
+    ctc: 'ctc-forced-aligner',
+    whisperx: 'whisperx',
   }
   const config = useAppSelector(state => state.youtube.config)
   const isConfigLoaded = useAppSelector(state => state.youtube.isConfigLoaded)
@@ -208,16 +209,16 @@ const YoutubePrefs = () => {
             onChange={handleEnhancedLrcChange}
             disabled={isSaving}
           >
-            {YOUTUBE_ENHANCED_LRC_BACKENDS.map(b => (
-              <option key={b} value={b}>{ENHANCED_LRC_LABEL[b]}</option>
-            ))}
+            {YOUTUBE_ENHANCED_LRC_BACKENDS
+              .filter(b => b === 'none' || (config.availableEnhancedLrcBackends ?? []).includes(b))
+              .map(b => (
+                <option key={b} value={b}>{ENHANCED_LRC_LABEL[b]}</option>
+              ))}
           </select>
           <div className={styles.note}>
-            {t('prefs.ytEnhancedLrcNote1')}
-            <code>ctc-forced-aligner</code>
-            {t('prefs.ytEnhancedLrcNote2')}
+            {t('prefs.ytEnhancedLrcNote')}
             <code>CTC_USE_GPU=1</code>
-            {t('prefs.ytEnhancedLrcNote3')}
+            {t('prefs.ytEnhancedLrcNoteGpu')}
           </div>
         </div>
 

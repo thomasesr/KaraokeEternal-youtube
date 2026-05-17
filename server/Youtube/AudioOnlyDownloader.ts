@@ -7,7 +7,8 @@ import Prefs from '../Prefs/Prefs.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
 import { ingestDownloaded } from './ingestDownloaded.js'
 import { processAudioOnly } from '../Scanner/FileScanner/AudioOnlyProcessor.js'
-import { alignPlainTextWithCtc } from './EnhancedLrc.js'
+import { alignPlainText } from './EnhancedLrc.js'
+import type { IYoutubePrefs } from '../../shared/types.js'
 import type { Job } from './Downloader.js'
 import { DownloaderError } from './Downloader.js'
 
@@ -214,13 +215,15 @@ async function runPipeline (videoId: string, job: Job, opts: AudioOnlyStartOptio
 
         job.status = 'downloading'
         job.stage = 'enhancing-lrc'
-        log.verbose('audioonly running CTC on user-provided lyrics: %s', videoId)
+        const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
+        const lrcBackend = (ytPrefs?.enhancedLrcBackend === 'whisperx' ? 'whisperx' : 'ctc') as 'ctc' | 'whisperx'
+        log.verbose('audioonly aligning user-provided lyrics: %s backend=%s', videoId, lrcBackend)
 
-        const ctcTmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'kes-ctc-'))
+        const alignTmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'kes-align-'))
         try {
-          return await alignPlainTextWithCtc(vocalsMp3, plainText, ctcTmpDir, { artist: opts.artist, title: opts.title })
+          return await alignPlainText(vocalsMp3, plainText, alignTmpDir, { artist: opts.artist, title: opts.title }, lrcBackend)
         } finally {
-          fsp.rm(ctcTmpDir, { recursive: true, force: true }).catch(() => {})
+          fsp.rm(alignTmpDir, { recursive: true, force: true }).catch(() => {})
         }
       },
     )

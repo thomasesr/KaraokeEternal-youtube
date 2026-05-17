@@ -19,12 +19,16 @@ hdr()  { printf "\n${BOLD}%s${RESET}\n" "$*"; }
 # ---------------------------------------------------------------------------
 INSTALL_MODE=false
 INSTALL_GPU=false
+INSTALL_ALL=false
+INSTALL_ALL_GPU=false
 BUILD_MODE=false
 for _arg in "$@"; do
   case "$_arg" in
-    --install)     INSTALL_MODE=true ;;
-    --install-gpu) INSTALL_MODE=true; INSTALL_GPU=true ;;
-    --build)       BUILD_MODE=true ;;
+    --install)         INSTALL_MODE=true ;;
+    --install-gpu)     INSTALL_MODE=true; INSTALL_GPU=true ;;
+    --install-all)     INSTALL_MODE=true; INSTALL_ALL=true ;;
+    --install-all-gpu) INSTALL_MODE=true; INSTALL_ALL=true; INSTALL_ALL_GPU=true ;;
+    --build)           BUILD_MODE=true ;;
   esac
 done
 
@@ -91,22 +95,51 @@ install_deps() {
   # --install-gpu flag overrides CTC_USE_GPU env var
   if [ "$INSTALL_GPU" = true ]; then GPU=1
   else GPU="${CTC_USE_GPU:-0}"; fi
-  if [ "$GPU" = "1" ]; then
-    REQ_FILE="${SCRIPT_DIR}/requirements.txt"
-    info "CTC_USE_GPU=1 → GPU (CUDA) requirements"
+
+  LRC_BACKEND="${KES_LRC_BACKEND:-ctc}"
+
+  _pip() {
+    pip3 install --no-cache-dir --break-system-packages --timeout 300 --retries 5 "$@"
+  }
+
+  _install_torch_cpu() {
+    info "Installing torch (CPU-only wheel)..."
+    _pip torch --index-url https://download.pytorch.org/whl/cpu
+  }
+
+  if [ "$INSTALL_ALL" = true ]; then
+    # Install both ctc-forced-aligner and whisperx
+    # --install-all-gpu sets INSTALL_ALL_GPU=true; --install-all alone is always CPU
+    if [ "$INSTALL_ALL_GPU" = true ]; then
+      info "install-all-gpu: ctc + whisperx (CUDA)"
+      _pip -r "${SCRIPT_DIR}/requirements.txt"
+      _pip -r "${SCRIPT_DIR}/requirements-whisperx-gpu.txt"
+    else
+      info "install-all: ctc + whisperx (CPU-only)"
+      _install_torch_cpu
+      _pip -r "${SCRIPT_DIR}/requirements-cpu.txt"
+      _pip -r "${SCRIPT_DIR}/requirements-whisperx-cpu.txt"
+    fi
+  elif [ "$LRC_BACKEND" = "whisperx" ]; then
+    if [ "$GPU" = "1" ]; then
+      info "KES_LRC_BACKEND=whisperx GPU (CUDA)"
+      _pip -r "${SCRIPT_DIR}/requirements-whisperx-gpu.txt"
+    else
+      info "KES_LRC_BACKEND=whisperx CPU"
+      _install_torch_cpu
+      _pip -r "${SCRIPT_DIR}/requirements-whisperx-cpu.txt"
+    fi
   else
-    REQ_FILE="${SCRIPT_DIR}/requirements-cpu.txt"
-    info "CTC_USE_GPU=0 → CPU requirements"
+    # default: ctc
+    if [ "$GPU" = "1" ]; then
+      info "KES_LRC_BACKEND=ctc GPU (CUDA)"
+      _pip -r "${SCRIPT_DIR}/requirements.txt"
+    else
+      info "KES_LRC_BACKEND=ctc CPU"
+      _pip -r "${SCRIPT_DIR}/requirements-cpu.txt"
+    fi
   fi
 
-  if [ ! -f "$REQ_FILE" ]; then
-    fail "Requirements file not found: $REQ_FILE"
-  fi
-
-  info "Installing Python packages from ${REQ_FILE}..."
-  pip3 install --no-cache-dir --break-system-packages \
-    --timeout 300 --retries 5 \
-    -r "$REQ_FILE"
   ok "Python packages installed"
 }
 
@@ -175,19 +208,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# ctc-forced-aligner (optional — required only when enhancedLrcBackend=ctc)
+# Enhanced LRC backends (ctc-forced-aligner and/or whisperx)
 # ---------------------------------------------------------------------------
-hdr "Enhanced LRC (ctc-forced-aligner)"
+hdr "Enhanced LRC backends"
 
+# --- ctc-forced-aligner ---
 export CTC_MODEL_PATH="${CTC_MODEL_PATH:-${KES_PATH_DATA:-/data}/ctc}"
 CTC_MODEL_FILE="${CTC_MODEL_PATH}/model.onnx"
 CTC_MODEL_URL="https://huggingface.co/deskpai/ctc_forced_aligner/resolve/main/04ac86b67129634da93aea76e0147ef3.onnx"
 
 if python3 -c "import ctc_forced_aligner" 2>/dev/null; then
   ctc_ver=$(pip3 show ctc-forced-aligner 2>/dev/null | awk '/^Version:/ {print $2}')
-  ok "ctc-forced-aligner (python module) — ${ctc_ver:-installed}"
+  ok "ctc-forced-aligner — ${ctc_ver:-installed}"
 
-  # Check onnxruntime (required by ctc-forced-aligner v1.x)
   if python3 -c "import onnxruntime" 2>/dev/null; then
     ort_ver=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null)
     ok "onnxruntime — ${ort_ver:-installed}"
@@ -195,7 +228,6 @@ if python3 -c "import ctc_forced_aligner" 2>/dev/null; then
     warn "onnxruntime not found — ctc-forced-aligner will fail at runtime (pip3 install onnxruntime)"
   fi
 
-  # Download ONNX alignment model if not present
   ok "CTC_MODEL_PATH = ${CTC_MODEL_PATH}"
   if [ -f "${CTC_MODEL_FILE}" ]; then
     ok "ONNX alignment model present — ${CTC_MODEL_FILE}"
@@ -206,12 +238,19 @@ if python3 -c "import ctc_forced_aligner" 2>/dev/null; then
       ok "ONNX alignment model downloaded — ${CTC_MODEL_FILE}"
     else
       rm -f "${CTC_MODEL_FILE}"
-      warn "Failed to download ONNX alignment model — Enhanced LRC will fail at runtime"
+      warn "Failed to download ONNX alignment model — ctc-forced-aligner will fail at runtime"
     fi
   fi
 else
-  warn "ctc-forced-aligner not found — Enhanced LRC feature will be unavailable"
-  warn "  Install: pip3 install ctc-forced-aligner"
+  warn "ctc-forced-aligner not installed (use --install or --install-all to install)"
+fi
+
+# --- whisperx ---
+if python3 -c "import whisperx" 2>/dev/null; then
+  wx_ver=$(pip3 show whisperx 2>/dev/null | awk '/^Version:/ {print $2}')
+  ok "whisperx — ${wx_ver:-installed} (wav2vec2 models downloaded on first use per language)"
+else
+  warn "whisperx not installed (use KES_LRC_BACKEND=whisperx --install or --install-all to install)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -320,8 +359,11 @@ ok "KES_PATH_DATA  = ${KES_PATH_DATA:-<unset>}"
 ok "KES_PORT       = ${KES_PORT:-<unset>}"
 ok "SPLEETER_DATA  = ${SPLEETER_DATA}"
 ok "SPLEETER_MODEL = ${SPLEETER_MODEL}"
-ok "CTC_MODEL_PATH = ${CTC_MODEL_PATH}"
-ok "CTC_USE_GPU    = ${CTC_USE_GPU:-0} (0=cpu, 1=cuda)"
+ok "KES_LRC_BACKEND    = ${KES_LRC_BACKEND:-ctc} (ctc | whisperx)"
+ok "CTC_MODEL_PATH     = ${CTC_MODEL_PATH}"
+ok "CTC_USE_GPU        = ${CTC_USE_GPU:-0} (0=cpu, 1=cuda — ctc-forced-aligner)"
+ok "WHISPERX_USE_GPU   = ${WHISPERX_USE_GPU:-0} (0=cpu, 1=cuda — whisperx)"
+ok "SPLEETER_USE_GPU   = ${SPLEETER_USE_GPU:-0} (0=cpu, 1=cuda — spleeter/tensorflow)"
 
 if [ -n "${KES_YOUTUBE_API_KEY:-}" ]; then
   ok "KES_YOUTUBE_API_KEY = <set>"

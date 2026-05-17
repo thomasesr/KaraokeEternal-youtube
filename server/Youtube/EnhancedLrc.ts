@@ -6,6 +6,16 @@ import getLogger from '../lib/Log.js'
 
 const _dir = path.dirname(fileURLToPath(import.meta.url))
 const CTC_ALIGN_PY = path.join(_dir, 'ctc_align.py')
+const WHISPERX_ALIGN_PY = path.join(_dir, 'whisperx_align.py')
+
+const BACKEND_SCRIPT: Record<'ctc' | 'whisperx', string> = {
+  ctc: CTC_ALIGN_PY,
+  whisperx: WHISPERX_ALIGN_PY,
+}
+const BACKEND_RE_TAG: Record<'ctc' | 'whisperx', string> = {
+  ctc: 'ctc-forced-aligner',
+  whisperx: 'whisperx',
+}
 
 const log = getLogger('EnhancedLrc')
 
@@ -41,7 +51,7 @@ function spawnAsync (cmd: string, args: string[], env?: NodeJS.ProcessEnv): Prom
 }
 
 export function isEnhancedLrc (lrcContent: string): boolean {
-  return lrcContent.includes('[re:ctc-forced-aligner]')
+  return lrcContent.includes('[re:ctc-forced-aligner]') || lrcContent.includes('[re:whisperx]')
 }
 
 export function parseLrcLines (lrcContent: string): LrcLine[] {
@@ -94,12 +104,13 @@ export function serializeEnhancedLrc (
   lines: LrcLine[],
   wordGroups: WordSegment[][],
   meta: { artist: string, title: string },
+  backend: 'ctc' | 'whisperx' = 'ctc',
 ): string {
   const header = [
     `[ar:${meta.artist}]`,
     `[ti:${meta.title}]`,
     '[by:KaraokeEternal]',
-    '[re:ctc-forced-aligner]',
+    `[re:${BACKEND_RE_TAG[backend]}]`,
     '[ve:1.0]',
     '',
   ].join('\n')
@@ -117,11 +128,12 @@ export function serializeEnhancedLrc (
   return header + body + '\n'
 }
 
-export async function alignPlainTextWithCtc (
+export async function alignPlainText (
   audioPath: string,
   plainText: string,
   tmpDir: string,
   meta: { artist: string, title: string },
+  backend: 'ctc' | 'whisperx' = 'ctc',
 ): Promise<string> {
   const rawLines = plainText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
   if (rawLines.length === 0) throw new Error('no lyrics lines provided')
@@ -133,21 +145,21 @@ export async function alignPlainTextWithCtc (
   }))
 
   const lang = detectLanguage(rawLines.join(' '))
-  log.verbose('alignPlainTextWithCtc: %d lines, lang=%s', lines.length, lang)
+  log.verbose('alignPlainText: %d lines, lang=%s backend=%s', lines.length, lang, backend)
 
   const textFile = path.join(tmpDir, 'lyrics.txt')
-  const outDir = path.join(tmpDir, 'ctc-out')
+  const outDir = path.join(tmpDir, 'align-out')
 
   await fsp.writeFile(textFile, rawLines.join('\n'), 'utf8')
   await fsp.mkdir(outDir, { recursive: true })
 
-  const useGpu = process.env.CTC_USE_GPU === '1'
-  const device = useGpu ? 'cuda' : 'cpu'
+  const gpuEnv = backend === 'whisperx' ? 'WHISPERX_USE_GPU' : 'CTC_USE_GPU'
+  const device = process.env[gpuEnv] === '1' ? 'cuda' : 'cpu'
 
-  log.verbose('ctc-forced-aligner (plain text): audio=%s lang=%s device=%s', path.basename(audioPath), lang, device)
+  log.verbose('alignPlainText: audio=%s lang=%s device=%s backend=%s', path.basename(audioPath), lang, device, backend)
 
   await spawnAsync('python3', [
-    CTC_ALIGN_PY,
+    BACKEND_SCRIPT[backend],
     '--audio_path', audioPath,
     '--text_path', textFile,
     '--language', lang,
@@ -172,35 +184,36 @@ export async function alignPlainTextWithCtc (
     offset += count
   }
 
-  return serializeEnhancedLrc(lines, wordGroups, meta)
+  return serializeEnhancedLrc(lines, wordGroups, meta, backend)
 }
 
-export async function enhanceWithCtc (
+export async function enhanceLrc (
   audioPath: string,
   lrcContent: string,
   tmpDir: string,
   meta: { artist: string, title: string },
+  backend: 'ctc' | 'whisperx' = 'ctc',
 ): Promise<string> {
   const lines = parseLrcLines(lrcContent)
   if (lines.length === 0) throw new Error('no LRC lines to enhance')
 
   const lang = detectLanguage(lines.map(l => l.text).join(' '))
-  log.verbose('enhanceWithCtc: %d lines, lang=%s', lines.length, lang)
+  log.verbose('enhanceLrc: %d lines, lang=%s backend=%s', lines.length, lang, backend)
 
   const plainText = lines.map(l => l.text).join('\n')
   const textFile = path.join(tmpDir, 'lyrics.txt')
-  const outDir = path.join(tmpDir, 'ctc-out')
+  const outDir = path.join(tmpDir, 'align-out')
 
   await fsp.writeFile(textFile, plainText, 'utf8')
   await fsp.mkdir(outDir, { recursive: true })
 
-  const useGpu = process.env.CTC_USE_GPU === '1'
-  const device = useGpu ? 'cuda' : 'cpu'
+  const gpuEnv = backend === 'whisperx' ? 'WHISPERX_USE_GPU' : 'CTC_USE_GPU'
+  const device = process.env[gpuEnv] === '1' ? 'cuda' : 'cpu'
 
-  log.verbose('ctc-forced-aligner: audio=%s lang=%s device=%s', path.basename(audioPath), lang, device)
+  log.verbose('enhanceLrc: audio=%s lang=%s device=%s backend=%s', path.basename(audioPath), lang, device, backend)
 
   await spawnAsync('python3', [
-    CTC_ALIGN_PY,
+    BACKEND_SCRIPT[backend],
     '--audio_path', audioPath,
     '--text_path', textFile,
     '--language', lang,
@@ -208,18 +221,15 @@ export async function enhanceWithCtc (
     '--device', device,
   ])
 
-  // ctc-forced-aligner outputs {audioBasename}.json in outDir
   const audioBase = path.basename(audioPath, path.extname(audioPath))
   const jsonPath = path.join(outDir, `${audioBase}.json`)
   const raw = await fsp.readFile(jsonPath, 'utf8')
   const parsed = JSON.parse(raw)
 
-  // Support both flat array [{word,start,end}] and {word_segments:[...]} formats
   const allWords: WordSegment[] = (Array.isArray(parsed) ? parsed : parsed.word_segments ?? [])
     .map((w: any) => ({ word: String(w.word ?? w.label ?? ''), start: Number(w.start), end: Number(w.end) }))
     .filter((w: WordSegment) => w.word)
 
-  // Group words back to lines by consuming word counts
   const wordGroups: WordSegment[][] = []
   let offset = 0
   for (const line of lines) {
@@ -228,5 +238,5 @@ export async function enhanceWithCtc (
     offset += count
   }
 
-  return serializeEnhancedLrc(lines, wordGroups, meta)
+  return serializeEnhancedLrc(lines, wordGroups, meta, backend)
 }

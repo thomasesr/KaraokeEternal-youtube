@@ -146,9 +146,9 @@ export type YoutubeRole = 'admin' | 'room_manager' | 'standard' | 'guest'
 
 export const YOUTUBE_ROLES: YoutubeRole[] = ['admin', 'room_manager', 'standard', 'guest']
 
-export type YoutubeEnhancedLrcBackend = 'none' | 'ctc'
+export type YoutubeEnhancedLrcBackend = 'none' | 'ctc' | 'whisperx'
 
-export const YOUTUBE_ENHANCED_LRC_BACKENDS: YoutubeEnhancedLrcBackend[] = ['none', 'ctc']
+export const YOUTUBE_ENHANCED_LRC_BACKENDS: YoutubeEnhancedLrcBackend[] = ['none', 'ctc', 'whisperx']
 
 export interface IYoutubePrefs {
   isEnabled: boolean
@@ -158,6 +158,7 @@ export interface IYoutubePrefs {
   musicbrainzMinScore: number
   allowedRoles: YoutubeRole[]
   enhancedLrcBackend: YoutubeEnhancedLrcBackend
+  availableEnhancedLrcBackends: string[]
   isApiKeyConfigured: boolean
   isApiKeyFromEnv: boolean
   isCookiesConfigured: boolean

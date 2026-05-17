@@ -1,4 +1,5 @@
 import KoaRouter from '@koa/router'
+import { execSync } from 'child_process'
 import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
 import { YoutubeService, YoutubeApiError } from './YoutubeService.js'
@@ -23,7 +24,24 @@ interface RequestWithBody {
 const log = getLogger('Youtube')
 const router = new KoaRouter({ prefix: '/api/youtube' })
 
-const DEFAULT_CONFIG: Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEnv' | 'isCookiesConfigured'> = {
+let _availableBackends: string[] | null = null
+
+function detectAvailableBackends (): string[] {
+  if (_availableBackends) return _availableBackends
+  const candidates: Array<[string, string]> = [
+    ['ctc', 'ctc_forced_aligner'],
+    ['whisperx', 'whisperx'],
+  ]
+  _availableBackends = candidates
+    .filter(([, mod]) => {
+      try { execSync(`python3 -c "import ${mod}"`, { stdio: 'ignore', timeout: 10000 }); return true } catch { return false }
+    })
+    .map(([name]) => name)
+  log.info('available enhanced LRC backends: %s', _availableBackends.join(', ') || 'none')
+  return _availableBackends
+}
+
+const DEFAULT_CONFIG: Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEnv' | 'isCookiesConfigured' | 'availableEnhancedLrcBackends'> = {
   isEnabled: false,
   downloadPathId: null,
   useCookies: false,
@@ -60,7 +78,7 @@ const TITLE_MAX_LEN = 300
 const ARTIST_MAX_LEN = 200
 const COOKIES_MAX_LEN = 256 * 1024 // 256KB
 
-function getStoredConfig (): Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEnv' | 'isCookiesConfigured'> {
+function getStoredConfig (): Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKeyFromEnv' | 'isCookiesConfigured' | 'availableEnhancedLrcBackends'> {
   const prefs = Prefs.get() as unknown as PrefsType
   const stored = (prefs.youtube as Partial<IYoutubePrefs> | undefined) ?? {}
   return {
@@ -86,6 +104,7 @@ function getStoredConfig (): Omit<IYoutubePrefs, 'isApiKeyConfigured' | 'isApiKe
 function getFullConfig (): IYoutubePrefs {
   return {
     ...getStoredConfig(),
+    availableEnhancedLrcBackends: detectAvailableBackends(),
     isApiKeyConfigured: !!Prefs.getYoutubeApiKey(),
     isApiKeyFromEnv: Prefs.isYoutubeApiKeyFromEnv(),
     isCookiesConfigured: !!Prefs.getYoutubeCookies(),

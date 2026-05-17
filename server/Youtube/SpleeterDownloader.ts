@@ -6,7 +6,7 @@ import getLogger from '../lib/Log.js'
 import Prefs from '../Prefs/Prefs.js'
 import { buildFilenameBase, pickUniqueBase } from './filename.js'
 import { ingestDownloaded } from './ingestDownloaded.js'
-import { enhanceWithCtc, isEnhancedLrc } from './EnhancedLrc.js'
+import { enhanceLrc, isEnhancedLrc } from './EnhancedLrc.js'
 import type { Job } from './Downloader.js'
 import { DownloaderError } from './Downloader.js'
 import type { IYoutubePrefs } from '../../shared/types.js'
@@ -240,11 +240,12 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
     // --- optionally enhance LRC ---
     const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
     const enhancedLrcBackend = ytPrefs?.enhancedLrcBackend ?? 'none'
-    if (enhancedLrcBackend === 'ctc' && !isEnhancedLrc(lrcContent)) {
+    const lrcBackend = (enhancedLrcBackend === 'whisperx' ? 'whisperx' : 'ctc') as 'ctc' | 'whisperx'
+    if (enhancedLrcBackend !== 'none' && !isEnhancedLrc(lrcContent)) {
       job.stage = 'enhancing-lrc'
-      log.verbose('spleeter stage=enhancing-lrc: %s', videoId)
+      log.verbose('spleeter stage=enhancing-lrc: %s backend=%s', videoId, lrcBackend)
       try {
-        lrcContent = await enhanceWithCtc(vocalsMp3, lrcContent, tmpDir, { artist: opts.artist, title: opts.title })
+        lrcContent = await enhanceLrc(vocalsMp3, lrcContent, tmpDir, { artist: opts.artist, title: opts.title }, lrcBackend)
         log.debug('spleeter lrc enhanced: %d chars', lrcContent.length)
       } catch (e) {
         log.warn('spleeter lrc enhancement failed, using plain lrc: %s', (e as Error).message)

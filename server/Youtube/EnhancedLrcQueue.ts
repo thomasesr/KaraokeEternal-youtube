@@ -5,7 +5,9 @@ import { unzip } from 'unzipit'
 import { spawn } from 'child_process'
 import getLogger from '../lib/Log.js'
 import Media from '../Media/Media.js'
-import { enhanceWithCtc, isEnhancedLrc } from './EnhancedLrc.js'
+import Prefs from '../Prefs/Prefs.js'
+import { enhanceLrc, isEnhancedLrc } from './EnhancedLrc.js'
+import type { IYoutubePrefs } from '../../shared/types.js'
 import { LRC_ENHANCE_STATUS } from '../../shared/actionTypes.js'
 
 const log = getLogger('EnhancedLrcQueue')
@@ -97,8 +99,10 @@ export async function runEnhancedLrcQueue (
       await fsp.writeFile(audioTmpPath, audioBuf)
 
       // enhance
-      log.verbose('enhancing lrc for %s (audio=%s)', label, sourceAudioName)
-      const enhanced = await enhanceWithCtc(audioTmpPath, lrcContent, tmpDir, { artist: c.artist, title: c.title })
+      const ytPrefs = (Prefs.get() as any)?.youtube as Partial<IYoutubePrefs> | undefined
+      const backend = (ytPrefs?.enhancedLrcBackend === 'whisperx' ? 'whisperx' : 'ctc') as 'ctc' | 'whisperx'
+      log.verbose('enhancing lrc for %s (audio=%s backend=%s)', label, sourceAudioName, backend)
+      const enhanced = await enhanceLrc(audioTmpPath, lrcContent, tmpDir, { artist: c.artist, title: c.title }, backend)
 
       // repack zip: extract all entries except lrc, add enhanced lrc
       const newLrcPath = path.join(tmpDir, lrcName)

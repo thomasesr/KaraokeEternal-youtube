@@ -87,9 +87,8 @@
     "ytCookiesLabel": "Cookies (formato Netscape, usado pelo yt-dlp)",
     "ytCookiesNote": "Exporte com uma extensão do navegador que emite cookies.txt no formato Netscape. Necessário apenas para vídeos com restrição de idade ou região. Ative \"Usar cookies para yt-dlp\" acima para enviá-los nos downloads.",
     "ytSaveCookies": "Salvar cookies",
-    "ytEnhancedLrcNote1": "Quando ativado, usa ctc-forced-aligner para adicionar timestamps por palavra após separação vocal. Requer ",
-    "ytEnhancedLrcNote2": " no PATH. Defina ",
-    "ytEnhancedLrcNote3": " para usar CUDA.",
+    "ytEnhancedLrcNote": "Adiciona timestamps por palavra às letras após a separação vocal. Apenas os backends instalados no servidor aparecem na lista. Defina ",
+    "ytEnhancedLrcNoteGpu": " para usar CUDA.",
     "notifTitle": "Notificações",
     "notifEnable": "Me notificar quando for minha vez de cantar",
     "notifNote": "Você receberá uma notificação antes da sua música começar e novamente quando o player estiver te esperando."

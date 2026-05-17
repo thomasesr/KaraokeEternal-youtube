@@ -84,7 +84,7 @@ class FileScanner extends Scanner {
         if (res.isNew) stats.new++
         else stats.existing++
 
-        if (enhancedLrcBackend === 'ctc' && getExt(files[i].file) === '.zip') {
+        if (enhancedLrcBackend !== 'none' && getExt(files[i].file) === '.zip') {
           const cand = await this.checkEnhanceCandidate(files[i].file, res.mediaId)
           if (cand) candidates.push(cand)
         }

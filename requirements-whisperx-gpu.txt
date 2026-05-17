@@ -1,0 +1,10 @@
+# WhisperX GPU (CUDA) requirements
+# Install: KES_LRC_BACKEND=whisperx ./init.sh --install-gpu
+# or:      ./init.sh --install-all --install-gpu
+
+yt-dlp
+tensorflow[and-cuda]
+spleeter-thomasesr==3.0.0a1
+click<8.2.0
+whisperx
+unidecode
