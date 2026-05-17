@@ -26,6 +26,16 @@ const Navigation = React.forwardRef<HTMLDivElement>((_, ref) => (
         />
       )}
     </NavLink>
+    <NavLink to='/highscores' replace className={({ isActive }) => clsx(isActive && styles.active)}>
+      {({ isActive }) => (
+        <Button
+          icon='STAR_FULL'
+          as='span'
+          animateClassName={styles.btnAnimate}
+          cancelAnimation={!isActive}
+        />
+      )}
+    </NavLink>
     <NavLink to='/account' replace className={({ isActive }) => clsx(isActive && styles.active)}>
       {({ isActive }) => (
         <Button
