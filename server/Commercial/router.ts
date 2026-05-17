@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 import { promisify } from 'util'
 import KoaRouter from '@koa/router'
 import getLogger from '../lib/Log.js'
@@ -58,9 +59,19 @@ router.get('/', (ctx) => {
   }
 
   const stat = fs.statSync(filePath)
+  const etag = `"${crypto.createHash('md5').update(`${stat.mtimeMs}-${stat.size}`).digest('hex')}"`
+
+  ctx.set('ETag', etag)
+  ctx.set('Cache-Control', 'private, max-age=3600')
+  ctx.set('Accept-Ranges', 'bytes')
+
+  if (ctx.get('If-None-Match') === etag) {
+    ctx.status = 304
+    return
+  }
+
   ctx.set('Content-Type', 'video/mp4')
   ctx.set('Content-Length', String(stat.size))
-  ctx.set('Accept-Ranges', 'bytes')
   ctx.body = fs.createReadStream(filePath)
 })
 
