@@ -49,6 +49,10 @@ Host awesome karaoke parties where everyone can easily find and queue songs from
   per room (toggle + voting window 5–30 s). A dedicated **High Scores**
   page shows today's top songs (with singer name), today's top singers,
   and all-time top singers.
+- **Commercial video** (this fork): upload an MP4 that plays automatically
+  on the player screen after 30 seconds with no songs in the queue.
+  Interrupted the moment a new song is added. Admins set a global video;
+  room managers can override it per room.
 
 ## YouTube integration
 
@@ -275,6 +279,51 @@ Songs and singers with only auto-5-star rows (0 real votes) are
 excluded from all rankings.
 
 Microphones are *not* required since the player itself only outputs music - this allows your audio setup to be as simple or complex as you like. See the [F.A.Q.](https://www.karaoke-eternal.com/faq/#recommended-audio-microphone-setup) for more information.
+
+## Commercial video
+
+When the queue is empty, the player can automatically play a promotional or filler MP4 video after a 30-second delay. As soon as a new song is added to the queue, the commercial is interrupted and a live countdown appears on the player screen before playback resumes.
+
+### How it works
+
+1. Queue is exhausted — player reaches the end of the queue.
+2. After **30 seconds** of idle time, the commercial video starts playing on the player screen.
+3. A **new song is queued** — the commercial stops immediately and a countdown to the next song is displayed.
+4. Countdown reaches zero — normal karaoke playback resumes.
+
+If no commercial video is uploaded, or the feature is disabled for the room, the player shows the standard empty-queue message instead.
+
+### Video resolution order
+
+| Priority | Source |
+|---|---|
+| 1 (highest) | Room override — MP4 uploaded by a room manager for this specific room |
+| 2 | Global video — MP4 uploaded by an admin, shared across all rooms |
+
+### Configuration
+
+**Admin** — upload or remove the global video in **Account → Preferences → Commercial Video** (MP4 only).
+
+**Room managers** — configure the feature per room in **Account → Rooms → (room) → Commercial Video**:
+
+| Setting | Description |
+|---|---|
+| Show commercial video when queue is empty | Per-room toggle; default on. When off, the player shows the empty-queue message instead |
+| Upload room override | Upload an MP4 that overrides the global video for this room only |
+| Remove room override | Revert to the global video (or no video if none is uploaded) |
+
+### Storage
+
+Commercial videos are stored on the server under `{KES_PATH_DATA}/commercials/`:
+
+```
+commercials/
+  global/
+    commercial.mp4        ← global fallback (admin-managed)
+  rooms/
+    {roomId}/
+      commercial.mp4      ← room override (room manager-managed)
+```
 
 ## Getting Started
 
