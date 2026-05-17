@@ -42,24 +42,28 @@ install_deps() {
   fi
 
   # ---- nvm + Node 24 --------------------------------------------------------
-  hdr "Node.js (nvm)"
-  NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
-    info "Installing nvm..."
-    # Temporarily relax errexit so nvm installer can set up shell hooks
-    set +e
-    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-    set -e
-    ok "nvm installed → $NVM_DIR"
+  hdr "Node.js"
+  if command -v node > /dev/null 2>&1; then
+    ok "Node $(node --version) / npm $(npm --version) — already on PATH, skipping nvm"
   else
-    ok "nvm already present → $NVM_DIR"
+    NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+      info "Installing nvm..."
+      # Temporarily relax errexit so nvm installer can set up shell hooks
+      set +e
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+      set -e
+      ok "nvm installed → $NVM_DIR"
+    else
+      ok "nvm already present → $NVM_DIR"
+    fi
+    # shellcheck source=/dev/null
+    \. "$NVM_DIR/nvm.sh"
+    nvm install 24
+    nvm use 24
+    nvm alias default 24
+    ok "Node $(node --version) / npm $(npm --version)"
   fi
-  # shellcheck source=/dev/null
-  \. "$NVM_DIR/nvm.sh"
-  nvm install 24
-  nvm use 24
-  nvm alias default 24
-  ok "Node $(node --version) / npm $(npm --version)"
 
   # ---- Deno -----------------------------------------------------------------
   hdr "Deno"
@@ -97,20 +101,11 @@ install_deps() {
     fail "Requirements file not found: $REQ_FILE"
   fi
 
-  # Step 1: yt-dlp + spleeter (TF resolved by spleeter-thomasesr)
-  # spleeter-thomasesr pins typer<0.10.0, which breaks with click>=8.2.0 — pin click<8.2.0
-  info "Installing yt-dlp + spleeter..."
+  info "Installing Python packages from ${REQ_FILE}..."
   pip3 install --no-cache-dir --break-system-packages \
     --timeout 300 --retries 5 \
-    yt-dlp "spleeter-thomasesr==3.0.0a1" "click<8.2.0"
-  ok "yt-dlp + spleeter installed"
-
-  # Step 2: ctc-forced-aligner (onnxruntime-based; no torch dependency)
-  info "Installing ctc-forced-aligner..."
-  pip3 install --no-cache-dir --break-system-packages \
-    --timeout 300 --retries 5 \
-    ctc-forced-aligner unidecode
-  ok "ctc-forced-aligner installed"
+    -r "$REQ_FILE"
+  ok "Python packages installed"
 }
 
 if [ "$INSTALL_MODE" = true ]; then

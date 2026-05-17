@@ -5,7 +5,7 @@
 FROM node:24-alpine AS builder
 
 ARG REPO_SLUG=thomasesr/KaraokeEternal-youtube
-ARG REPO_BRANCH=spleeter
+ARG REPO_BRANCH=merge
 
 RUN apk add --no-cache git python3 make g++ pkgconfig
 
@@ -19,7 +19,7 @@ RUN npm run build
 
 # ---- prod-deps ----
 # Fresh npm ci --omit=dev is faster than npm prune on large trees
-FROM node:24-alpine AS prod-deps
+FROM node:24-alpine AS installer
 RUN apk add --no-cache python3 make g++ pkgconfig
 WORKDIR /prod-deps
 COPY --from=builder /src/package.json /src/package-lock.json ./
@@ -34,35 +34,11 @@ FROM node:24-bookworm-slim
 # ffmpeg: video/audio remux + wav→mp3 conversion
 # ca-certificates: TLS roots for fetch
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip ffmpeg ca-certificates zip unzip curl \
-  && rm -rf /var/lib/apt/lists/*
+    python3 python3-pip ffmpeg ca-certificates zip unzip curl
 
-# Install yt-dlp and spleeter-thomasesr (CPU); TF version resolved by spleeter-thomasesr.
-# --break-system-packages: bypass PEP 668 restriction in Debian-managed Python
-RUN pip3 install --no-cache-dir --break-system-packages \
-    --timeout 300 --retries 5 \
-    yt-dlp "spleeter-thomasesr==3.0.0a1" \
-  && yt-dlp --version \
-  && python3 -c "import spleeter; print('spleeter ok')"
-
-# ctc-forced-aligner v1.x uses onnxruntime (no torch/torchaudio dependency).
-RUN pip3 install --no-cache-dir --break-system-packages \
-    --timeout 300 --retries 5 \
-    ctc-forced-aligner unidecode \
-  && python3 -c "import ctc_forced_aligner; print('ctc-forced-aligner ok')"
-
-# Install deno for yt-dlp EJS challenge solver (signature/n-param decryption).
-# Handles amd64 and arm64 builds.
-ARG DENO_VERSION=2.3.3
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "aarch64" ]; then DARCH="aarch64-unknown-linux-gnu"; \
-    else DARCH="x86_64-unknown-linux-gnu"; fi && \
-    curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${DARCH}.zip" \
-      -o /tmp/deno.zip \
-  && unzip /tmp/deno.zip -d /usr/local/bin/ \
-  && chmod +x /usr/local/bin/deno \
-  && rm /tmp/deno.zip \
-  && deno --version
+COPY --from=builder --chown=node:node /src/requirements-cpu.txt ./requirements-cpu.txt
+COPY --from=builder --chown=node:node /src/init.sh ./init.sh
+RUN bash ./init.sh --install  && rm -rf /var/lib/apt/lists/*
 
 # Spleeter downloads the 2-stems model on first use into SPLEETER_DATA.
 # Pointing it at /data/spleeter keeps the model in the existing data volume
@@ -70,17 +46,16 @@ RUN ARCH=$(uname -m) && \
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
     KES_PORT=3000 \
-    SPLEETER_DATA=/data/spleeter \
-    CTC_USE_GPU=0 \
-    CTC_MODEL_PATH=/data/ctc
+    SPLEETER_DATA=/data/spleeter
 
 WORKDIR /app
 
 COPY --from=builder --chown=node:node /src/build ./build
 COPY --from=builder --chown=node:node /src/assets ./assets
-COPY --from=prod-deps --chown=node:node /prod-deps/node_modules ./node_modules
+COPY --from=installer --chown=node:node /prod-deps/node_modules ./node_modules
 COPY --from=builder --chown=node:node /src/package.json ./package.json
 COPY --from=builder --chown=node:node /src/init.sh ./init.sh
+COPY --from=builder --chown=node:node /src/requirements-cpu.txt ./requirements-cpu.txt
 RUN chmod +x /app/init.sh
 
 RUN mkdir -p /data && chown node:node /data
