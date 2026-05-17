@@ -113,8 +113,8 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
 
   // server error handler
   app.on('error', (err, ctx) => {
-    if (err.code === 'EPIPE') {
-      // these are common since browsers make multiple requests for media files
+    if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_PREMATURE_CLOSE') {
+      // common when browsers close media connections before stream completes
       log.verbose(err.message)
       return
     }
