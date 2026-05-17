@@ -8,6 +8,7 @@ import { moveItem, removeUpcomingItems } from '../../modules/queue'
 import getPlayerHistory from '../../selectors/getPlayerHistory'
 import getRoundRobinQueue from '../../selectors/getRoundRobinQueue'
 import getWaits from '../../selectors/getWaits'
+import { submitVote } from 'store/modules/scoring'
 
 const QueueList = () => {
   const artists = useAppSelector(state => state.artists)
@@ -21,6 +22,7 @@ const QueueList = () => {
   const starCounts = useAppSelector(state => state.starCounts)
   const user = useAppSelector(state => state.user)
   const waits = useAppSelector(getWaits)
+  const scoring = useAppSelector(state => state.scoring)
 
   const canManageRoom = user.isAdmin || user.role === 'room_manager'
 
@@ -73,6 +75,8 @@ const QueueList = () => {
     dispatch(removeUpcomingItems(userId))
   }
 
+  const handleVote = (score: number) => dispatch(submitVote(score))
+
   // build children array
   const items = queue.result.map((qId) => {
     const item = queue.entities[qId]
@@ -103,6 +107,12 @@ const QueueList = () => {
         starCount={starCounts.songs[item.songId] || 0}
         title={songs.entities[item.songId].title}
         wait={formatSeconds(waits[qId], true)} // fuzzy
+        isScoringActive={isCurrent && scoring.isActive && scoring.queueId === qId}
+        scoringEndsAt={scoring.endsAt}
+        scoringSingerUserId={scoring.singerUserId}
+        currentUserId={user.userId}
+        myVote={scoring.myVote}
+        onVote={handleVote}
         // actions
         onMoveClick={handleMoveClick}
         onRemoveUpcoming={handleRemoveUpcoming}

@@ -10,6 +10,7 @@ import Header from 'components/Header/Header'
 import Navigation from 'components/Navigation/Navigation'
 import Modal from 'components/Modal/Modal'
 import SongInfo from 'components/SongInfo/SongInfo'
+import ScoringPopup from 'components/ScoringPopup/ScoringPopup'
 import Routes from '../Routes/Routes'
 import { clearErrorMessage, setFooterHeight, setHeaderHeight } from 'store/modules/ui'
 import { subscribePush } from 'store/modules/push'
@@ -63,6 +64,8 @@ const CoreLayout = () => {
       {!isPlayerRoute && <Navigation ref={navRef} />}
 
       <SongInfo />
+
+      <ScoringPopup />
 
       {ui.isErrored && (
         <Modal
