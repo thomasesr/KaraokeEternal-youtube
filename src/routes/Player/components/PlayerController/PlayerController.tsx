@@ -1,9 +1,10 @@
-import React, { useEffect, useCallback, useRef } from 'react'
+import React, { useEffect, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import Player from '../Player/Player'
 import PlayerTextOverlay from '../PlayerTextOverlay/PlayerTextOverlay'
 import PlayerQR from '../PlayerQR/PlayerQR'
+import CommercialPlayer from '../CommercialPlayer/CommercialPlayer'
 import ScoringPhase from './ScoringPhase/ScoringPhase'
 import getRoundRobinQueue from 'routes/Queue/selectors/getRoundRobinQueue'
 import { playerLeave, playerError, playerLoad, playerPlay, playerStatus, playerUpdate, type PlayerState } from '../../modules/player'
@@ -14,6 +15,9 @@ import {
   SCORING_CANCEL_REQUEST,
 } from 'shared/actionTypes'
 import type { QueueItem } from 'shared/types'
+
+const COMMERCIAL_DELAY_MS = 30_000
+const COMMERCIAL_COUNTDOWN_SECONDS = 5
 
 const DEFAULT_NOTIFY_LEAD_SECONDS = 20
 
@@ -50,6 +54,7 @@ const PlayerController = (props: PlayerControllerProps) => {
   const playerVisualizer = useAppSelector(state => state.playerVisualizer)
   const prefs = useAppSelector(state => state.prefs)
   const roomPrefs = useAppSelector(getRoomPrefs)
+  const roomId = useAppSelector(state => state.user.roomId)
   const scoring = useAppSelector(state => state.scoring)
   const songs = useAppSelector(state => state.songs.entities)
   const artists = useAppSelector(state => state.artists.entities)
@@ -69,6 +74,11 @@ const PlayerController = (props: PlayerControllerProps) => {
   const pendingSongAdvanceRef = useRef<PendingAdvance | null>(null)
   // set to true when a skip fires during scoring so handleLoadNext bypasses scoring branch
   const skipScoringRef = useRef(false)
+
+  const [isPlayingCommercial, setIsPlayingCommercial] = useState(false)
+  const [commercialCountdown, setCommercialCountdown] = useState<number | null>(null)
+  const commercialTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!defaultOffsetApplied.current && typeof prefs.lrcDefaultOffset === 'number') {
@@ -91,6 +101,32 @@ const PlayerController = (props: PlayerControllerProps) => {
   useEffect(() => {
     leadWarnFired.current = false
   }, [player.queueId])
+
+  const isCommercialEnabled = roomPrefs?.commercialVideo?.isEnabled !== false
+
+  const clearCommercialTimer = useCallback(() => {
+    if (commercialTimerRef.current) {
+      clearTimeout(commercialTimerRef.current)
+      commercialTimerRef.current = null
+    }
+  }, [])
+
+  const clearCountdown = useCallback(() => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+      countdownIntervalRef.current = null
+    }
+    setCommercialCountdown(null)
+  }, [])
+
+  const startCommercialTimer = useCallback(() => {
+    clearCommercialTimer()
+    if (!isCommercialEnabled) return
+    commercialTimerRef.current = setTimeout(() => {
+      commercialTimerRef.current = null
+      setIsPlayingCommercial(true)
+    }, COMMERCIAL_DELAY_MS)
+  }, [clearCommercialTimer, isCommercialEnabled])
 
   const handleStatus = useCallback((status?: Partial<PlayerState>) => dispatch(playerStatus(status)), [dispatch])
   const handleLoad = () => dispatch(playerLoad())
@@ -303,10 +339,44 @@ const PlayerController = (props: PlayerControllerProps) => {
     queueItem?.isVideoKeyingEnabled,
   ])
 
+  // start commercial timer when queue is exhausted (after scoring)
+  useEffect(() => {
+    if (player.isAtQueueEnd) {
+      startCommercialTimer()
+    } else {
+      clearCommercialTimer()
+      clearCountdown()
+      setIsPlayingCommercial(false)
+    }
+  }, [player.isAtQueueEnd, startCommercialTimer, clearCommercialTimer, clearCountdown])
+
+  // new song added while at queue end and player is stopped — interrupt commercial, start countdown
+  useEffect(() => {
+    if (!player.isAtQueueEnd || !nextQueueItem || player.isPlaying) return
+    clearCommercialTimer()
+    setIsPlayingCommercial(false)
+    clearCountdown()
+    let remaining = COMMERCIAL_COUNTDOWN_SECONDS
+    setCommercialCountdown(remaining)
+    countdownIntervalRef.current = setInterval(() => {
+      remaining -= 1
+      if (remaining <= 0) {
+        clearInterval(countdownIntervalRef.current!)
+        countdownIntervalRef.current = null
+        setCommercialCountdown(null)
+        handleLoadNext()
+      } else {
+        setCommercialCountdown(remaining)
+      }
+    }, 1000)
+  }, [player.isAtQueueEnd, player.isPlaying, nextQueueItem, clearCommercialTimer, clearCountdown, handleLoadNext])
+
   // on unmount
   useEffect(() => () => {
     dispatch(playerLeave())
     if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current)
+    if (commercialTimerRef.current) clearTimeout(commercialTimerRef.current)
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
   }, [dispatch])
 
   // playing for first time or playing next?
@@ -343,11 +413,22 @@ const PlayerController = (props: PlayerControllerProps) => {
     }
   }, [handleStatus, player.isErrored, player.isPlaying])
 
+  const handleCommercialEnded = useCallback(() => {
+    setIsPlayingCommercial(false)
+    startCommercialTimer()
+  }, [startCommercialTimer])
+
+  const handleCommercialError = useCallback(() => {
+    setIsPlayingCommercial(false)
+    clearCommercialTimer()
+  }, [clearCommercialTimer])
+
   const waitingUser = player.isWaitingForSinger && queueItem
     ? (queueItem as QueueItem).userDisplayName
     : null
 
   const isScoringVisible = scoring.isActive || scoring.result !== null
+  const showTextOverlay = !isScoringVisible && !isPlayingCommercial && commercialCountdown === null
 
   return (
     <>
@@ -381,7 +462,33 @@ const PlayerController = (props: PlayerControllerProps) => {
         width={props.width}
         height={props.height}
       />
-      {!isScoringVisible && (
+      {isPlayingCommercial && typeof roomId === 'number' && (
+        <CommercialPlayer
+          roomId={roomId}
+          onEnded={handleCommercialEnded}
+          onError={handleCommercialError}
+        />
+      )}
+      {commercialCountdown !== null && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: props.width,
+          height: props.height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#000',
+          zIndex: 20,
+          fontFamily: 'var(--font-family-custom)',
+          fontSize: 'clamp(4rem, 20vw, 18rem)',
+          color: '#fff',
+        }}>
+          {commercialCountdown}
+        </div>
+      )}
+      {showTextOverlay && (
         <PlayerTextOverlay
           queueItem={queueItem as QueueItem}
           nextQueueItem={nextQueueItem as QueueItem}
