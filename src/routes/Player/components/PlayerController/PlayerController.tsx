@@ -202,7 +202,7 @@ const PlayerController = (props: PlayerControllerProps) => {
 
     // scoring branch: hold advance until scoring animation completes
     // queueItem must be non-null (a song actually finished); skip on initial load (queueId === -1)
-    const isScoringEnabled = (roomPrefs?.scoring?.isEnabled ?? false) && !skipScoringRef.current && queueItem !== null
+    const isScoringEnabled = (roomPrefs?.scoring?.isEnabled ?? false) && !skipScoringRef.current && queueItem != null
     if (skipScoringRef.current) skipScoringRef.current = false
 
     if (isScoringEnabled) {
