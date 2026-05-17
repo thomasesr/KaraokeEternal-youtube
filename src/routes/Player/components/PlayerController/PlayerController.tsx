@@ -12,12 +12,10 @@ import { clearScoringResult } from 'store/modules/scoring'
 import {
   SCORING_START_REQUEST,
   SCORING_CANCEL_REQUEST,
-  SCORING_PUSH_REQUEST,
 } from 'shared/actionTypes'
 import type { QueueItem } from 'shared/types'
 
 const DEFAULT_NOTIFY_LEAD_SECONDS = 20
-const SCORING_PUSH_LEAD_SECONDS = 5
 
 function sendPushNotification (
   userId: number,
@@ -65,7 +63,6 @@ const PlayerController = (props: PlayerControllerProps) => {
   const defaultOffsetApplied = useRef(false)
   const defaultFontSizeApplied = useRef(false)
   const leadWarnFired = useRef(false)
-  const scoringPushFiredRef = useRef(false)
   const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isWaitingRef = useRef(player.isWaitingForSinger)
   const pendingWaitingUserRef = useRef<number | null>(null)
@@ -90,10 +87,9 @@ const PlayerController = (props: PlayerControllerProps) => {
   // keep ref current for use inside setTimeout callbacks
   useEffect(() => { isWaitingRef.current = player.isWaitingForSinger }, [player.isWaitingForSinger])
 
-  // reset lead warn and scoring push flags when song changes
+  // reset lead warn flag when song changes
   useEffect(() => {
     leadWarnFired.current = false
-    scoringPushFiredRef.current = false
   }, [player.queueId])
 
   const handleStatus = useCallback((status?: Partial<PlayerState>) => dispatch(playerStatus(status)), [dispatch])
@@ -286,23 +282,6 @@ const PlayerController = (props: PlayerControllerProps) => {
       }
     }
   }, [player.duration, player.isPlaying, player.isWaitingForSinger, player.nextUserId, player.position, roomPrefs?.notifyEnabled, roomPrefs?.notifyLeadSeconds])
-
-  // scoring lead push — fire 5s before song ends so users can open queue
-  useEffect(() => {
-    if (
-      roomPrefs?.scoring?.isEnabled
-      && !scoringPushFiredRef.current
-      && player.duration > 0
-      && player.isPlaying
-      && !player.isWaitingForSinger
-    ) {
-      const timeRemaining = player.duration - player.position
-      if (timeRemaining > 0 && timeRemaining <= SCORING_PUSH_LEAD_SECONDS) {
-        scoringPushFiredRef.current = true
-        dispatch({ type: SCORING_PUSH_REQUEST })
-      }
-    }
-  }, [dispatch, player.duration, player.isPlaying, player.isWaitingForSinger, player.position, roomPrefs?.scoring?.isEnabled])
 
   // clear reminder timer and ref when singer presses Play (waiting ends)
   useEffect(() => {

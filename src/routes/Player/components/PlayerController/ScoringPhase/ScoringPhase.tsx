@@ -12,6 +12,8 @@ interface ScoringPhaseProps {
   onAnimationComplete: () => void
 }
 
+const HOLD_MS = 4000
+
 const ScoringPhase = ({
   isActive,
   endsAt,
@@ -23,6 +25,7 @@ const ScoringPhase = ({
 }: ScoringPhaseProps) => {
   const { t } = useTranslation()
   const [countdown, setCountdown] = useState<number | null>(null)
+  const [starsDone, setStarsDone] = useState(false)
 
   // countdown tick during voting window
   useEffect(() => {
@@ -44,6 +47,13 @@ const ScoringPhase = ({
       onAnimationComplete()
     }
   }, [isActive, result, wasSkipped, onAnimationComplete])
+
+  // hold stars on screen for HOLD_MS after last star finishes animating
+  useEffect(() => {
+    if (!starsDone) return
+    const id = setTimeout(onAnimationComplete, HOLD_MS)
+    return () => clearTimeout(id)
+  }, [starsDone, onAnimationComplete])
 
   const starsToShow = (!isActive && result !== null && !wasSkipped && result > 0)
     ? Math.ceil(result)
@@ -68,7 +78,7 @@ const ScoringPhase = ({
               style={{ animationDelay: `${i * 0.25}s` }}
               viewBox='0 0 32 32'
               aria-hidden
-              onAnimationEnd={i === starsToShow - 1 ? onAnimationComplete : undefined}
+              onAnimationEnd={i === starsToShow - 1 ? () => setStarsDone(true) : undefined}
             >
               <path d='M32 12.408l-11.056-1.607-4.944-10.018-4.944 10.018-11.056 1.607 8 7.798-1.889 11.011 9.889-5.199 9.889 5.199-1.889-11.011 8-7.798z' />
             </svg>
