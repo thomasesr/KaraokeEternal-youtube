@@ -1,6 +1,7 @@
 import { combineSlices } from '@reduxjs/toolkit'
 import { optimistic } from 'redux-optimistic-ui'
 
+import commercial from './modules/commercial'
 import artists from 'routes/Library/modules/artists'
 import library from 'routes/Library/modules/library'
 import prefs from './modules/prefs'
@@ -22,6 +23,7 @@ export interface LazyLoadedSlices {} // eslint-disable-line @typescript-eslint/n
 
 const combinedReducer = combineSlices({
   artists,
+  commercial,
   highScores,
   library,
   prefs,
