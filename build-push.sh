@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Build and optionally push Docker images to Docker Hub.
+# Uses docker buildx native GitHub URL support — no local clone required.
+#
 # Usage:
 #   ./build-push.sh              # prompt-per-image build of CPU :latest images
 #   ./build-push.sh --cuda       # prompt-per-image build of GPU :cuda images
 #   ./build-push.sh --push       # push built images to Docker Hub
 #
-# Note: whisperx:latest and whisperx:cuda are the same image (faster-whisper /
-# CTranslate2). GPU is activated at runtime via WHISPER_USE_GPU=1 in compose.
+# Note: whisperx:latest and whisperx:cuda are the same image.
+#       GPU is activated at runtime via WHISPER_USE_GPU=1 in compose.
 #
 # Requires: docker buildx, docker login (thomasesr) when using --push
 
@@ -15,6 +17,7 @@ set -euo pipefail
 REPO="https://github.com/thomasesr/KaraokeEternal-youtube.git"
 BRANCH="Compose"
 DOCKER_USER="thomasesr"
+BASE="${REPO}#${BRANCH}"   # docker buildx GitHub URL base
 
 BUILD_CUDA=false
 DO_PUSH=false
@@ -26,90 +29,78 @@ for arg in "$@"; do
   esac
 done
 
-# ── clone ─────────────────────────────────────────────────────────────────────
-WORKDIR=$(mktemp -d)
-trap 'rm -rf "$WORKDIR"' EXIT
-
-echo "==> Cloning $REPO branch $BRANCH"
-git clone --depth=1 --branch "$BRANCH" "$REPO" "$WORKDIR"
-cd "$WORKDIR"
-
 # ── helpers ───────────────────────────────────────────────────────────────────
-build_and_push() {
-  local image="$1"
-  local context="$2"
-  local dockerfile="$3"
+_build() {
+  local context="$1"; shift   # e.g. ${BASE}:services/spleeter
+  local file="$1";    shift   # e.g. Dockerfile.cuda  (relative to context)
+  local tags=("$@")           # one or more --tag values
 
-  echo ""
-  printf "Build %s? [y/N] " "$image"
-  read -r answer </dev/tty
-  case "$answer" in
-    [yY]|[yY][eE][sS]) ;;
-    *) echo "  Skipping $image"; return ;;
-  esac
+  local tag_args=()
+  for t in "${tags[@]}"; do tag_args+=(--tag "$t"); done
 
-  echo "==> Building $image"
   docker buildx build \
     --platform linux/amd64 \
-    --file "$dockerfile" \
-    --tag "$image" \
+    --file "$file" \
+    "${tag_args[@]}" \
     $( $DO_PUSH && echo "--push" || echo "--load" ) \
     "$context"
-
-  $DO_PUSH && echo "  Pushed $image" || echo "  Loaded $image (local only)"
 }
 
-# Build one image, tag it with two names (for services where CPU==CUDA image)
-build_and_push_multi_tag() {
-  local tag1="$1"
-  local tag2="$2"
-  local context="$3"
-  local dockerfile="$4"
+build_image() {
+  local label="$1"; shift   # display name shown in prompt
+  local context="$1"; shift
+  local file="$1"; shift
+  local tags=("$@")
 
   echo ""
-  printf "Build %s (also tagged %s)? [y/N] " "$tag1" "$tag2"
+  printf "Build %s? [y/N] " "$label"
   read -r answer </dev/tty
-  case "$answer" in
-    [yY]|[yY][eE][sS]) ;;
-    *) echo "  Skipping $tag1 / $tag2"; return ;;
-  esac
+  [[ "$answer" =~ ^[yY] ]] || { echo "  Skipping $label"; return; }
 
-  echo "==> Building $tag1 + $tag2"
-  docker buildx build \
-    --platform linux/amd64 \
-    --file "$dockerfile" \
-    --tag "$tag1" \
-    --tag "$tag2" \
-    $( $DO_PUSH && echo "--push" || echo "--load" ) \
-    "$context"
-
-  $DO_PUSH && echo "  Pushed $tag1 + $tag2" || echo "  Loaded $tag1 + $tag2 (local only)"
+  echo "==> Building $label"
+  _build "$context" "$file" "${tags[@]}"
+  $DO_PUSH && echo "  Pushed $label" || echo "  Loaded $label (local only)"
 }
 
 # ── images ────────────────────────────────────────────────────────────────────
 if $BUILD_CUDA; then
   echo ""
   echo "==> CUDA images (:cuda)"
-  build_and_push "${DOCKER_USER}/karaoke:cuda"   "."                 "Dockerfile-cuda"
-  build_and_push "${DOCKER_USER}/spleeter:cuda"  "services/spleeter" "services/spleeter/Dockerfile.cuda"
-  build_and_push "${DOCKER_USER}/ctc:cuda"       "services/ctc"      "services/ctc/Dockerfile.cuda"
-  # whisperx: same image for CPU and CUDA — GPU activated via WHISPER_USE_GPU env var
-  build_and_push_multi_tag \
-    "${DOCKER_USER}/whisperx:cuda" \
-    "${DOCKER_USER}/whisperx:latest" \
-    "services/whisperx" \
-    "services/whisperx/Dockerfile"
+  build_image "karaoke:cuda" \
+    "${BASE}" "Dockerfile-cuda" \
+    "${DOCKER_USER}/karaoke:cuda"
+
+  build_image "spleeter:cuda" \
+    "${BASE}:services/spleeter" "Dockerfile.cuda" \
+    "${DOCKER_USER}/spleeter:cuda"
+
+  build_image "ctc:cuda" \
+    "${BASE}:services/ctc" "Dockerfile.cuda" \
+    "${DOCKER_USER}/ctc:cuda"
+
+  # whisperx: same image for :latest and :cuda — tagged both in one build
+  build_image "whisperx:latest + whisperx:cuda" \
+    "${BASE}:services/whisperx" "Dockerfile" \
+    "${DOCKER_USER}/whisperx:latest" "${DOCKER_USER}/whisperx:cuda"
+
 else
   echo ""
   echo "==> CPU images (:latest)"
-  build_and_push "${DOCKER_USER}/karaoke:latest"   "."                 "Dockerfile"
-  build_and_push "${DOCKER_USER}/spleeter:latest"  "services/spleeter" "services/spleeter/Dockerfile"
-  build_and_push "${DOCKER_USER}/ctc:latest"       "services/ctc"      "services/ctc/Dockerfile"
-  build_and_push_multi_tag \
-    "${DOCKER_USER}/whisperx:latest" \
-    "${DOCKER_USER}/whisperx:cuda" \
-    "services/whisperx" \
-    "services/whisperx/Dockerfile"
+  build_image "karaoke:latest" \
+    "${BASE}" "Dockerfile" \
+    "${DOCKER_USER}/karaoke:latest"
+
+  build_image "spleeter:latest" \
+    "${BASE}:services/spleeter" "Dockerfile" \
+    "${DOCKER_USER}/spleeter:latest"
+
+  build_image "ctc:latest" \
+    "${BASE}:services/ctc" "Dockerfile" \
+    "${DOCKER_USER}/ctc:latest"
+
+  build_image "whisperx:latest + whisperx:cuda" \
+    "${BASE}:services/whisperx" "Dockerfile" \
+    "${DOCKER_USER}/whisperx:latest" "${DOCKER_USER}/whisperx:cuda"
 fi
 
 echo ""
