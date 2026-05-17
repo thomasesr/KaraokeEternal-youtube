@@ -9,6 +9,7 @@ WORKDIR /app
 
 COPY requirements-align.txt ./
 RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --no-deps whisperx && \
     pip install --no-cache-dir -r requirements-align.txt
 
 COPY app.py entrypoint.sh ./
