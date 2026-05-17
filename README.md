@@ -163,6 +163,43 @@ All of the following must be on the server's `PATH`:
 | `SPLEETER_DATA` | `/data/spleeter` | Path where Spleeter stores pretrained models |
 | `SPLEETER_USE_GPU` | _(unset)_ | Set to `1` to enable GPU acceleration |
 
+## Enhanced LRC (word-level timestamps)
+
+This fork can upgrade standard line-timed `.lrc` files to **word-level timestamps** using [ctc-forced-aligner](https://github.com/MahmoudAshraf97/ctc-forced-aligner). Word-level timing enables syllable-highlighted karaoke display instead of line-by-line highlighting.
+
+### How it works
+
+`ctc-forced-aligner` force-aligns the lyrics text against the vocal audio to produce per-word start/end times. The enhanced LRC is serialized with inline word tags and a `[re:ctc-forced-aligner]` header so the scanner can skip re-processing on future rescans.
+
+Enhanced LRC is applied in two workflows:
+
+- **YouTube downloads** — after spleeter vocal separation, the existing line-timed LRC (fetched from lrclib.net) is enhanced with per-word timestamps using the separated vocals as the audio reference.
+- **Audio-only import** — when no synced LRC is available from lrclib.net, plain text lyrics are aligned directly against the vocal stem instead.
+
+Language is detected automatically from the lyrics text (English, Japanese, Korean, Chinese, Russian, Arabic, Hebrew; defaults to English for other scripts).
+
+### Configuration
+
+Enable in **Account → YouTube → Enhanced LRC (word-level timestamps)**:
+
+| Value | Behaviour |
+|---|---|
+| `none` (default) | Standard line-timed LRC; no ctc-forced-aligner invoked |
+| `ctc` | Word-level timestamps added after every vocal separation |
+
+### Server requirements
+
+- **`ctc-forced-aligner`** — Python package. Installed by `./init.sh --install` / `--install-gpu` or manually via `pip install ctc-forced-aligner`.
+- **ONNX alignment model** — downloaded automatically to `CTC_MODEL_PATH` on first startup.
+- **`python3`** — used to invoke the alignment script.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `CTC_MODEL_PATH` | `/data/ctc` | Directory where the ONNX alignment model is cached |
+| `CTC_USE_GPU` | `0` | Set to `1` to run ctc-forced-aligner on CUDA instead of CPU |
+
 ## Room manager role
 
 This fork adds a `room_manager` role that sits between admin and standard
