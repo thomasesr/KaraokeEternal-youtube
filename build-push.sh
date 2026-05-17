@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build and push all Docker images to Docker Hub.
+# Build and optionally push Docker images to Docker Hub.
 # Usage:
-#   ./build-push.sh              # build+push latest (CPU) tags only
-#   ./build-push.sh --cuda       # build+push both latest and cuda tags
-#   ./build-push.sh --no-push    # build only, skip docker push
+#   ./build-push.sh              # build CPU images (prompt per image, no push)
+#   ./build-push.sh --cuda       # include CUDA images
+#   ./build-push.sh --push       # push built images to Docker Hub
 #
-# Requires: docker buildx, docker login (thomasesr)
+# Requires: docker buildx, docker login (thomasesr) when using --push
 
 set -euo pipefail
 
@@ -14,31 +14,37 @@ BRANCH="Compose"
 DOCKER_USER="thomasesr"
 
 BUILD_CUDA=false
-DO_PUSH=true
+DO_PUSH=false
 
 for arg in "$@"; do
   case "$arg" in
-    --cuda)    BUILD_CUDA=true ;;
-    --no-push) DO_PUSH=false ;;
+    --cuda) BUILD_CUDA=true ;;
+    --push) DO_PUSH=true ;;
   esac
 done
 
-# ── clone / update ────────────────────────────────────────────────────────────
+# ── clone ─────────────────────────────────────────────────────────────────────
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
-echo "==> Cloning $REPO branch $BRANCH into $WORKDIR"
+echo "==> Cloning $REPO branch $BRANCH"
 git clone --depth=1 --branch "$BRANCH" "$REPO" "$WORKDIR"
-
 cd "$WORKDIR"
 
 # ── helper ────────────────────────────────────────────────────────────────────
 build_and_push() {
-  local image="$1"   # e.g. thomasesr/karaoke:latest
-  local context="$2" # e.g. .
+  local image="$1"
+  local context="$2"
   local dockerfile="$3"
 
   echo ""
+  printf "Build %s? [y/N] " "$image"
+  read -r answer </dev/tty
+  case "$answer" in
+    [yY]|[yY][eE][sS]) ;;
+    *) echo "  Skipping $image"; return ;;
+  esac
+
   echo "==> Building $image"
   docker buildx build \
     --platform linux/amd64 \
@@ -46,22 +52,23 @@ build_and_push() {
     --tag "$image" \
     $( $DO_PUSH && echo "--push" || echo "--load" ) \
     "$context"
+
+  $DO_PUSH && echo "  Pushed $image" || echo "  Loaded $image (local only)"
 }
 
 # ── CPU images ────────────────────────────────────────────────────────────────
-build_and_push "${DOCKER_USER}/karaoke:latest"   "."                  "Dockerfile"
-build_and_push "${DOCKER_USER}/spleeter:latest"  "services/spleeter"  "services/spleeter/Dockerfile"
-build_and_push "${DOCKER_USER}/ctc:latest"       "services/ctc"       "services/ctc/Dockerfile"
-build_and_push "${DOCKER_USER}/whisperx:latest"  "services/whisperx"  "services/whisperx/Dockerfile"
+build_and_push "${DOCKER_USER}/karaoke:latest"   "."                 "Dockerfile"
+build_and_push "${DOCKER_USER}/spleeter:latest"  "services/spleeter" "services/spleeter/Dockerfile"
+build_and_push "${DOCKER_USER}/ctc:latest"       "services/ctc"      "services/ctc/Dockerfile"
+build_and_push "${DOCKER_USER}/whisperx:latest"  "services/whisperx" "services/whisperx/Dockerfile"
 
 # ── CUDA images (opt-in) ──────────────────────────────────────────────────────
 if $BUILD_CUDA; then
-  build_and_push "${DOCKER_USER}/karaoke:cuda"   "."                  "Dockerfile-cuda"
-  build_and_push "${DOCKER_USER}/spleeter:cuda"  "services/spleeter"  "services/spleeter/Dockerfile.cuda"
-  build_and_push "${DOCKER_USER}/ctc:cuda"       "services/ctc"       "services/ctc/Dockerfile.cuda"
-  build_and_push "${DOCKER_USER}/whisperx:cuda"  "services/whisperx"  "services/whisperx/Dockerfile.cuda"
+  build_and_push "${DOCKER_USER}/karaoke:cuda"   "."                 "Dockerfile-cuda"
+  build_and_push "${DOCKER_USER}/spleeter:cuda"  "services/spleeter" "services/spleeter/Dockerfile.cuda"
+  build_and_push "${DOCKER_USER}/ctc:cuda"       "services/ctc"      "services/ctc/Dockerfile.cuda"
+  build_and_push "${DOCKER_USER}/whisperx:cuda"  "services/whisperx" "services/whisperx/Dockerfile.cuda"
 fi
 
 echo ""
 echo "==> Done."
-$DO_PUSH && echo "    Images pushed to Docker Hub." || echo "    --no-push: images loaded locally only."
