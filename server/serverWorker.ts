@@ -23,6 +23,7 @@ import prefsRouter from './Prefs/router.js'
 import roomsRouter from './Rooms/router.js'
 import uploadRouter from './Upload/router.js'
 import userRouter from './User/router.js'
+import commercialRouter from './Commercial/router.js'
 import youtubeRouter from './Youtube/router.js'
 import pushRouter from './PushNotifications/router.js'
 import singerPlayRouter from './PushNotifications/singerPlayRouter.js'
@@ -194,6 +195,7 @@ async function serverWorker ({ env, startScanner, stopScanner, shutdownHandlers 
   baseRouter.use(roomsRouter.routes())
   baseRouter.use(uploadRouter.routes())
   baseRouter.use(userRouter.routes())
+  baseRouter.use(commercialRouter.routes())
   baseRouter.use(youtubeRouter.routes())
   baseRouter.use(pushRouter.routes())
   baseRouter.use(singerPlayRouter.routes())
