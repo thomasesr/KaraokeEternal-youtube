@@ -77,3 +77,60 @@
     filter: drop-shadow(0 0 12px rgba(255, 210, 0, 0.8));
   }
 }
+
+.highScoreLabel {
+  font-size: clamp(1.2rem, 3.5vw, 2.5rem);
+  font-weight: bold;
+  color: gold;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 20px rgba(255, 210, 0, 0.8), 0 2px 4px #000;
+  animation: highScoreFadeIn 0.5s ease-out both;
+}
+
+@keyframes highScoreFadeIn {
+  from { opacity: 0; transform: scale(0.8) translateY(10px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+/* Firework: a dot that explodes into rays */
+.firework {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: fireworkBurst 0.8s ease-out both;
+  animation-iteration-count: 2;
+}
+
+@keyframes fireworkBurst {
+  0% {
+    box-shadow:
+      0 0 0 0px gold,
+      0 0 0 0px orangered,
+      0 0 0 0px deepskyblue,
+      0 0 0 0px lime,
+      0 0 0 0px violet,
+      0 0 0 0px hotpink;
+    opacity: 1;
+  }
+  80% {
+    box-shadow:
+      -80px -80px 0 4px gold,
+       80px -80px 0 4px orangered,
+        0px -110px 0 4px deepskyblue,
+      -80px  80px 0 4px lime,
+       80px  80px 0 4px violet,
+        0px  110px 0 4px hotpink;
+    opacity: 1;
+  }
+  100% {
+    box-shadow:
+      -90px -90px 0 0px gold,
+       90px -90px 0 0px orangered,
+        0px -120px 0 0px deepskyblue,
+      -90px  90px 0 0px lime,
+       90px  90px 0 0px violet,
+        0px  120px 0 0px hotpink;
+    opacity: 0;
+  }
+}

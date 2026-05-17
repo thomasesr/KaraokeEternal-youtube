@@ -35,6 +35,17 @@ const ACTION_HANDLERS = {
     const clampedDuration = Math.min(30, Math.max(5, duration || 15))
 
     Scoring.start(roomId, { queueId, songId, singerUserId, duration: clampedDuration }, (result) => {
+      // check previous best before inserting so current row isn't included
+      let isNewHighScore = false
+      if (!result.wasSkipped && result.voteCount > 0) {
+        const prevQuery = sql`
+          SELECT MAX(median) AS bestMedian FROM songScores
+          WHERE songId = ${result.songId} AND voteCount > 0
+        `
+        const prev = db.get<{ bestMedian: number | null }>(String(prevQuery), prevQuery.parameters)
+        isNewHighScore = result.median > (prev?.bestMedian ?? -Infinity)
+      }
+
       Scoring.persistResult(result, roomId)
 
       sock.server.to(Rooms.prefix(roomId)).emit('action', {
@@ -44,11 +55,12 @@ const ACTION_HANDLERS = {
           median: result.median,
           voteCount: result.voteCount,
           wasSkipped: result.wasSkipped,
+          isNewHighScore,
         },
       })
 
-      log.info('SCORING_RESULT emitted roomId=%s median=%s votes=%s skipped=%s',
-        roomId, result.median, result.voteCount, result.wasSkipped)
+      log.info('SCORING_RESULT emitted roomId=%s median=%s votes=%s skipped=%s newHigh=%s',
+        roomId, result.median, result.voteCount, result.wasSkipped, isNewHighScore)
     })
 
     const endsAt = Date.now() + clampedDuration * 1000

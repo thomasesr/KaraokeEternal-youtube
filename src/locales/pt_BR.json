@@ -270,7 +270,8 @@
     "notifLeadBody": "Prepare-se — começa em cerca de {{seconds}} segundos.",
     "notifScoringTitle": "Avalie essa música!",
     "notifScoringBody": "Abra a fila para dar uma avaliação com estrelas.",
-    "scoringTallying": "CALCULANDO PONTUAÇÃO..."
+    "scoringTallying": "CALCULANDO PONTUAÇÃO...",
+    "newHighScore": "NOVO RECORDE!"
   },
   "scoring": {
     "votePrompt": "Avalie esta música",

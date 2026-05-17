@@ -14,6 +14,7 @@ interface ScoringState {
   myVote: number | null
   result: number | null
   wasSkipped: boolean
+  isNewHighScore: boolean
 }
 
 const initialState: ScoringState = {
@@ -25,6 +26,7 @@ const initialState: ScoringState = {
   myVote: null,
   result: null,
   wasSkipped: false,
+  isNewHighScore: false,
 }
 
 // ------------------------------------
@@ -43,6 +45,7 @@ const scoringResult = createAction<{
   median: number
   voteCount: number
   wasSkipped: boolean
+  isNewHighScore: boolean
 }>(SCORING_RESULT)
 
 const scoringCancel = createAction(SCORING_CANCEL)
@@ -87,6 +90,7 @@ const scoringReducer = createReducer(initialState, (builder) => {
       state.isActive = false
       state.result = action.payload.median
       state.wasSkipped = action.payload.wasSkipped
+      state.isNewHighScore = action.payload.isNewHighScore ?? false
     })
     .addCase(scoringCancel, () => initialState)
     .addCase(clearScoringResult, () => initialState)

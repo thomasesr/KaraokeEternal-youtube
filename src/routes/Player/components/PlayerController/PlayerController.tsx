@@ -507,6 +507,7 @@ const PlayerController = (props: PlayerControllerProps) => {
           endsAt={scoring.endsAt}
           result={scoring.result}
           wasSkipped={scoring.wasSkipped}
+          isNewHighScore={scoring.isNewHighScore}
           width={props.width}
           height={props.height}
           onAnimationComplete={handleScoringAnimationComplete}

@@ -289,7 +289,8 @@
     "notifLeadBody": "Get ready — it starts in about {{seconds}} seconds.",
     "notifScoringTitle": "Rate that song!",
     "notifScoringBody": "Open the queue to give it a star rating.",
-    "scoringTallying": "TALLYING SCORE..."
+    "scoringTallying": "TALLYING SCORE...",
+    "newHighScore": "NEW HIGH SCORE!"
   },
   "scoring": {
     "votePrompt": "Rate this song",

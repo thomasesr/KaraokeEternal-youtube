@@ -7,6 +7,7 @@ interface ScoringPhaseProps {
   endsAt: number | null
   result: number | null
   wasSkipped: boolean
+  isNewHighScore: boolean
   width: number
   height: number
   onAnimationComplete: () => void
@@ -14,11 +15,23 @@ interface ScoringPhaseProps {
 
 const HOLD_MS = 4000
 
+const FIREWORK_POSITIONS = [
+  { x: '10%', y: '15%', delay: 0 },
+  { x: '85%', y: '10%', delay: 0.2 },
+  { x: '50%', y: '8%',  delay: 0.4 },
+  { x: '20%', y: '60%', delay: 0.1 },
+  { x: '75%', y: '55%', delay: 0.35 },
+  { x: '90%', y: '35%', delay: 0.6 },
+  { x: '5%',  y: '40%', delay: 0.5 },
+  { x: '60%', y: '70%', delay: 0.25 },
+]
+
 const ScoringPhase = ({
   isActive,
   endsAt,
   result,
   wasSkipped,
+  isNewHighScore,
   width,
   height,
   onAnimationComplete,
@@ -68,6 +81,18 @@ const ScoringPhase = ({
             <div className={styles.countdown}>{countdown}</div>
           )}
         </div>
+      )}
+      {starsToShow > 0 && isNewHighScore && starsDone && (
+        <>
+          {FIREWORK_POSITIONS.map((pos, i) => (
+            <div
+              key={i}
+              className={styles.firework}
+              style={{ left: pos.x, top: pos.y, animationDelay: `${pos.delay}s` }}
+            />
+          ))}
+          <div className={styles.highScoreLabel}>{t('player.newHighScore')}</div>
+        </>
       )}
       {starsToShow > 0 && (
         <div className={styles.stars}>
