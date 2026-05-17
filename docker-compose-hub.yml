@@ -66,6 +66,10 @@ services:
     volumes:
       - data:/data
       - shared-tmp:/shared-tmp
+    environment:
+      - WHISPER_MODEL=${WHISPER_MODEL:-small}
+      - WHISPER_USE_GPU=0
+      - WHISPER_MODEL_CACHE=/data/whisper
     profiles:
       - whisperx
     restart: unless-stopped

@@ -62,6 +62,10 @@ services:
     volumes:
       - data:/data
       - shared-tmp:/shared-tmp
+    environment:
+      - WHISPER_MODEL=${WHISPER_MODEL:-small}
+      - WHISPER_USE_GPU=0
+      - WHISPER_MODEL_CACHE=/data/whisper
     profiles:
       - whisperx
     restart: unless-stopped
@@ -69,7 +73,7 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
       interval: 30s
       timeout: 5s
-      start_period: 30s
+      start_period: 60s
 
 volumes:
   data:
