@@ -15,16 +15,20 @@ import user from './modules/user'
 import userStars from './modules/userStars'
 import youtube from './modules/youtube'
 import push from './modules/push'
+import scoring from './modules/scoring'
+import highScores from './modules/highScores'
 
 export interface LazyLoadedSlices {} // eslint-disable-line @typescript-eslint/no-empty-object-type
 
 const combinedReducer = combineSlices({
   artists,
+  highScores,
   library,
   prefs,
   push,
   queue: optimistic(queue),
   rooms,
+  scoring,
   songs,
   songInfo,
   starCounts,
