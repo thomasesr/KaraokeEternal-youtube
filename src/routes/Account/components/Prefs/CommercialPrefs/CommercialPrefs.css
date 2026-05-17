@@ -1,0 +1,52 @@
+.container {
+  margin-bottom: var(--space-m);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.title {
+  font-weight: bold;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+  padding: var(--space-m);
+}
+
+.note {
+  color: var(--text-secondary-color);
+  font-size: 0.9em;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 0.9em;
+}
+
+.status {
+  font-size: 0.9em;
+}
+
+.statusActive {
+  color: var(--color-success, green);
+}
+
+.statusNone {
+  color: var(--text-secondary-color);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-s);
+  flex-wrap: wrap;
+}

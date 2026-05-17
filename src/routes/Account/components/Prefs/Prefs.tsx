@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import Panel from 'components/Panel/Panel'
+import CommercialPrefs from './CommercialPrefs/CommercialPrefs'
 import PathPrefs from './PathPrefs/PathPrefs'
 import PlayerPrefs from './PlayerPrefs/PlayerPrefs'
 import ThemePrefs from './ThemePrefs/ThemePrefs'
@@ -16,6 +17,7 @@ const Prefs = () => {
         <PathPrefs />
         <PlayerPrefs />
         <YoutubePrefs />
+        <CommercialPrefs />
       </>
     </Panel>
   )
