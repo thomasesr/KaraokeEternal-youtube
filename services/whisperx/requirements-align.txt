@@ -1,0 +1,10 @@
+# Minimal deps for whisperx alignment only (no diarization/pyannote/speechbrain).
+# torch and torchaudio are installed separately by the Dockerfile to control CUDA vs CPU wheel.
+--no-deps whisperx
+faster-whisper
+transformers
+pandas
+nltk
+soundfile
+scipy
+ffmpeg-python

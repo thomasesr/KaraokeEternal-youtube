@@ -1,4 +1,4 @@
-# CPU variant — installs CPU-only torch wheel before whisperx to avoid pulling CUDA torch
+# CPU variant — installs CPU-only torch to avoid pulling CUDA torch
 FROM python:3.11-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -7,9 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+COPY requirements-align.txt ./
+RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements-align.txt
 
 COPY app.py entrypoint.sh ./
 RUN chmod +x entrypoint.sh

@@ -1,5 +1,5 @@
 # GPU variant — requires NVIDIA Container Toolkit on the host.
-# CUDA comes from the torch CUDA wheel — no nvidia/cuda base image needed.
+# Installs alignment-only deps; skips pyannote/speechbrain (diarization only).
 FROM python:3.11-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,9 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt ./
+COPY requirements-align.txt ./
 RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements-align.txt
 
 COPY app.py entrypoint.sh ./
 RUN chmod +x entrypoint.sh
