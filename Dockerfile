@@ -26,13 +26,15 @@ RUN npm ci --omit=dev
 
 # ---- runtime ----
 # Main app container — no ML Python deps (spleeter/ctc/whisperx run as separate services)
-FROM node:24-bookworm-slim
+FROM node:24-alpine
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg ca-certificates zip unzip curl && \
-    curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+RUN apk add --no-cache ca-certificates zip unzip curl xz && \
+    curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
+      | tar -xJ --strip-components=2 -C /usr/local/bin --wildcards '*/bin/ff*' && \
+    curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+      -o /usr/local/bin/yt-dlp && \
     chmod +x /usr/local/bin/yt-dlp && \
-    rm -rf /var/lib/apt/lists/*
+    apk del xz
 
 ENV NODE_ENV=production \
     KES_PATH_DATA=/data \
