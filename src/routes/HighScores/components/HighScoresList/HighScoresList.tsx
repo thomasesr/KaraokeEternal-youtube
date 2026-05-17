@@ -9,6 +9,7 @@ interface SongRow {
   timesPlayed: number
   title: string
   artistName: string
+  singerName: string | null
 }
 
 interface UserRow {
@@ -62,7 +63,9 @@ const HighScoresList = ({ title, rows, type, noScoresText }: HighScoresListProps
                 <>
                   <span className={styles.primary}>
                     <span className={styles.name}>{row.title}</span>
-                    <span className={styles.sub}>{row.artistName}</span>
+                    <span className={styles.sub}>
+                      {row.artistName}{row.singerName ? ` · ${row.singerName}` : ''}
+                    </span>
                   </span>
                   <span className={styles.meta}>
                     <StarDisplay score={row.avgScore} />

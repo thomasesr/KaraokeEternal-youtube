@@ -110,10 +110,19 @@ const ACTION_HANDLERS = {
 
     const todaySongsQuery = sql`
       SELECT sc.songId,
-             AVG(sc.median)  AS avgScore,
-             COUNT(*)        AS timesPlayed,
-             sg.title        AS title,
-             ar.name         AS artistName
+             AVG(sc.median)    AS avgScore,
+             SUM(sc.voteCount) AS totalVotes,
+             COUNT(*)          AS timesPlayed,
+             sg.title          AS title,
+             ar.name           AS artistName,
+             (SELECT u.name FROM songScores s2
+                JOIN users u ON u.userId = s2.userId
+              WHERE s2.songId = sc.songId
+                AND s2.roomId = ${roomId}
+                AND s2.voteCount > 0
+                AND date(s2.scoredAt, 'unixepoch') = date('now', 'localtime')
+              ORDER BY s2.median DESC
+              LIMIT 1)         AS singerName
       FROM songScores sc
         JOIN songs sg ON sg.songId = sc.songId
         JOIN artists ar ON ar.artistId = sg.artistId
@@ -121,7 +130,7 @@ const ACTION_HANDLERS = {
         AND sc.voteCount > 0
         AND date(sc.scoredAt, 'unixepoch') = date('now', 'localtime')
       GROUP BY sc.songId
-      ORDER BY avgScore DESC
+      ORDER BY avgScore DESC, totalVotes DESC
       LIMIT 20
     `
 
@@ -154,7 +163,8 @@ const ACTION_HANDLERS = {
     `
 
     const todaySongs = db.all<{
-      songId: number; avgScore: number; timesPlayed: number; title: string; artistName: string
+      songId: number; avgScore: number; totalVotes: number; timesPlayed: number
+      title: string; artistName: string; singerName: string | null
     }>(String(todaySongsQuery), todaySongsQuery.parameters)
 
     const todayUsers = db.all<{

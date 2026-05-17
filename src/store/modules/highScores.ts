@@ -11,6 +11,7 @@ export interface SongScoreEntry {
   timesPlayed: number
   title: string
   artistName: string
+  singerName: string | null
 }
 
 export interface UserScoreEntry {
