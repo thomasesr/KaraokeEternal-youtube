@@ -30,19 +30,39 @@ if [ "${needs_download}" = true ]; then
   sha256sum "${TARBALL}" | awk '{print $1}' > "${TARBALL_SHA}"
 fi
 
-# Extract if model files missing
+# Extract if model files missing; deezer tarballs contain a top-level subdir
+# named after the model — flatten it into MODEL_DIR
 if ! ls "${MODEL_DIR}"/*.meta > /dev/null 2>&1; then
   echo "[spleeter] Extracting ${TARBALL} → ${MODEL_DIR}"
-  tar -xz -C "${MODEL_DIR}" -f "${TARBALL}"
+  TMP_EXTRACT=$(mktemp -d)
+  tar -xz -C "${TMP_EXTRACT}" -f "${TARBALL}"
+  # Move contents of the first (and only) subdir up into MODEL_DIR
+  SUBDIR=$(ls "${TMP_EXTRACT}" | head -1)
+  mv "${TMP_EXTRACT}/${SUBDIR}"/* "${MODEL_DIR}/"
+  rm -rf "${TMP_EXTRACT}"
 fi
 
-# Write config JSON with absolute model_dir (spleeter requires this when invoked with -p /abs/path.json)
+# Write config JSON with absolute model_dir.
+# Try ${MODEL}.json first (e.g. 2stems-finetune.json); fall back to base model
+# (strip -finetune suffix) since finetune shares the same architecture.
 SPLEETER_RESOURCES=$(python3 -c "import spleeter, os; print(os.path.join(os.path.dirname(spleeter.__file__), 'resources'))")
+BASE_MODEL="${MODEL%%-finetune}"
 python3 - <<PYEOF
-import json
-with open("${SPLEETER_RESOURCES}/2stems.json") as f:
+import json, os
+
+resources = "${SPLEETER_RESOURCES}"
+model = "${MODEL}"
+base = "${BASE_MODEL}"
+
+cfg_path = os.path.join(resources, f"{model}.json")
+if not os.path.exists(cfg_path):
+    cfg_path = os.path.join(resources, f"{base}.json")
+
+with open(cfg_path) as f:
     cfg = json.load(f)
+
 cfg["model_dir"] = "${MODEL_DIR}"
+
 with open("${MODEL_DIR}/${MODEL}.json", "w") as f:
     json.dump(cfg, f, indent=2)
 PYEOF
