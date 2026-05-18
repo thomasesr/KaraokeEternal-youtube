@@ -9,7 +9,6 @@ app = FastAPI()
 
 class SeparateRequest(BaseModel):
     audio_path: str
-    output_dir: str
 
 
 @app.post("/separate")
@@ -17,6 +16,7 @@ def separate(req: SeparateRequest):
     model = os.environ.get("SPLEETER_MODEL", "2stems")
     data = os.environ.get("SPLEETER_DATA", "/data/spleeter")
     config = os.path.join(data, "pretrained_models", model, f"{model}.json")
+    output_dir = os.environ.get("SPLEETER_OUTPUT_DIR", "/data/stems")
     use_gpu = os.environ.get("SPLEETER_USE_GPU", "0") == "1"
 
     env = os.environ.copy()
@@ -26,10 +26,10 @@ def separate(req: SeparateRequest):
         env["CUDA_VISIBLE_DEVICES"] = ""
         env["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-    os.makedirs(req.output_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     result = subprocess.run(
-        ["spleeter", "separate", "-p", config, "-c", "mp3", "-o", req.output_dir, req.audio_path],
+        ["spleeter", "separate", "-p", config, "-c", "mp3", "-o", output_dir, req.audio_path],
         capture_output=True,
         env=env,
         timeout=600,
@@ -39,7 +39,7 @@ def separate(req: SeparateRequest):
         raise HTTPException(status_code=500, detail=stderr)
 
     base = pathlib.Path(req.audio_path).stem
-    stem_dir = pathlib.Path(req.output_dir) / base
+    stem_dir = pathlib.Path(output_dir) / base
     return {
         "accompaniment": str(stem_dir / "accompaniment.mp3"),
         "vocals": str(stem_dir / "vocals.mp3"),

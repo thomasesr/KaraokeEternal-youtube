@@ -14,7 +14,8 @@ COPY app.py entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 ENV SPLEETER_DATA=/data/spleeter \
-    SPLEETER_MODEL=2stems
+    SPLEETER_MODEL=2stems \
+    SPLEETER_OUTPUT_DIR=/data/stems
 
 VOLUME ["/data", "/shared-tmp"]
 EXPOSE 5000

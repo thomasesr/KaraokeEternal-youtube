@@ -17,6 +17,7 @@ RUN chmod +x entrypoint.sh
 
 ENV SPLEETER_DATA=/data/spleeter \
     SPLEETER_MODEL=2stems \
+    SPLEETER_OUTPUT_DIR=/data/stems \
     SPLEETER_USE_GPU=1 \
     TF_FORCE_GPU_ALLOW_GROWTH=true
 

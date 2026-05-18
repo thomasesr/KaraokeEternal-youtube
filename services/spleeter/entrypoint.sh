@@ -36,9 +36,13 @@ if ! ls "${MODEL_DIR}"/*.meta > /dev/null 2>&1; then
   echo "[spleeter] Extracting ${TARBALL} → ${MODEL_DIR}"
   TMP_EXTRACT=$(mktemp -d)
   tar -xz -C "${TMP_EXTRACT}" -f "${TARBALL}"
-  # Move contents of the first (and only) subdir up into MODEL_DIR
+  # Flatten single subdir if present; otherwise files are already at root
   SUBDIR=$(ls "${TMP_EXTRACT}" | head -1)
-  mv "${TMP_EXTRACT}/${SUBDIR}"/* "${MODEL_DIR}/"
+  if [ -d "${TMP_EXTRACT}/${SUBDIR}" ] && [ "$(ls "${TMP_EXTRACT}" | wc -l)" -eq 1 ]; then
+    mv "${TMP_EXTRACT}/${SUBDIR}"/* "${MODEL_DIR}/"
+  else
+    mv "${TMP_EXTRACT}"/* "${MODEL_DIR}/"
+  fi
   rm -rf "${TMP_EXTRACT}"
 fi
 

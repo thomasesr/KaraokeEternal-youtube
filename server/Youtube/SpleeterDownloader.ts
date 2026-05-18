@@ -130,8 +130,7 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
 
   const tmpBase = process.env.KES_TMP_DIR || os.tmpdir()
   const tmpDir = await fsp.mkdtemp(path.join(tmpBase, `kes-spl-${videoId}-`))
-  const stemsDir = path.join(tmpDir, 'stems')
-  log.debug('spleeter tmpDir=%s stemsDir=%s', tmpDir, stemsDir)
+  log.debug('spleeter tmpDir=%s', tmpDir)
 
   const cookies = opts.useCookies ? Prefs.getYoutubeCookies() : null
   let cookieFile: string | null = null
@@ -206,12 +205,12 @@ async function runPipeline (videoId: string, job: Job, opts: SpleeterStartOption
 
     const spleeterUrl = process.env.SPLEETER_SERVICE_URL
     if (!spleeterUrl) throw new Error('SPLEETER_SERVICE_URL not configured')
-    log.debug('spleeter service url=%s audio=%s stemsDir=%s', spleeterUrl, dlMp3Resolved, stemsDir)
+    log.debug('spleeter service url=%s audio=%s', spleeterUrl, dlMp3Resolved)
 
     const seplRes = await fetch(`${spleeterUrl}/separate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audio_path: dlMp3Resolved, output_dir: stemsDir }),
+      body: JSON.stringify({ audio_path: dlMp3Resolved }),
     })
     if (!seplRes.ok) {
       const detail = await seplRes.text().catch(() => '')
