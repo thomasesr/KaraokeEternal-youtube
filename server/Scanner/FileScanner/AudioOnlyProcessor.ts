@@ -71,7 +71,7 @@ async function runSpleeter (mp3Path: string, stemsDir: string): Promise<{ accomp
   const res = await fetch(`${spleeterUrl}/separate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ audio_path: mp3Path, output_dir: stemsDir }),
+    body: JSON.stringify({ audio_path: mp3Path }),
   })
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
@@ -130,9 +130,16 @@ export async function processAudioOnly (
     if (!artist || !title) throw new Error(`no artist/title found for ${path.basename(file)}`)
 
     // Step 3: spleeter — extract instrumental accompaniment + vocals
+    // mp3Path may be in the library dir (not mounted in spleeter container).
+    // Copy to shared-tmp so the spleeter container can read it via the shared volume.
     onProgress?.('separating', 10)
+    let spleeterInput = mp3Path
+    if (!mp3Path.startsWith(tmpDir)) {
+      spleeterInput = path.join(tmpDir, path.basename(mp3Path))
+      await fsp.copyFile(mp3Path, spleeterInput)
+    }
     const stemsDir = path.join(tmpDir, 'stems')
-    const { accompaniment: accompanimentMp3, vocals: vocalsMp3 } = await runSpleeter(mp3Path, stemsDir)
+    const { accompaniment: accompanimentMp3, vocals: vocalsMp3 } = await runSpleeter(spleeterInput, stemsDir)
     onProgress?.('separating', 80)
 
     // Step 4: fetch LRC (or request lyrics from caller if not found)
