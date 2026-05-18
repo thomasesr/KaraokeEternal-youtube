@@ -7,6 +7,7 @@ import { Downloader, DownloaderError } from './Downloader.js'
 import SpleeterDownloader from './SpleeterDownloader.js'
 import AudioOnlyDownloader from './AudioOnlyDownloader.js'
 import { searchByTitle, searchByArtistTitle } from './MusicBrainz.js'
+import { runMusicBrainzQueue } from './MusicBrainzQueue.js'
 import type {
   IYoutubeAccess,
   IYoutubePrefs,
@@ -30,6 +31,7 @@ function detectAvailableBackends (): string[] {
   if (_availableBackends) return _availableBackends
   const candidates: Array<[string, string]> = [
     ['ctc', 'ctc_forced_aligner'],
+    ['faster-whisper', 'faster_whisper'],
     ['whisperx', 'whisperx'],
   ]
   _availableBackends = candidates
@@ -377,6 +379,13 @@ router.post('/download/:videoId/lyrics', (ctx) => {
     throw err
   }
   ctx.status = 204
+})
+
+router.post('/mb-tag', async (ctx) => {
+  if (!ctx.user?.isAdmin) ctx.throw(401)
+  runMusicBrainzQueue(ctx.io).catch(() => {})
+  ctx.status = 202
+  ctx.body = { queued: true }
 })
 
 router.delete('/download/:videoId/lyrics', (ctx) => {

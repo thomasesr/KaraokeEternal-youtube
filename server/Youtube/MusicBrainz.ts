@@ -95,12 +95,14 @@ export function cleanTitle (raw: string): string {
 }
 
 export interface MusicBrainzHit {
+  id: string
   artist: string
   title: string
   score: number
 }
 
 interface MbRecording {
+  'id'?: string
   'title'?: string
   'score'?: number
   'artist-credit'?: { name?: string, artist?: { name?: string } }[]
@@ -163,11 +165,12 @@ export async function searchRecording (query: string): Promise<MusicBrainzHit | 
     if (recs.length === 0) return null
 
     const top = recs[0]
+    const id = top.id ?? ''
     const artist = top['artist-credit']?.[0]?.name ?? top['artist-credit']?.[0]?.artist?.name ?? ''
     const title = top.title ?? ''
     const score = typeof top.score === 'number' ? top.score : 0
     if (!artist || !title) return null
-    return { artist, title, score }
+    return { id, artist, title, score }
   })
 }
 

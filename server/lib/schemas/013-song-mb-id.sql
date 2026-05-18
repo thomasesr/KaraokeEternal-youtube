@@ -1,0 +1,4 @@
+-- Up
+ALTER TABLE songs ADD COLUMN mbId TEXT;
+-- Down
+ALTER TABLE songs DROP COLUMN mbId;

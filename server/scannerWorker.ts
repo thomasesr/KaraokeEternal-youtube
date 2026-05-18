@@ -6,6 +6,7 @@ import {
   REQUEST_SCAN_STOP,
   SCANNER_WORKER_STATUS,
   LRC_ENHANCE_QUEUE,
+  MB_TAG_QUEUE,
 } from '../shared/actionTypes.js'
 
 const env = JSON.parse(process.env.KES_ENV_JSON)
@@ -83,6 +84,8 @@ function onDone (candidates: any[] = []) {
   if (candidates.length > 0) {
     IPC.send({ type: LRC_ENHANCE_QUEUE, payload: { candidates } })
   }
+
+  IPC.send({ type: MB_TAG_QUEUE, payload: {} })
 
   process.exit(0) // eslint-disable-line n/no-process-exit
 }
