@@ -5,6 +5,7 @@ import path from 'path'
 import { parseBuffer } from 'music-metadata'
 import getLogger from '../../lib/Log.js'
 import { buildFilenameBase, pickUniqueBase } from '../../Youtube/filename.js'
+import { enhanceLrc, getAlignBackend, isEnhancedLrc } from '../../Youtube/EnhancedLrc.js'
 
 const log = getLogger('AudioOnly')
 
@@ -155,7 +156,19 @@ export async function processAudioOnly (
       lrcContent = await onLyricsNeeded(vocalsMp3)
     }
 
-    // Step 5: zip accompaniment + vocals + lrc → dest
+    // Step 4b: enhance LRC with CTC or whisperx if available
+    const lrcBackend = getAlignBackend()
+    if (lrcBackend !== 'none' && !isEnhancedLrc(lrcContent)) {
+      onProgress?.('enhancing-lrc', 88)
+      try {
+        log.verbose('enhancing lrc: backend=%s vocals=%s', lrcBackend, path.basename(vocalsMp3))
+        lrcContent = await enhanceLrc(vocalsMp3, lrcContent, tmpDir, { artist, title })
+      } catch (e) {
+        log.warn('lrc enhancement failed, using plain lrc: %s', (e as Error).message)
+      }
+    }
+
+    // Step 5: zip accompaniment + vocals + lrc → shared-tmp, then copy to library
     onProgress?.('zipping', 90)
     const baseRaw = buildFilenameBase(artist, title)
     const base = await pickUniqueBase(dir, baseRaw)
