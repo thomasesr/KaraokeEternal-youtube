@@ -48,28 +48,7 @@ install_deps() {
   fi
 
   # ---- nvm + Node 24 --------------------------------------------------------
-  hdr "Node.js"
-  if command -v node > /dev/null 2>&1; then
-    ok "Node $(node --version) / npm $(npm --version) — already on PATH, skipping nvm"
-  else
-    NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-    if [ ! -s "$NVM_DIR/nvm.sh" ]; then
-      info "Installing nvm..."
-      # Temporarily relax errexit so nvm installer can set up shell hooks
-      set +e
-      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-      set -e
-      ok "nvm installed → $NVM_DIR"
-    else
-      ok "nvm already present → $NVM_DIR"
-    fi
-    # shellcheck source=/dev/null
-    \. "$NVM_DIR/nvm.sh"
-    nvm install 24
-    nvm use 24
-    nvm alias default 24
-    ok "Node $(node --version) / npm $(npm --version)"
-  fi
+  
 
   # ---- Deno -----------------------------------------------------------------
   hdr "Deno"
