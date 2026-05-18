@@ -1,7 +1,7 @@
 {
-  "name": "karaoke-eternal",
-  "version": "0.0.0-dev.0",
-  "description": "Open karaoke party system",
+  "name": "karaokê-hub",
+  "version": "0.8.0-rc.1",
+  "description": "Sistema de festa de Karaokê baseado em Karaoke-forever",
   "keywords": [
     "karaoke",
     "party",

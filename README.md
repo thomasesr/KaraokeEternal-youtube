@@ -1,6 +1,8 @@
-# Karaoke Eternal
+# Karaokê-Hub
 
-Host awesome karaoke parties where everyone can easily find and queue songs from their phone's browser. The player is also fully browser-based with support for MP3+G, MP4 videos and WebGL visualizations. The server is self-hosted and runs on nearly everything.
+Sistema de festa de Karaokê baseado em Karaoke-forever — fork do [Karaoke Eternal](https://github.com/blisspot/karaoke-eternal) com suporte a YouTube, importação de áudio, letras aprimoradas e muito mais.
+
+Host awesome karaoke parties where everyone can easily find and queue songs from their phone's browser. The player is fully browser-based with support for MP3+G, MP4 videos and WebGL visualizations. The server is self-hosted and runs on nearly everything.
 
 [![Karaoke Eternal](/docs/assets/images/README.jpg?raw=true)](/docs/assets/images/README.jpg?raw=true)
 
