@@ -28,7 +28,7 @@ RUN npm ci --omit=dev
 # Main app container — no ML Python deps (spleeter/ctc/whisperx run as separate services)
 FROM node:24-alpine
 
-RUN apk add --no-cache ca-certificates zip unzip curl && \
+RUN apk add --no-cache bash ca-certificates zip unzip curl && \
     mkdir /tmp/ffbuild && \
     curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
       | tar -xJ -C /tmp/ffbuild && \

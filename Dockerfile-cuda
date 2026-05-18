@@ -34,7 +34,7 @@ RUN npm ci --omit=dev
 # Alpine + BtbN static ffmpeg (NVENC/NVDEC enabled, links against host NVIDIA driver at runtime)
 FROM node:24-alpine
 
-RUN apk add --no-cache ca-certificates zip unzip curl && \
+RUN apk add --no-cache bash ca-certificates zip unzip curl && \
     mkdir /tmp/ffbuild && \
     curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz \
       | tar -xJ -C /tmp/ffbuild && \
